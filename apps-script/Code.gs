@@ -123,6 +123,19 @@ function defAviso(txt){
   sh.appendRow(["aviso", txt]);
 }
 
+/* Lê as colunas das abas antigas pelo NOME do cabeçalho (cada aba tem colunas em posições diferentes). */
+var HDR = {chegada:/chegada/, saida:/saida|desatrac/, cais:/^cais/, navio:/^navio|embarcac/, cbo:/^cbo/, imo:/^imo/, comp:/compr/, calado:/calado/, agencia:/agencia/, operador:/operador/, carga:/^carga/, mod:/modalidade/, origem:/proced|destino/, anterior:/anterior/, proximo:/proximo/, prev:/tonelagem.*prev|^prev.*ton/, mov:/movimentad/};
+function normH(t){ return String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim(); }
+function layoutPorCabecalho(rows){
+  for(var i = 0; i < Math.min(rows.length, 8); i++){
+    if(!/^chegada/.test(normH(rows[i][0]))) continue;
+    var L = {};
+    rows[i].forEach(function(h, c){ var t = normH(h); Object.keys(HDR).forEach(function(k){ if(L[k] == null && HDR[k].test(t)) L[k] = c; }); });
+    return L.navio != null ? L : null;
+  }
+  return null;
+}
+
 /* ---------- PRIMEIRO USO: cria o banco e traz os dados das abas antigas ---------- */
 function criarBanco(){
   var s = ss(); s.setSpreadsheetTimeZone("America/Recife");
@@ -150,14 +163,15 @@ function importarAntigo(sh){
   var dt = function(x){ x = String(x || "").trim(); if(!DATA.test(x)) return ""; x = x.slice(0, 16); return x.length === 10 ? x + " 00:00" : x; };
   abas.forEach(function(a){
     var tab = ss().getSheetByName(a[0]); if(!tab || !tab.getLastRow()) return;
-    tab.getDataRange().getDisplayValues().forEach(function(r){
-      var L = a[2], g = function(k){ if(L[k] == null) return ""; var x = String(r[L[k]] || "").trim(); return /^(N\/I|N\/A|-)$/i.test(x) ? "" : x; };
+    var vals = tab.getDataRange().getDisplayValues(), L = layoutPorCabecalho(vals) || a[2];
+    vals.forEach(function(r){
+      var g = function(k){ if(L[k] == null) return ""; var x = String(r[L[k]] || "").trim(); return /^(N\/I|N\/A|-)$/i.test(x) ? "" : x; };
       if(/^NOTA/i.test(String(r[0]).trim())){ if(String(r[1]).trim()) defAviso(String(r[1]).trim()); return; }
       if(!DATA.test(String(r[0]).trim()) || !g("navio")) return;
       var mod = g("mod").toUpperCase(), prev = g("prev").replace(/\D/g, ""), carga = g("carga");
       var op = (mod === "IMPORTAÇÃO" || mod === "EXPORTAÇÃO") ? mod : (!Number(prev) && (mod || carga) ? "SEM CARGA" : "");
       if(op === "SEM CARGA") carga = mod || carga;
-      var v = norm({situacao:a[1], navio:g("navio"), cbo:g("cbo"), imo:g("imo"), chegada:dt(r[L.chegada]), saida:dt(r[L.saida]),
+      var v = norm({situacao:a[1], navio:g("navio"), cbo:g("cbo"), imo:g("imo"), chegada:dt(r[0]), saida:dt(r[L.saida]),
         cais:g("cais"), comprimento:g("comp").replace(/[^\d,.]/g, ""), calado:g("calado").replace(/[^\d,.]/g, ""),
         agencia:g("agencia"), operador:g("operador"), carga:carga, operacao:op, origem_destino:g("origem"),
         porto_anterior:g("anterior"), proximo_porto:g("proximo"), ton_prevista:prev, ton_movimentada:g("mov").replace(/\D/g, "")});
