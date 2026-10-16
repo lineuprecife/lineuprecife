@@ -138,3 +138,5 @@ footer b{color:var(--ink);font-weight:600}
 .titles p{margin:4px 0 0;font:500 clamp(12.5px,1.6vw,14.5px)/1.35 var(--f-body);color:var(--muted)}
 .nav{height:12px;padding:0;border-bottom:4px solid var(--sun)}
 @media (max-width:700px){.titles{padding-left:0;border-left:0}}
+
+.berth-n.sm{font-size:15px;line-height:1.2;overflow-wrap:anywhere}
