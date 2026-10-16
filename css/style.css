@@ -5,8 +5,8 @@
   --head:#0060B0; --head-ink:#FFFFFF; --head-muted:#CFE3F5;
   --blue:#0060B0; --blue-soft:#E4EFFA; --sun:#00AEEF; --sun-soft:#DDF3FC; --sun-ink:#00507A;
   --track:#E3EAF1; --focus:#1169A8; --danger:#B3261E; --danger-soft:#FBE4E2; --on-blue:#FFFFFF;
-  --f-display:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;
-  --f-body:"Public Sans","Segoe UI",system-ui,sans-serif;
+  --f-display:"Montserrat","Segoe UI",system-ui,sans-serif;
+  --f-body:"Montserrat","Segoe UI",system-ui,sans-serif;
   --f-mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
 }
 @media (prefers-color-scheme: dark){
@@ -20,7 +20,7 @@
 }
 *{box-sizing:border-box}
 html{-webkit-text-size-adjust:100%}
-body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.45;font-variant-numeric:tabular-nums}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:14px;line-height:1.5;font-variant-numeric:tabular-nums}
 .wrap{max-width:1180px;margin:0 auto;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px))}
 :focus-visible{outline:2px solid var(--focus);outline-offset:2px}
 
