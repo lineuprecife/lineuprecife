@@ -1,43 +1,61 @@
-/* LINE-UP RECIFE — "porteiro" das edições.
-   Fica dentro da planilha (Extensões > Apps Script). A página pública lê os dados daqui;
-   para gravar, a senha é conferida AQUI, nunca no site. As senhas ficam em
-   Configurações do projeto > Propriedades do script > SENHAS  (ex.: Pedro:1234,Maria:abcd). */
-var ABAS = ["ATRACADOS", "PREVISTOS", "FUNDEADOS", "DESATRACADOS"];
-var DATA = /^\d\d\/\d\d\/\d{4}/;
+/* LINE-UP RECIFE — banco de dados + "porteiro" das edições.
+   BANCO: aba NAVIOS = uma linha por navio, uma coluna por informação (cabeçalho na linha 1).
+          A "situação" (Previsto, Fundeado, Atracado, Desatracado) é só uma coluna.
+          Aba CONFIG guarda o aviso do topo; aba REGISTRO guarda quem mexeu em quê.
+   SENHAS: Configurações do projeto > Propriedades do script > SENHAS (ex.: Pedro:1234,Maria:abcd).
+   PRIMEIRO USO: executar a função criarBanco() uma vez. */
+var COLS = ["id","situacao","navio","cbo","imo","chegada","saida","cais","comprimento","calado","agencia","operador","carga","operacao","origem_destino","porto_anterior","proximo_porto","ton_prevista","ton_movimentada","saldo","atualizado_em","atualizado_por"];
+var DATAS = ["chegada","saida","atualizado_em"], NUMS = ["comprimento","calado","ton_prevista","ton_movimentada"];
+var TEXTOS = ["navio","agencia","operador","carga","origem_destino","porto_anterior","proximo_porto"];
+var SITU = ["Previsto","Fundeado","Atracado","Desatracado"], OPER = ["IMPORTAÇÃO","EXPORTAÇÃO","SEM CARGA"];
+var FMT = "dd/MM/yyyy HH:mm", DATA = /^\d\d\/\d\d\/\d{4}/;
 
 function ss(){ return SpreadsheetApp.getActive(); }
+function tz(){ return ss().getSpreadsheetTimeZone(); }
+function col(n){ return COLS.indexOf(n); }
+function letra(n){ return String.fromCharCode(65 + col(n)); }
 function resp(o){ return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON); }
+function banco(){ var sh = ss().getSheetByName("NAVIOS"); if(!sh) throw new Error("Aba NAVIOS não existe. Execute criarBanco() no Apps Script."); return sh; }
+function fmt(d){ return Utilities.formatDate(d, tz(), FMT); }
 
+/* ---------- leitura pública ---------- */
 function doGet(){
-  var out = {atualizado: PropertiesService.getScriptProperties().getProperty("ULTIMA") || "", tabs: {}};
-  ABAS.forEach(function(n){
-    var sh = ss().getSheetByName(n);
-    out.tabs[n] = sh && sh.getLastRow() ? sh.getDataRange().getDisplayValues() : [];
-  });
+  var out = {atualizado: PropertiesService.getScriptProperties().getProperty("ULTIMA") || "", aviso: aviso(), navios: []};
+  var sh = ss().getSheetByName("NAVIOS");
+  if(sh && sh.getLastRow() > 1){
+    out.navios = sh.getRange(2, 1, sh.getLastRow() - 1, COLS.length).getValues().filter(function(r){ return r[0]; }).map(function(r){
+      var o = {}; COLS.forEach(function(c, i){ o[c] = r[i] instanceof Date ? fmt(r[i]) : r[i]; }); return o;
+    });
+  }
   return resp(out);
 }
 
+/* ---------- gravação (só com senha) ---------- */
 function doPost(e){
   var lock = LockService.getScriptLock();
   try {
-    var b = JSON.parse(e.postData.contents);
-    var quem = quemE(b.senha);
+    var b = JSON.parse(e.postData.contents), quem = quemE(b.senha);
     if(!quem){ Utilities.sleep(1500); return resp({ok:false, erro:"Senha incorreta."}); }
     if(b.acao === "check") return resp({ok:true, nome:quem});
     lock.waitLock(20000);
-    var sh = aba(b.aba), ln = Number(b.linha);
-    if(b.acao === "add") inserir(sh, b.celulas);
-    else if(b.acao === "update"){ conferir(sh, ln, b.expect); escrever(sh, ln, b.celulas); }
-    else if(b.acao === "delete"){ conferir(sh, ln, b.expect); sh.deleteRow(ln); }
-    else if(b.acao === "move"){ conferir(sh, ln, b.expect); inserir(aba(b.destino), b.celulas); sh.deleteRow(ln); }
-    else throw new Error("Ação desconhecida.");
-    registrar(quem, b);
+    var sh, ln;
+    if(b.acao === "salvar"){
+      sh = banco(); var v = norm(b.registro), r = b.registro;
+      if(r.id){ ln = achar(sh, r.id); conferir(sh, ln, r.versao); v.id = r.id; }
+      else { ln = Math.max(sh.getLastRow(), 1) + 1; v.id = Utilities.getUuid().slice(0, 8); }
+      v.atualizado_em = new Date(); v.atualizado_por = quem;
+      gravar(sh, ln, v);
+      registrar(quem, r.id ? "editou" : "adicionou", v.navio, v.situacao);
+    } else if(b.acao === "excluir"){
+      sh = banco(); ln = achar(sh, b.id); conferir(sh, ln, b.versao); sh.deleteRow(ln);
+      registrar(quem, "excluiu", b.navio, "");
+    } else if(b.acao === "aviso"){
+      defAviso(String(b.texto || "").trim()); registrar(quem, "mudou o aviso", "", "");
+    } else throw new Error("Ação desconhecida.");
     return resp({ok:true});
   } catch(err){
     return resp({ok:false, erro:String(err.message || err)});
-  } finally {
-    try { lock.releaseLock(); } catch(x){}
-  }
+  } finally { try { lock.releaseLock(); } catch(x){} }
 }
 
 function quemE(senha){
@@ -50,41 +68,103 @@ function quemE(senha){
   }
   return "";
 }
-function aba(n){
-  if(ABAS.indexOf(n) < 0) throw new Error("Lista inválida.");
-  var sh = ss().getSheetByName(n);
-  if(!sh) throw new Error("Não encontrei a aba " + n + " na planilha.");
-  return sh;
+/* Limpa e confere o que veio do formulário. */
+function norm(r){
+  var o = {}, t = function(x){ return String(x == null ? "" : x).trim(); };
+  TEXTOS.forEach(function(c){ o[c] = t(r[c]).toUpperCase(); });
+  o.cbo = t(r.cbo); o.imo = t(r.imo);
+  if(!o.navio) throw new Error("Falta o nome do navio.");
+  o.situacao = t(r.situacao); if(SITU.indexOf(o.situacao) < 0) throw new Error("Situação inválida.");
+  o.operacao = t(r.operacao).toUpperCase(); if(o.operacao && OPER.indexOf(o.operacao) < 0) throw new Error("Operação inválida.");
+  var c = t(r.cais); o.cais = /^\d+$/.test(c) ? Number(c) : c;
+  NUMS.forEach(function(k){
+    var x = t(r[k]).replace(",", "."); o[k] = x === "" ? "" : Number(x);
+    if(x !== "" && isNaN(o[k])) throw new Error("Número inválido em " + k + ".");
+  });
+  ["chegada","saida"].forEach(function(k){ var x = t(r[k]); o[k] = x ? Utilities.parseDate(x, tz(), FMT) : ""; });
+  if(!o.chegada) throw new Error("Falta a data de chegada.");
+  return o;
 }
-/* Garante que a linha ainda é a mesma que a pessoa viu (ninguém mexeu antes). */
-function conferir(sh, ln, exp){
-  if(!(ln >= 1)) throw new Error("Linha inválida.");
-  if(!exp) return;
-  var v = String(sh.getRange(ln, exp.col + 1).getDisplayValue()).trim();
-  if(v !== String(exp.val).trim()) throw new Error("A lista foi alterada por outra pessoa. Atualize a página e tente de novo.");
+function linha(v, ln){
+  var p = letra("ton_prevista") + ln, m = letra("ton_movimentada") + ln;
+  v.saldo = '=IF(' + p + '="","",' + p + '-N(' + m + '))';
+  return COLS.map(function(c){ return v[c] === undefined ? "" : v[c]; });
 }
-/* Grava só as células enviadas (não pisa em fórmulas das outras colunas). */
-function escrever(sh, ln, cel){
-  for(var k in cel){
-    var c = sh.getRange(ln, Number(k) + 1), v = String(cel[k]);
-    if(DATA.test(v) && !/^pt/i.test(ss().getSpreadsheetLocale())) c.setNumberFormat("@");   /* planilha em português: o Google entende a data; senão grava como texto */
-    c.setValue(v);
-  }
+function gravar(sh, ln, v){
+  sh.getRange(ln, 1, 1, COLS.length).setValues([linha(v, ln)]);
+  DATAS.forEach(function(c){ sh.getRange(ln, col(c) + 1).setNumberFormat("dd/mm/yyyy hh:mm"); });
 }
-/* Novo navio entra logo depois da última linha que tem data (antes de notas no rodapé). */
-function inserir(sh, cel){
-  var n = sh.getLastRow(), last = 3, col = n ? sh.getRange(1, 1, n, 1).getDisplayValues() : [];
-  for(var i = 0; i < col.length; i++) if(DATA.test(String(col[i][0]).trim())) last = i + 1;
-  var f = sh.getRange(last, 1, 1, sh.getLastColumn()).getFormulasR1C1()[0];
-  sh.insertRowAfter(last);
-  f.forEach(function(x, i){ if(x) sh.getRange(last + 1, i + 1).setFormulaR1C1(x); });   /* mantém as fórmulas, como o Saldo */
-  escrever(sh, last + 1, cel);
+function achar(sh, id){
+  var n = sh.getLastRow(), ids = n > 1 ? sh.getRange(2, 1, n - 1, 1).getValues() : [];
+  for(var i = 0; i < ids.length; i++) if(String(ids[i][0]) === String(id)) return i + 2;
+  throw new Error("Esse navio não está mais na lista (alguém pode ter excluído). Atualize a página.");
 }
-function registrar(quem, b){
+function conferir(sh, ln, versao){
+  if(versao === undefined) return;
+  var x = sh.getRange(ln, col("atualizado_em") + 1).getValue();
+  if((x instanceof Date ? fmt(x) : String(x)) !== String(versao)) throw new Error("Outra pessoa alterou este navio. Atualize a página e tente de novo.");
+}
+function registrar(quem, acao, navio, det){
   var sh = ss().getSheetByName("REGISTRO") || ss().insertSheet("REGISTRO");
-  if(!sh.getLastRow()) sh.appendRow(["Data", "Quem", "Ação", "Navio", "Lista"]);
-  var agora = Utilities.formatDate(new Date(), "America/Recife", "dd/MM/yyyy HH:mm");
-  var acao = {add:"adicionou", update:"editou", "delete":"excluiu", move:"moveu"}[b.acao];
-  sh.appendRow([agora, quem, acao, b.navio || "", b.aba + (b.destino ? " → " + b.destino : "")]);
+  if(!sh.getLastRow()) sh.appendRow(["Data", "Quem", "Ação", "Navio", "Detalhe"]);
+  var agora = fmt(new Date());
+  sh.appendRow([agora, quem, acao, navio || "", det || ""]);
   PropertiesService.getScriptProperties().setProperty("ULTIMA", agora);
+}
+function aviso(){
+  var sh = ss().getSheetByName("CONFIG"); if(!sh) return "";
+  var v = sh.getDataRange().getValues();
+  for(var i = 0; i < v.length; i++) if(v[i][0] === "aviso") return String(v[i][1] || "");
+  return "";
+}
+function defAviso(txt){
+  var sh = ss().getSheetByName("CONFIG") || ss().insertSheet("CONFIG"), v = sh.getDataRange().getValues();
+  for(var i = 0; i < v.length; i++) if(v[i][0] === "aviso"){ sh.getRange(i + 1, 2).setValue(txt); return; }
+  sh.appendRow(["aviso", txt]);
+}
+
+/* ---------- PRIMEIRO USO: cria o banco e traz os dados das abas antigas ---------- */
+function criarBanco(){
+  var s = ss(); s.setSpreadsheetTimeZone("America/Recife");
+  var sh = s.getSheetByName("NAVIOS") || s.insertSheet("NAVIOS", 0);
+  if(!sh.getLastRow()){
+    sh.getRange(1, 1, 1, COLS.length).setValues([COLS]).setFontWeight("bold").setBackground("#0A3159").setFontColor("#FFFFFF");
+    sh.setFrozenRows(1);
+    var lista = function(a){ return SpreadsheetApp.newDataValidation().requireValueInList(a, true).setAllowInvalid(false).build(); };
+    sh.getRange(2, col("situacao") + 1, 2000).setDataValidation(lista(SITU));
+    sh.getRange(2, col("operacao") + 1, 2000).setDataValidation(lista(OPER));
+    DATAS.forEach(function(c){ sh.getRange(2, col(c) + 1, 2000).setNumberFormat("dd/mm/yyyy hh:mm"); });
+  }
+  if(!s.getSheetByName("CONFIG")) defAviso("");
+  if(!s.getSheetByName("REGISTRO")) registrar("sistema", "criou o banco", "", "");
+  var n = sh.getLastRow() > 1 ? 0 : importarAntigo(sh);
+  PropertiesService.getScriptProperties().setProperty("ULTIMA", fmt(new Date()));
+  var msg = "Banco pronto. Navios importados das abas antigas: " + n + ".";
+  Logger.log(msg); try { SpreadsheetApp.getUi().alert(msg); } catch(x){}
+}
+function importarAntigo(sh){
+  var A = {chegada:0, saida:1, cais:2, navio:3, cbo:4, comp:5, calado:6, agencia:7, operador:8, carga:9, mod:10, origem:11, anterior:12, proximo:13, prev:14, mov:15};
+  var P = {chegada:0, saida:2, cais:3, navio:4, imo:5, comp:6, calado:7, agencia:8, operador:9, carga:10, mod:11, origem:12, anterior:13, prev:15};
+  var abas = [["ATRACADOS","Atracado",A],["PREVISTOS","Previsto",P],["FUNDEADOS","Fundeado",A],["DESATRACADOS","Desatracado",A]];
+  var linhas = [], ln = 2, agora = new Date();
+  var dt = function(x){ x = String(x || "").trim(); if(!DATA.test(x)) return ""; x = x.slice(0, 16); return x.length === 10 ? x + " 00:00" : x; };
+  abas.forEach(function(a){
+    var tab = ss().getSheetByName(a[0]); if(!tab || !tab.getLastRow()) return;
+    tab.getDataRange().getDisplayValues().forEach(function(r){
+      var L = a[2], g = function(k){ if(L[k] == null) return ""; var x = String(r[L[k]] || "").trim(); return /^(N\/I|N\/A|-)$/i.test(x) ? "" : x; };
+      if(/^NOTA/i.test(String(r[0]).trim())){ if(String(r[1]).trim()) defAviso(String(r[1]).trim()); return; }
+      if(!DATA.test(String(r[0]).trim()) || !g("navio")) return;
+      var mod = g("mod").toUpperCase(), prev = g("prev").replace(/\D/g, ""), carga = g("carga");
+      var op = (mod === "IMPORTAÇÃO" || mod === "EXPORTAÇÃO") ? mod : (!Number(prev) && (mod || carga) ? "SEM CARGA" : "");
+      if(op === "SEM CARGA") carga = mod || carga;
+      var v = norm({situacao:a[1], navio:g("navio"), cbo:g("cbo"), imo:g("imo"), chegada:dt(r[L.chegada]), saida:dt(r[L.saida]),
+        cais:g("cais"), comprimento:g("comp").replace(/[^\d,.]/g, ""), calado:g("calado").replace(/[^\d,.]/g, ""),
+        agencia:g("agencia"), operador:g("operador"), carga:carga, operacao:op, origem_destino:g("origem"),
+        porto_anterior:g("anterior"), proximo_porto:g("proximo"), ton_prevista:prev, ton_movimentada:g("mov").replace(/\D/g, "")});
+      v.id = Utilities.getUuid().slice(0, 8); v.atualizado_em = agora; v.atualizado_por = "migração";
+      linhas.push(linha(v, ln++));
+    });
+  });
+  if(linhas.length) sh.getRange(2, 1, linhas.length, COLS.length).setValues(linhas);
+  return linhas.length;
 }
