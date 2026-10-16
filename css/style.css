@@ -130,3 +130,11 @@ footer b{color:var(--ink);font-weight:600}
 .nav h1::after{content:"";display:block;width:56px;height:4px;border-radius:4px;background:var(--sun);margin:9px 0 8px}
 .nav span{display:block;font:500 clamp(13px,1.8vw,15.5px)/1.4 var(--f-body);color:#E6F1FB}
 .pill.exp{background:var(--sun);color:#00263D}
+
+/* ===== Título ao lado do logo (como no original); a barra azul vira só um friso ===== */
+.brand{display:flex;flex-wrap:wrap;align-items:center;gap:10px 18px;min-width:0}
+.titles{padding-left:18px;border-left:2px solid var(--line);min-width:0}
+.titles h1{margin:0;font:700 clamp(22px,3.4vw,30px)/1.1 var(--f-display);color:var(--blue);text-wrap:balance}
+.titles p{margin:4px 0 0;font:500 clamp(12.5px,1.6vw,14.5px)/1.35 var(--f-body);color:var(--muted)}
+.nav{height:12px;padding:0;border-bottom:4px solid var(--sun)}
+@media (max-width:700px){.titles{padding-left:0;border-left:0}}
