@@ -65,8 +65,23 @@ function toNum(v){ var n = parseInt(String(v||"").replace(/\D/g,""),10); return 
 function cap(s){ return s ? s.charAt(0)+s.slice(1).toLowerCase() : s; }
 var DATE_RE = /^\d\d\/\d\d\/\d{4}/;
 
+/* Lê as colunas pelo NOME do cabeçalho (cada aba pode ter colunas em posições diferentes). */
+var HDR = {chegada:/chegada/, saida:/saida|desatrac/, cais:/^cais/, navio:/^navio|embarcac/, cbo:/^cbo/, imo:/^imo/, comp:/compr/, calado:/calado/, agencia:/agencia/, operador:/operador/, carga:/^carga/, mod:/modalidade/, origem:/proced|destino/, anterior:/anterior/, proximo:/proximo/, prev:/tonelagem.*prev|^prev.*ton/, mov:/movimentad/};
+function normH(t){ return String(t||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().trim(); }
+function layoutPorCabecalho(rows){
+  for(var i=0;i<Math.min(rows.length,8);i++){
+    if(!/^chegada/.test(normH(rows[i][0]))) continue;
+    var L = {};
+    rows[i].forEach(function(h,c){ var t = normH(h); Object.keys(HDR).forEach(function(k){ if(L[k]==null && HDR[k].test(t)) L[k] = c; }); });
+    return L.navio!=null ? L : null;
+  }
+  return null;
+}
+function recente(s){ var d = parseDate(s.saida||s.chegada); return !d || +d >= Date.now()-(CONFIG.diasDesatracados||7)*864e5; }
+
 function mapRows(rows, layout){
   var L = LAYOUTS[layout] || LAYOUTS.atracados;
+  L = layoutPorCabecalho(rows) || L;
   var items = [], aviso = "", atualizado = "";
   rows.forEach(function(r, idx){
     var a = String(r[0]||"").trim();
@@ -118,7 +133,9 @@ function loadTab(id){
     return res.text();
   }).then(function(text){
     if(/^\s*<(!doctype|html)/i.test(text)) throw new Error("login");
-    return mapRows(parseCsv(text), t.layout);
+    var r = mapRows(parseCsv(text), t.layout);
+    if(id==="desatracados") r.items = r.items.filter(recente);   /* só os últimos dias */
+    return r;
   });
 }
 
@@ -191,7 +208,7 @@ function rowBase(s,lista){
     else { prog = '<div class="bar"><i style="width:'+pct+'%"></i></div><div><b>'+num(s.mov)+'</b> de '+num(s.prev)+' t · '+pct+'%</div><div class="meta">Saldo '+num(s.prev-(s.mov||0))+' t</div>'; }
   }
   return '<div class="row">'+
-    '<div class="c-berth berth-n"><small>CAIS</small>'+(s.cais?esc(s.cais):"—")+'</div>'+
+    '<div class="c-berth berth-n'+(s.cais.length>3?' sm':'')+'"><small>CAIS</small>'+(s.cais?esc(s.cais):"—")+'</div>'+
     '<div class="c-ship"><div class="ship">'+esc(s.navio)+'</div><div class="meta">'+meta.join(" · ")+'</div></div>'+
     '<div class="c-rest">'+
       '<div class="c-cargo"><span class="lab">Carga</span>'+cargo+'</div>'+
