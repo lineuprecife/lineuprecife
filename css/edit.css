@@ -3,7 +3,7 @@
 .btn:hover{border-color:var(--blue)}
 .btn.pri{background:var(--blue);border-color:var(--blue);color:var(--on-blue)}
 .btn.dng{color:var(--danger);border-color:var(--danger)}
-.btn.ghost{background:transparent;border-color:var(--head-muted);color:var(--head-ink)}
+.btn.ghost{background:transparent;border-color:var(--blue);color:var(--blue)}
 .btn:disabled{opacity:.6;cursor:wait}
 .editbar{margin-top:16px;padding:10px 14px;background:var(--sun-soft);color:var(--sun-ink);border-radius:8px;display:flex;flex-wrap:wrap;gap:10px;align-items:center}
 .editbar[hidden]{display:none}
