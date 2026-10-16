@@ -3,7 +3,7 @@
   color-scheme:light;
   --bg:#EEF3F8; --surface:#FFFFFF; --ink:#0B2236; --muted:#566B7E; --line:#D8E2EB;
   --head:#0060B0; --head-ink:#FFFFFF; --head-muted:#CFE3F5;
-  --blue:#0060B0; --blue-soft:#E4EFFA; --sun:#F28C00; --sun-soft:#FFF0D6; --sun-ink:#7A4300;
+  --blue:#0060B0; --blue-soft:#E4EFFA; --sun:#00AEEF; --sun-soft:#DDF3FC; --sun-ink:#00507A;
   --track:#E3EAF1; --focus:#1169A8; --danger:#B3261E; --danger-soft:#FBE4E2; --on-blue:#FFFFFF;
   --f-display:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;
   --f-body:"Public Sans","Segoe UI",system-ui,sans-serif;
@@ -14,7 +14,7 @@
     color-scheme:dark;
     --bg:#07131E; --surface:#0E2031; --ink:#E6EEF5; --muted:#8CA3B8; --line:#1C3347;
     --head:#004A8F; --head-ink:#FFFFFF; --head-muted:#8FB0CF;
-    --blue:#5AAEE6; --blue-soft:#12324B; --sun:#F2BE3B; --sun-soft:#3A2D0B; --sun-ink:#F5D586;
+    --blue:#5AAEE6; --blue-soft:#12324B; --sun:#3CC4F5; --sun-soft:#0D3447; --sun-ink:#9ADCF7;
     --track:#173044; --focus:#5AAEE6; --danger:#F2877F; --danger-soft:#3C1714; --on-blue:#06141F;
   }
 }
@@ -123,3 +123,10 @@ footer b{color:var(--ink);font-weight:600}
 .ship{color:var(--blue)}
 @media (prefers-color-scheme: dark){.logo{background:#fff;padding:5px 10px}.ship,.tab .n,.sec-t{color:var(--ink)}}
 @media (max-width:520px){.logo img{height:52px}}
+
+/* ===== Título da barra azul: nome grande, traço azul-claro do logotipo e subtítulo abaixo ===== */
+.nav .wrap{display:block;padding-block:16px 18px}
+.nav h1{display:block;font:700 clamp(26px,4.2vw,36px)/1.1 var(--f-display);letter-spacing:.01em;text-transform:none}
+.nav h1::after{content:"";display:block;width:56px;height:4px;border-radius:4px;background:var(--sun);margin:9px 0 8px}
+.nav span{display:block;font:500 clamp(13px,1.8vw,15.5px)/1.4 var(--f-body);color:#E6F1FB}
+.pill.exp{background:var(--sun);color:#00263D}
