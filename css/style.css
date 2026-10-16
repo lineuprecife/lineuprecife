@@ -1,9 +1,9 @@
 /* Layout: faixa azul-marinho no topo, quatro abas-resumo, quadro de cais e lista de navios em linhas que viram cartões no celular. */
 :root{
   color-scheme:light;
-  --bg:#F2F6FA; --surface:#FFFFFF; --ink:#0B2236; --muted:#566B7E; --line:#D8E2EB;
-  --head:#0A3159; --head-ink:#FFFFFF; --head-muted:#A9C2DA;
-  --blue:#1169A8; --blue-soft:#E3F0FA; --sun:#E9A913; --sun-soft:#FBF0D2; --sun-ink:#6B4A00;
+  --bg:#EEF3F8; --surface:#FFFFFF; --ink:#0B2236; --muted:#566B7E; --line:#D8E2EB;
+  --head:#0060B0; --head-ink:#FFFFFF; --head-muted:#CFE3F5;
+  --blue:#0060B0; --blue-soft:#E4EFFA; --sun:#F28C00; --sun-soft:#FFF0D6; --sun-ink:#7A4300;
   --track:#E3EAF1; --focus:#1169A8; --danger:#B3261E; --danger-soft:#FBE4E2; --on-blue:#FFFFFF;
   --f-display:"Bricolage Grotesque","Segoe UI",system-ui,sans-serif;
   --f-body:"Public Sans","Segoe UI",system-ui,sans-serif;
@@ -13,7 +13,7 @@
   :root{
     color-scheme:dark;
     --bg:#07131E; --surface:#0E2031; --ink:#E6EEF5; --muted:#8CA3B8; --line:#1C3347;
-    --head:#0A2540; --head-ink:#FFFFFF; --head-muted:#8FB0CF;
+    --head:#004A8F; --head-ink:#FFFFFF; --head-muted:#8FB0CF;
     --blue:#5AAEE6; --blue-soft:#12324B; --sun:#F2BE3B; --sun-soft:#3A2D0B; --sun-ink:#F5D586;
     --track:#173044; --focus:#5AAEE6; --danger:#F2877F; --danger-soft:#3C1714; --on-blue:#06141F;
   }
@@ -103,3 +103,23 @@ footer b{color:var(--ink);font-weight:600}
   .stamp{text-align:left}
 }
 @media (prefers-reduced-motion:no-preference){.bar i{transition:width .5s ease}}
+
+/* ===== Identidade do Porto do Recife: faixa branca com logo, barra azul, títulos em azul, destaque laranja ===== */
+.top{background:var(--surface);color:var(--ink);border-bottom:1px solid var(--line)}
+.top .wrap{padding-block:14px;display:flex;flex-wrap:wrap;gap:10px 28px;align-items:center;justify-content:space-between}
+.logo{display:block;flex:none;border-radius:8px}
+.logo img{display:block;height:64px;width:auto;max-width:100%}
+.right{display:flex;flex-wrap:wrap;gap:10px 22px;align-items:center}
+.stamp{color:var(--muted)}
+.stamp b{color:var(--ink)}
+.nav{background:var(--head);color:var(--head-ink)}
+.nav .wrap{padding-block:12px;display:flex;flex-wrap:wrap;gap:2px 18px;align-items:baseline}
+.nav h1{margin:0;font:700 clamp(18px,3vw,24px)/1.2 var(--f-display);letter-spacing:.05em;text-transform:uppercase}
+.nav span{font-size:13px;color:var(--head-muted)}
+.sec-t{font:700 18px var(--f-display);letter-spacing:0;text-transform:none;color:var(--blue);border-left:4px solid var(--sun);padding-left:10px}
+.tab .n{color:var(--blue)}
+.tab[aria-selected="true"] .n{color:#fff}
+.tab[aria-selected="true"]{border-bottom:4px solid var(--sun)}
+.ship{color:var(--blue)}
+@media (prefers-color-scheme: dark){.logo{background:#fff;padding:5px 10px}.ship,.tab .n,.sec-t{color:var(--ink)}}
+@media (max-width:520px){.logo img{height:52px}}
