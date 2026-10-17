@@ -7,7 +7,7 @@
 var COLS = ["id","situacao","navio","cbo","imo","chegada","saida","cais","comprimento","calado","agencia","operador","carga","operacao","origem_destino","porto_anterior","proximo_porto","ton_prevista","ton_movimentada","saldo","atualizado_em","atualizado_por"];
 var DATAS = ["chegada","saida","atualizado_em"], NUMS = ["comprimento","calado","ton_prevista","ton_movimentada"];
 var TEXTOS = ["navio","agencia","operador","carga","origem_destino","porto_anterior","proximo_porto"];
-var SITU = ["Previsto","Fundeado","Atracado","Desatracado"], OPER = ["IMPORTAÇÃO","EXPORTAÇÃO","SEM CARGA"];
+var SITU = ["Previsto","Fundeado","Atracado","Desatracado"], OPER = ["IMPORTAÇÃO","EXPORTAÇÃO","DRAGAGEM","ABASTECIMENTO","OP. MILITAR","PESQUISA"];
 var FMT = "dd/MM/yyyy HH:mm", DATA = /^\d\d\/\d\d\/\d{4}/;
 
 function ss(){ return SpreadsheetApp.getActive(); }
@@ -75,14 +75,14 @@ function norm(r){
   o.cbo = t(r.cbo); o.imo = t(r.imo);
   if(!o.navio) throw new Error("Falta o nome do navio.");
   o.situacao = t(r.situacao); if(SITU.indexOf(o.situacao) < 0) throw new Error("Situação inválida.");
-  o.operacao = t(r.operacao).toUpperCase(); if(o.operacao && OPER.indexOf(o.operacao) < 0) throw new Error("Operação inválida.");
+  o.operacao = t(r.operacao).toUpperCase();
   var c = t(r.cais); o.cais = /^\d+$/.test(c) ? Number(c) : c;
   NUMS.forEach(function(k){
     var x = t(r[k]).replace(",", "."); o[k] = x === "" ? "" : Number(x);
     if(x !== "" && isNaN(o[k])) throw new Error("Número inválido em " + k + ".");
   });
   ["chegada","saida"].forEach(function(k){ var x = t(r[k]); o[k] = x ? Utilities.parseDate(x, tz(), FMT) : ""; });
-  if(!o.chegada) throw new Error("Falta a data de chegada.");
+  if(!o.chegada && !(o.situacao === "Desatracado" && o.saida)) throw new Error("Falta a data de chegada.");
   return o;
 }
 function linha(v, ln){
@@ -124,13 +124,14 @@ function defAviso(txt){
 }
 
 /* Lê as colunas das abas antigas pelo NOME do cabeçalho (cada aba tem colunas em posições diferentes). */
-var HDR = {chegada:/chegada/, saida:/saida|desatrac/, cais:/^cais/, navio:/^navio|embarcac/, cbo:/^cbo/, imo:/^imo/, comp:/compr/, calado:/calado/, agencia:/agencia/, operador:/operador/, carga:/^carga/, mod:/modalidade/, origem:/proced|destino/, anterior:/anterior/, proximo:/proximo/, prev:/tonelagem.*prev|^prev.*ton/, mov:/movimentad/};
+var HDR = {chegada:/chegada/, saida:/saida|desatrac/, cais:/^cais/, navio:/^navio|embarcac/, cbo:/^cbo/, imo:/^imo/, comp:/compr/, calado:/calado/, agencia:/agencia/, operador:/operador/, carga:/^carga/, mod:/modalidade/, origem:/proced|destino/, anterior:/anterior/, proximo:/proximo/, prev:/tonelagem.*prev|^prev.*ton/, mov:/movimentad/, ton:/^tonelagem$/};
 function normH(t){ return String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim(); }
 function layoutPorCabecalho(rows){
   for(var i = 0; i < Math.min(rows.length, 8); i++){
-    if(!/^chegada/.test(normH(rows[i][0]))) continue;
+    if(!/^(chegada|saida|previs)/.test(normH(rows[i][0]))) continue;
     var L = {};
     rows[i].forEach(function(h, c){ var t = normH(h); Object.keys(HDR).forEach(function(k){ if(L[k] == null && HDR[k].test(t)) L[k] = c; }); });
+    if(L.ton != null && L.mov == null){ L.mov = L.ton; L.prev = L.ton; }   /* aba com uma só coluna "Tonelagem" */
     return L.navio != null ? L : null;
   }
   return null;
@@ -143,9 +144,9 @@ function criarBanco(){
   if(!sh.getLastRow()){
     sh.getRange(1, 1, 1, COLS.length).setValues([COLS]).setFontWeight("bold").setBackground("#0A3159").setFontColor("#FFFFFF");
     sh.setFrozenRows(1);
-    var lista = function(a){ return SpreadsheetApp.newDataValidation().requireValueInList(a, true).setAllowInvalid(false).build(); };
+    var lista = function(a, livre){ return SpreadsheetApp.newDataValidation().requireValueInList(a, true).setAllowInvalid(!!livre).build(); };
     sh.getRange(2, col("situacao") + 1, 2000).setDataValidation(lista(SITU));
-    sh.getRange(2, col("operacao") + 1, 2000).setDataValidation(lista(OPER));
+    sh.getRange(2, col("operacao") + 1, 2000).setDataValidation(lista(OPER, true));
     DATAS.forEach(function(c){ sh.getRange(2, col(c) + 1, 2000).setNumberFormat("dd/mm/yyyy hh:mm"); });
   }
   if(!s.getSheetByName("CONFIG")) defAviso("");
@@ -157,8 +158,9 @@ function criarBanco(){
 }
 function importarAntigo(sh){
   var A = {chegada:0, saida:1, cais:2, navio:3, cbo:4, comp:5, calado:6, agencia:7, operador:8, carga:9, mod:10, origem:11, anterior:12, proximo:13, prev:14, mov:15};
-  var P = {chegada:0, saida:2, cais:3, navio:4, imo:5, comp:6, calado:7, agencia:8, operador:9, carga:10, mod:11, origem:12, anterior:13, prev:15};
-  var abas = [["ATRACADOS","Atracado",A],["PREVISTOS","Previsto",P],["FUNDEADOS","Fundeado",A],["DESATRACADOS","Desatracado",A]];
+  var D = {saida:0, cais:1, navio:2, cbo:3, comp:4, calado:5, agencia:6, operador:7, carga:8, mod:9, origem:10, anterior:11, proximo:12, prev:13, mov:13};
+  var P = {chegada:0, saida:2, cais:3, navio:4, imo:5, comp:6, calado:7, agencia:8, operador:9, carga:10, mod:11, origem:12, anterior:13, proximo:14, prev:15};
+  var abas = [["ATRACADOS","Atracado",A],["PREVISTOS","Previsto",P],["FUNDEADOS","Fundeado",A],["DESATRACADOS","Desatracado",D]];
   var linhas = [], ln = 2, agora = new Date();
   var dt = function(x){ x = String(x || "").trim(); if(!DATA.test(x)) return ""; x = x.slice(0, 16); return x.length === 10 ? x + " 00:00" : x; };
   abas.forEach(function(a){
@@ -168,10 +170,8 @@ function importarAntigo(sh){
       var g = function(k){ if(L[k] == null) return ""; var x = String(r[L[k]] || "").trim(); return /^(N\/I|N\/A|-)$/i.test(x) ? "" : x; };
       if(/^NOTA/i.test(String(r[0]).trim())){ if(String(r[1]).trim()) defAviso(String(r[1]).trim()); return; }
       if(!DATA.test(String(r[0]).trim()) || !g("navio")) return;
-      var mod = g("mod").toUpperCase(), prev = g("prev").replace(/\D/g, ""), carga = g("carga");
-      var op = (mod === "IMPORTAÇÃO" || mod === "EXPORTAÇÃO") ? mod : (!Number(prev) && (mod || carga) ? "SEM CARGA" : "");
-      if(op === "SEM CARGA") carga = mod || carga;
-      var v = norm({situacao:a[1], navio:g("navio"), cbo:g("cbo"), imo:g("imo"), chegada:dt(r[0]), saida:dt(r[L.saida]),
+      var op = g("mod").toUpperCase(), prev = g("prev").replace(/\D/g, ""), carga = g("carga");
+      var v = norm({situacao:a[1], navio:g("navio"), cbo:g("cbo"), imo:g("imo"), chegada:L.chegada != null ? dt(r[0]) : "", saida:dt(r[L.saida]),
         cais:g("cais"), comprimento:g("comp").replace(/[^\d,.]/g, ""), calado:g("calado").replace(/[^\d,.]/g, ""),
         agencia:g("agencia"), operador:g("operador"), carga:carga, operacao:op, origem_destino:g("origem"),
         porto_anterior:g("anterior"), proximo_porto:g("proximo"), ton_prevista:prev, ton_movimentada:g("mov").replace(/\D/g, "")});
