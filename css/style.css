@@ -50,10 +50,12 @@ body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--f-body);fo
 
 .berths{margin-top:20px}
 .sec-t{font:600 12px var(--f-body);letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:0 0 8px}
-.berth-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(118px,1fr));gap:6px}
-.berth{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:8px 10px;min-width:0;min-height:62px}
+.berth-grid{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:8px}
+.berth{background:var(--surface);border:1px solid var(--line);border-radius:6px;padding:8px 10px;min-width:0;height:96px;overflow:hidden}
 .berth .c{font:500 11px var(--f-mono);letter-spacing:.06em;color:var(--muted)}
-.berth .s{font-weight:600;font-size:13px;line-height:1.25;overflow-wrap:anywhere}
+.berth .s{font-weight:600;font-size:13px;line-height:1.3}
+.berth .s span{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.berth .s .mais{font-weight:500;font-size:11.5px;color:var(--muted)}
 .berth.busy{border-color:var(--blue);background:var(--blue-soft)}
 .berth.free .s{color:var(--muted);font-weight:400}
 
@@ -166,7 +168,7 @@ footer b{color:var(--ink);font-weight:600}
   .nav{height:8px;border-bottom-width:3px}
   .tab{padding:10px 12px}
   .berth-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
-  .berth{padding:6px 7px;min-height:54px}
+  .berth{padding:6px 7px;height:86px}
   .berth .s{font-size:11.5px}
   .search{flex:1 1 100%}
   .chip{padding:9px 14px}
@@ -189,3 +191,22 @@ footer b{color:var(--ink);font-weight:600}
   .tbl td.ac::before{display:none}
   .tbl tr:hover td{background:none}
 }
+
+/* ===== Ocupação no fim da página + mapa dos cais ===== */
+.berths,.mapa-sec{margin-top:28px}
+.mapa-wrap{overflow-x:auto;background:var(--surface);border:1px solid var(--line);border-radius:10px}
+.mapa{position:relative;min-width:640px}
+.mapa img{display:block;width:100%;height:auto}
+.dots{position:absolute;inset:0}
+.dot{position:absolute;width:16px;height:16px;margin:-8px 0 0 -8px;padding:0;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.6);cursor:pointer}
+.dot.imp,.lg.imp{background:#0060B0}
+.dot.exp,.lg.exp{background:#00AEEF}
+.dot.out,.lg.out{background:#FFD400}
+.dot span{position:absolute;bottom:135%;left:50%;transform:translateX(-50%);display:none;z-index:5;background:var(--head);color:#fff;padding:5px 9px;border-radius:6px;font:600 12px/1.3 var(--f-body);white-space:nowrap;pointer-events:none}
+.dot span small{display:block;font-weight:500;font-size:10.5px;opacity:.85}
+.dot:hover span,.dot:focus span,.dot.on span{display:block}
+.dot.r span{left:auto;right:-6px;transform:none}
+.dot.l span{left:-6px;transform:none}
+.mapa-leg{margin:8px 2px 0;font-size:12px;color:var(--muted)}
+.lg{display:inline-block;width:11px;height:11px;border-radius:50%;margin:0 4px 0 10px;vertical-align:-1px;border:1.5px solid #fff;box-shadow:0 0 0 1px var(--line)}
+.mapa-leg .lg:first-child{margin-left:0}
