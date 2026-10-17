@@ -151,3 +151,41 @@ footer b{color:var(--ink);font-weight:600}
 .tbl tr:hover td{background:var(--blue-soft)}
 .tbl td.ac{white-space:nowrap}
 .tbl td.ac .btn{padding:6px 10px;min-height:34px;font-size:13px}
+
+/* ===== Celular: cabeçalho compacto, vagas em 4 colunas, filtros fáceis de tocar, tabela vira cartão por navio ===== */
+@media (max-width:700px){
+  .top .wrap{padding-block:10px;gap:8px 12px}
+  .brand{flex-wrap:nowrap;gap:12px;width:100%}
+  .logo img{height:44px}
+  .titles{padding-left:12px;border-left:2px solid var(--line)}
+  .titles h1{font-size:19px}
+  .titles p{font-size:12px}
+  .right{width:100%;justify-content:space-between;gap:8px}
+  .stamp{font-size:12px}
+  .right .btn{padding:8px 12px;min-height:40px;font-size:14px}
+  .nav{height:8px;border-bottom-width:3px}
+  .tab{padding:10px 12px}
+  .berth-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .berth{padding:6px 7px;min-height:54px}
+  .berth .s{font-size:11.5px}
+  .search{flex:1 1 100%}
+  .chip{padding:9px 14px}
+  #btn-view{margin-left:auto}
+  .row{padding:14px}
+  .editbar .btn{flex:1 1 140px}
+  .tbl-wrap{overflow:visible}
+  .tbl{display:block;min-width:0}
+  .tbl thead{display:none}
+  .tbl tbody{display:block}
+  .tbl tr{display:flex;flex-direction:column;padding:12px 14px;border-top:1px solid var(--line)}
+  .tbl tbody tr:first-child{border-top:0}
+  .tbl td{display:grid;grid-template-columns:42% minmax(0,1fr);gap:8px;border:0;padding:3px 0;font-size:13.5px;white-space:normal}
+  .tbl td::before{content:attr(data-label);font:600 10.5px var(--f-body);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding-top:2px}
+  .tbl td.vz{display:none}
+  .tbl td.nv{order:-1;display:block;font-size:17px;padding-bottom:6px;white-space:normal}
+  .tbl td.nv::before{display:none}
+  .tbl td.r{text-align:left}
+  .tbl td.ac{display:flex;gap:8px;padding-top:10px}
+  .tbl td.ac::before{display:none}
+  .tbl tr:hover td{background:none}
+}
