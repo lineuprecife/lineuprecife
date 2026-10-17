@@ -5,7 +5,7 @@ var SITS = [["previstos","Previsto","Previsto (ainda não chegou)"],["fundeados"
 var FIELDS = [
   {k:"navio",l:"Nome do navio",w:1},
   {k:"cais",l:"Cais",t:"cais"},
-  {k:"operacao",l:"Operação",t:"op"},
+  {k:"operacao",l:"Operação / modalidade",t:"op"},
   {k:"carga",l:"Carga (ou serviço)"},
   {k:"origem_destino",l:"Origem / destino da carga"},
   {k:"agencia",l:"Agência"},
@@ -52,9 +52,10 @@ function toItem(r){
   var m = function(x){ return x === "" || x == null ? "" : String(x).replace(".", ",") + " m"; };
   var s = {id:r.id, rec:r, chegada:r.chegada||"", saida:r.saida||"", cais:String(r.cais||""), navio:String(r.navio||""),
     cbo:r.cbo||"", imo:r.imo||"", comp:m(r.comprimento), calado:m(r.calado), agencia:r.agencia||"", operador:r.operador||"",
-    carga:r.carga||"", mod:String(r.operacao||"").toUpperCase(), origem:r.origem_destino||"", anterior:r.porto_anterior||"",
+    carga:r.carga||"", mod:String(r.operacao||"").toUpperCase(), origem:r.origem_destino||"", anterior:r.porto_anterior||"", proximo:r.proximo_porto||"",
     prev:n(r.ton_prevista), mov:n(r.ton_movimentada), tipo:""};
-  if(s.mod === "SEM CARGA"){ s.tipo = cap(s.carga) || "Serviço"; s.mod = ""; }
+  s.modRaw = s.mod;
+  if(s.mod !== "IMPORTAÇÃO" && s.mod !== "EXPORTAÇÃO" && !s.prev){ var t2 = s.mod || s.carga; if(t2){ s.tipo = cap(t2); s.mod = ""; } }
   return s;
 }
 function ord(id, a, b){
@@ -124,7 +125,7 @@ function openForm(s){
       var o = [""]; for(var i=2;i<=9;i++) o.push(String(i)); if(v && o.indexOf(v)<0) o.push(v);
       c = '<select id="f_cais">'+o.map(function(x){ return '<option value="'+esc(x)+'"'+(x===v?" selected":"")+'>'+(x ? "Cais "+esc(x) : "Sem cais")+'</option>'; }).join("")+'</select>';
     } else if(f.t === "op"){
-      c = '<select id="f_operacao">'+[["","Não informada"],["IMPORTAÇÃO","Importação"],["EXPORTAÇÃO","Exportação"],["SEM CARGA","Sem carga (serviço, apreensão…)"]].map(function(x){ return '<option value="'+x[0]+'"'+(x[0]===v?" selected":"")+'>'+x[1]+'</option>'; }).join("")+'</select>';
+      c = '<input id="f_operacao" list="dl_op" placeholder="escolha ou escreva" value="'+esc(v)+'"><datalist id="dl_op">'+["IMPORTAÇÃO","EXPORTAÇÃO","DRAGAGEM","ABASTECIMENTO","OP. MILITAR","PESQUISA"].map(function(x){ return '<option value="'+x+'">'; }).join("")+'</datalist>';
     } else c = '<input id="f_'+f.k+'"'+(f.t==="num"?' inputmode="numeric"':f.t==="dec"?' inputmode="decimal"':"")+' value="'+esc(v)+'">';
     html += '<label'+(f.w?' class="w"':"")+'><span>'+f.l+'</span>'+c+'</label>';
   });
@@ -136,7 +137,7 @@ function openForm(s){
       reg[f.k] = f.t === "dt" ? dtOut(x) : f.t === "num" ? x.replace(/\D/g, "") : x;
     });
     if(!reg.navio) bad = "Escreva o nome do navio.";
-    else if(!reg.chegada) bad = "Informe a data e a hora de chegada.";
+    else if(!reg.chegada && !(sit[0] === "desatracados" && reg.saida)) bad = "Informe a data e a hora de chegada (para desatracado, pode informar só a saída).";
     else if(sit[0] === "atracados" && !reg.cais) bad = "Escolha o cais onde o navio está atracado.";
     if(bad){ say("fmsg", bad, true); return; }
     E("fgo").disabled = true; say("fmsg", "Salvando…");

@@ -12,7 +12,7 @@ var CONFIG = {
     atracados:    {sheet:"ATRACADOS",    layout:"atracados", url:""},
     previstos:    {sheet:"PREVISTOS",    layout:"previstos", url:""},
     fundeados:    {sheet:"FUNDEADOS",    layout:"atracados", url:""},
-    desatracados: {sheet:"DESATRACADOS", layout:"atracados", url:""}
+    desatracados: {sheet:"DESATRACADOS", layout:"desatracados", url:""}
   },
 
   /* A página relê a planilha sozinha a cada tantos segundos. */
@@ -26,8 +26,9 @@ var CONFIG = {
 
 /* Posição de cada informação na linha da planilha (A = 0, B = 1, C = 2...). */
 var LAYOUTS = {
-  atracados: {chegada:0, saida:1, cais:2, navio:3, cbo:4, comp:5, calado:6, agencia:7, operador:8, carga:9, mod:10, origem:11, anterior:12, prev:14, mov:15},
-  previstos: {chegada:0, saida:2, cais:3, navio:4, imo:5, comp:6, calado:7, agencia:8, operador:9, carga:10, mod:11, origem:12, anterior:13, prev:15}
+  atracados: {chegada:0, saida:1, cais:2, navio:3, cbo:4, comp:5, calado:6, agencia:7, operador:8, carga:9, mod:10, origem:11, anterior:12, proximo:13, prev:14, mov:15},
+  desatracados: {saida:0, cais:1, navio:2, cbo:3, comp:4, calado:5, agencia:6, operador:7, carga:8, mod:9, origem:10, anterior:11, proximo:12, prev:13, mov:13},
+  previstos: {chegada:0, saida:2, cais:3, navio:4, imo:5, comp:6, calado:7, agencia:8, operador:9, carga:10, mod:11, origem:12, anterior:13, proximo:14, prev:15}
 };
 
 /* ===== LEITURA DA PLANILHA ===== */
@@ -66,13 +67,14 @@ function cap(s){ return s ? s.charAt(0)+s.slice(1).toLowerCase() : s; }
 var DATE_RE = /^\d\d\/\d\d\/\d{4}/;
 
 /* Lê as colunas pelo NOME do cabeçalho (cada aba pode ter colunas em posições diferentes). */
-var HDR = {chegada:/chegada/, saida:/saida|desatrac/, cais:/^cais/, navio:/^navio|embarcac/, cbo:/^cbo/, imo:/^imo/, comp:/compr/, calado:/calado/, agencia:/agencia/, operador:/operador/, carga:/^carga/, mod:/modalidade/, origem:/proced|destino/, anterior:/anterior/, proximo:/proximo/, prev:/tonelagem.*prev|^prev.*ton/, mov:/movimentad/};
+var HDR = {chegada:/chegada/, saida:/saida|desatrac/, cais:/^cais/, navio:/^navio|embarcac/, cbo:/^cbo/, imo:/^imo/, comp:/compr/, calado:/calado/, agencia:/agencia/, operador:/operador/, carga:/^carga/, mod:/modalidade/, origem:/proced|destino/, anterior:/anterior/, proximo:/proximo/, prev:/tonelagem.*prev|^prev.*ton/, mov:/movimentad/, ton:/^tonelagem$/};
 function normH(t){ return String(t||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().trim(); }
 function layoutPorCabecalho(rows){
   for(var i=0;i<Math.min(rows.length,8);i++){
-    if(!/^chegada/.test(normH(rows[i][0]))) continue;
+    if(!/^(chegada|saida|previs)/.test(normH(rows[i][0]))) continue;
     var L = {};
     rows[i].forEach(function(h,c){ var t = normH(h); Object.keys(HDR).forEach(function(k){ if(L[k]==null && HDR[k].test(t)) L[k] = c; }); });
+    if(L.ton!=null && L.mov==null){ L.mov = L.ton; L.prev = L.ton; }   /* aba com uma só coluna "Tonelagem" */
     return L.navio!=null ? L : null;
   }
   return null;
@@ -93,7 +95,7 @@ function mapRows(rows, layout){
     var navio = clean(r[L.navio]);
     if(!navio) return;
     var s = {
-      chegada: a,
+      chegada: L.chegada!=null ? a : "",
       saida: clean(r[L.saida]),
       cais: clean(r[L.cais]),
       navio: navio,
@@ -107,11 +109,12 @@ function mapRows(rows, layout){
       mod: clean(r[L.mod]).toUpperCase(),
       origem: clean(r[L.origem]),
       anterior: clean(r[L.anterior]),
+      proximo: clean(r[L.proximo]),
       prev: toNum(r[L.prev]),
       mov: L.mov!=null ? toNum(r[L.mov]) : 0,
       tipo: ""
     };
-    s.row=idx+1; s.raw=r;
+    s.row=idx+1; s.raw=r; s.modRaw=s.mod;
     if(s.mod!=="IMPORTAÇÃO" && s.mod!=="EXPORTAÇÃO" && !s.prev){
       var t2 = s.mod || s.carga;
       if(t2){ s.tipo = cap(t2); s.mod = ""; }
@@ -207,6 +210,10 @@ function rowBase(s,lista){
     else if(lista==="fundeados"){ prog = '<div><b>'+num(s.prev)+'</b> t previstas</div>'; }
     else { prog = '<div class="bar"><i style="width:'+pct+'%"></i></div><div><b>'+num(s.mov)+'</b> de '+num(s.prev)+' t · '+pct+'%</div><div class="meta">Saldo '+num(s.prev-(s.mov||0))+' t</div>'; }
   }
+  if(lista==="desatracados"){
+    when = (s.chegada?'<div>Chegada '+esc(fmt(s.chegada))+'</div>':'')+(s.saida?'<div>Saída '+esc(fmt(s.saida))+'</div>':'<div class="meta">Saída não informada</div>');
+    if(!special && (s.mov||s.prev)) prog = '<div><b>'+num(s.mov||s.prev)+'</b> t movimentadas</div>';
+  }
   return '<div class="row">'+
     '<div class="c-berth berth-n'+(s.cais.length>3?' sm':'')+'"><small>CAIS</small>'+(s.cais?esc(s.cais):"—")+'</div>'+
     '<div class="c-ship"><div class="ship">'+esc(s.navio)+'</div><div class="meta">'+meta.join(" · ")+'</div></div>'+
@@ -244,6 +251,7 @@ function renderBerths(){
 }
 function renderPanel(){
   var id = state.tab, el = $("panel");
+  $("btn-view").textContent = viewOf(id)==="tabela" ? "Ver como cartões" : "Ver tabela completa";
   if(!data[id]){
     el.innerHTML = '<div class="empty">'+(errors[id] ? "Não foi possível ler a aba "+esc(CONFIG.tabs[id].sheet)+". Veja a mensagem no topo da página." : "Carregando a planilha…")+'</div>';
     return;
@@ -253,6 +261,7 @@ function renderPanel(){
     el.innerHTML = '<div class="empty">'+(all.length ? "Nenhum navio encontrado com esses filtros." : EMPTY[id])+'</div>';
     return;
   }
+  if(viewOf(id)==="tabela"){ el.innerHTML = tabelaHtml(id, items); return; }
   el.innerHTML = '<div class="row head">'+HEADS[id].map(function(h){return '<div>'+h+'</div>'}).join("")+'</div>' +
     items.map(function(s){return row(s,id)}).join("");
 }
