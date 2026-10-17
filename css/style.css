@@ -210,3 +210,21 @@ footer b{color:var(--ink);font-weight:600}
 .mapa-leg{margin:8px 2px 0;font-size:12px;color:var(--muted)}
 .lg{display:inline-block;width:11px;height:11px;border-radius:50%;margin:0 4px 0 10px;vertical-align:-1px;border:1.5px solid #fff;box-shadow:0 0 0 1px var(--line)}
 .mapa-leg .lg:first-child{margin-left:0}
+
+/* ===== Navios desenhados no mapa (viram para a esquerda) ===== */
+.ship{position:absolute;transform:translate(-50%,-50%);padding:0;border:0;background:none;cursor:pointer;line-height:0;filter:drop-shadow(0 1px 2px rgba(0,0,0,.65))}
+.ship svg{display:block;width:100%;height:auto;overflow:visible}
+.ship .h{stroke:#fff;stroke-width:1.6;vector-effect:non-scaling-stroke}
+.ship.imp .h{fill:#0060B0}
+.ship.exp .h{fill:#00AEEF}
+.ship.out .h{fill:#FFD400}
+.ship .c{fill:rgba(255,255,255,.88)}
+.ship .t{fill:rgba(0,0,0,.3)}
+.ship span{position:absolute;bottom:calc(100% + 4px);left:50%;transform:translateX(-50%);display:none;z-index:5;background:var(--head);color:#fff;padding:5px 9px;border-radius:6px;font:600 12px/1.3 var(--f-body);white-space:nowrap;pointer-events:none}
+.ship span small{display:block;font-weight:500;font-size:10.5px;opacity:.85}
+.ship:hover span,.ship:focus span,.ship.on span{display:block;z-index:9}
+.ship.r span{left:auto;right:0;transform:none}
+.ship.l span{left:0;transform:none}
+.bercos{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
+.bercos polygon{fill:rgba(255,255,255,.07);stroke:rgba(255,255,255,.85);stroke-width:1.2;vector-effect:non-scaling-stroke}
+.bercos text{fill:#fff;font:600 15px var(--f-body);text-anchor:middle;dominant-baseline:middle;paint-order:stroke;stroke:rgba(0,0,0,.5);stroke-width:2.5px}
