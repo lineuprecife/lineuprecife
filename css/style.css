@@ -140,3 +140,14 @@ footer b{color:var(--ink);font-weight:600}
 @media (max-width:700px){.titles{padding-left:0;border-left:0}}
 
 .berth-n.sm{font-size:15px;line-height:1.2;overflow-wrap:anywhere}
+
+/* ===== Tabela completa (todas as colunas da planilha) ===== */
+.tbl-wrap{overflow-x:auto}
+.tbl{border-collapse:collapse;width:100%;min-width:1150px;font-size:13px}
+.tbl th{background:var(--blue-soft);color:var(--blue);text-align:left;padding:10px 12px;white-space:nowrap;font-size:11.5px;text-transform:uppercase;letter-spacing:.03em;position:sticky;top:0}
+.tbl td{padding:9px 12px;border-top:1px solid var(--line);vertical-align:top}
+.tbl td.nv{font-weight:700;color:var(--blue);white-space:nowrap}
+.tbl td.r{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
+.tbl tr:hover td{background:var(--blue-soft)}
+.tbl td.ac{white-space:nowrap}
+.tbl td.ac .btn{padding:6px 10px;min-height:34px;font-size:13px}
