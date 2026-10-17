@@ -1,6 +1,6 @@
 /* Visão "Tabela completa": mostra TODAS as colunas de cada lista, na mesma ordem da planilha original.
    Carrega ANTES do app.js; só roda depois que a página abre. */
-var _D = ["Saída","Cais","Navio","CBO","Compr.","Calado","Agência de navegação","Operador portuário","Carga","Modalidade","Procedência / destino da carga","Porto anterior","Próximo porto"];
+var _D = ["Saída","Cais","Embarcação","CBO","Compr.","Calado","Agência de navegação","Operador portuário","Carga","Modalidade","Procedência / destino da carga","Porto anterior","Próximo porto"];
 var COLS_TAB = {
   desatracados: [["saida","Saída (data/hora)","d"],["cais",_D[1]],["navio",_D[2]],["cbo",_D[3]],["comp",_D[4]],["calado",_D[5]],["agencia",_D[6]],["operador",_D[7]],["carga",_D[8]],["modRaw",_D[9]],["origem",_D[10]],["anterior",_D[11]],["proximo",_D[12]],["mov","Tonelagem final","n"]],
   atracados: [["chegada","Atracação (data/hora)","d"],["saida","Previsão de saída","d"],["cais",_D[1]],["navio",_D[2]],["cbo",_D[3]],["comp",_D[4]],["calado",_D[5]],["agencia",_D[6]],["operador",_D[7]],["carga",_D[8]],["modRaw",_D[9]],["origem",_D[10]],["anterior",_D[11]],["proximo",_D[12]],["prev","Tonelagem prevista","n"],["mov","Tonelagem movimentada","n"],["saldo","Saldo","n"]],

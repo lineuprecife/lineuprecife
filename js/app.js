@@ -257,16 +257,16 @@ function nomeAba(id){ return (CONFIG.banco && !CONFIG.api) ? CONFIG.banco.sheet 
 /* === INTERFACE === */
 var MES = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
 var HEADS = {
-  atracados:["Cais","Navio","Carga","Agência / Operador","Datas","Carga movimentada"],
-  previstos:["Cais","Navio","Carga","Agência / Operador","Datas","Tonelagem prevista"],
-  fundeados:["Cais","Navio","Carga","Agência / Operador","Datas","Carga prevista"],
-  desatracados:["Cais","Navio","Carga","Agência / Operador","Datas","Carga movimentada"]
+  atracados:["Cais","Embarcação","Carga","Agência / Operador","Datas","Carga movimentada"],
+  previstos:["Cais","Embarcação","Carga","Agência / Operador","Datas","Tonelagem prevista"],
+  fundeados:["Cais","Embarcação","Carga","Agência / Operador","Datas","Carga prevista"],
+  desatracados:["Cais","Embarcação","Carga","Agência / Operador","Datas","Carga movimentada"]
 };
 var EMPTY = {
-  atracados:"Nenhum navio atracado no momento.",
-  previstos:"Nenhum navio previsto no momento.",
-  fundeados:"Nenhum navio fundeado no momento.",
-  desatracados:"Nenhum navio desatracado nesta lista."
+  atracados:"Nenhuma embarcação atracada no momento.",
+  previstos:"Nenhuma embarcação prevista no momento.",
+  fundeados:"Nenhuma embarcação fundeada no momento.",
+  desatracados:"Nenhuma embarcação desatracada nesta lista."
 };
 var state = {tab:"atracados", mod:"", q:""};
 var data = {};      /* id -> {items, aviso, atualizado} da última leitura boa */
@@ -299,6 +299,7 @@ function modPill(m){
 }
 function listOf(id){ return (data[id] && data[id].items) || []; }
 
+function dt(v){ return '<span class="dt">'+esc(fmt(v))+'</span>'; }   /* data inteira numa linha só: quem quebra é o rótulo, não a data */
 function rowBase(s,lista){
   var prevList = lista==="previstos" || lista==="fundeados", special = !!s.tipo;
   var pct = s.prev>0 ? Math.min(100,Math.round((s.mov||0)/s.prev*100)) : 0;
@@ -313,17 +314,17 @@ function rowBase(s,lista){
   var when, prog;
   if(prevList){
     var chega = rel(s.chegada,"chega");
-    when = '<div>'+(lista==="fundeados"?'Chegada confirmada ':'Previsão de chegada ')+esc(fmt(s.chegada))+'</div>'+(chega?'<div class="rel">'+esc(chega)+'</div>':'')+(s.atracacao?'<div>Previsão de atracação (POB) '+esc(fmt(s.atracacao))+'</div>':'')+(s.saida?'<div>Previsão de saída '+esc(fmt(s.saida))+'</div>':'');
+    when = '<div>'+(lista==="fundeados"?'Chegada confirmada ':'Previsão de chegada ')+dt(s.chegada)+'</div>'+(chega?'<div class="rel">'+esc(chega)+'</div>':'')+(s.atracacao?'<div>Previsão de atracação (POB) '+dt(s.atracacao)+'</div>':'')+(s.saida?'<div>Previsão de saída '+dt(s.saida)+'</div>':'');
     prog = '<div><b>'+num(s.prev)+'</b> t</div>'+(s.anterior?'<div class="meta">Vem de '+esc(s.anterior)+'</div>':'');
   } else {
-    when = '<div>Atracação '+esc(fmt(s.chegada))+'</div>'+
-      (s.saida?'<div>Previsão de saída '+esc(fmt(s.saida))+'</div>'+(lista==="atracados"?'<div class="rel">'+esc(rel(s.saida,"sai"))+'</div>':''):'<div class="meta">Previsão de saída não informada</div>');
+    when = '<div>Atracação '+dt(s.chegada)+'</div>'+
+      (s.saida?'<div>Previsão de saída '+dt(s.saida)+'</div>'+(lista==="atracados"?'<div class="rel">'+esc(rel(s.saida,"sai"))+'</div>':''):'<div class="meta">Previsão de saída não informada</div>');
     if(special || !s.prev){ prog = '<span class="meta">Sem movimentação de carga</span>'; }
     else if(lista==="fundeados"){ prog = '<div><b>'+num(s.prev)+'</b> t previstas</div>'; }
     else { prog = '<div class="bar"><i style="width:'+pct+'%"></i></div><div><b>'+num(s.mov)+'</b> de '+num(s.prev)+' t · '+pct+'%</div><div class="meta">Saldo '+num(s.prev-(s.mov||0))+' t</div>'; }
   }
   if(lista==="desatracados"){
-    when = (s.chegada?'<div>Atracação '+esc(fmt(s.chegada))+'</div>':'')+(s.saida?'<div>Saída '+esc(fmt(s.saida))+'</div>':'<div class="meta">Saída não informada</div>');
+    when = (s.chegada?'<div>Atracação '+dt(s.chegada)+'</div>':'')+(s.saida?'<div>Saída '+dt(s.saida)+'</div>':'<div class="meta">Saída não informada</div>');
     if(!special && (s.mov||s.prev)) prog = '<div><b>'+num(s.mov||s.prev)+'</b> t movimentadas</div>';
   }
   return '<div class="row">'+
@@ -365,7 +366,7 @@ function renderBerths(){
   listOf("atracados").forEach(function(s){ caisKeys(s.cais).forEach(function(k){ (map[k] = map[k] || []).push(s.navio); }); });
   $("berths").innerHTML = BERCOS.map(function(k){
     var sh = map[k], vis = sh ? (sh.length > 3 ? sh.slice(0, 2) : sh) : [];
-    var lines = vis.map(function(n){ return "<span>" + esc(n) + "</span>"; }).join("") + (sh && sh.length > 3 ? '<span class="mais">+' + (sh.length - 2) + " navios</span>" : "");
+    var lines = vis.map(function(n){ return "<span>" + esc(n) + "</span>"; }).join("") + (sh && sh.length > 3 ? '<span class="mais">+' + (sh.length - 2) + " embarcações</span>" : "");
     return '<div class="berth ' + (sh ? "busy" : "free") + '"' + (sh ? ' title="' + esc(sh.join(", ")) + '"' : "") + '><div class="c">CAIS ' + k + '</div><div class="s">' + (sh ? lines : "Livre") + "</div></div>";
   }).join("");
   if(typeof renderMapa === "function") renderMapa();
@@ -373,7 +374,8 @@ function renderBerths(){
 function renderPanel(){
   var id = state.tab, el = $("panel");
   el.classList.remove("wide");   /* só a tabela completa usa a largura quase total da tela */
-  var ms = document.getElementById("mapa-sec"); if(ms) ms.hidden = id !== "atracados";   /* mapa só faz sentido para quem está atracado */
+  var ms = document.getElementById("mapa-sec"); if(ms) ms.hidden = id !== "atracados";
+  var bs = document.getElementById("berths-sec"); if(bs) bs.hidden = id === "previstos" || id === "desatracados";   /* ocupação dos cais: fora das abas Previstos e Desatracados */   /* mapa só faz sentido para quem está atracado */
   $("btn-view").textContent = viewOf(id)==="tabela" ? "Ver como cartões" : "Ver tabela completa";
   if(!data[id]){
     el.innerHTML = '<div class="empty">'+(errors[id] ? "Não foi possível ler a aba "+esc(nomeAba(id))+". Veja a mensagem no topo da página." : "Carregando a planilha…")+'</div>';
@@ -381,7 +383,7 @@ function renderPanel(){
   }
   var all = data[id].items, items = all.filter(matches);
   if(!items.length){
-    el.innerHTML = '<div class="empty">'+(all.length ? "Nenhum navio encontrado com esses filtros." : EMPTY[id])+'</div>';
+    el.innerHTML = '<div class="empty">'+(all.length ? "Nenhuma embarcação encontrada com esses filtros." : EMPTY[id])+'</div>';
     return;
   }
   if(viewOf(id)==="tabela"){ el.innerHTML = tabelaHtml(id, items); el.classList.add("wide"); return; }

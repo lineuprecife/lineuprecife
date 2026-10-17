@@ -23,7 +23,8 @@ var MAPA_IMG_LIMPA = true;   /* mude para true quando a imagem do mapa NÃO tive
 function mapaEixo(k){ var p = GEO[k].p, a = mapaPt(k, 0), b = mapaPt(k, 1); return Math.sqrt(Math.pow(b.x-a.x, 2) + Math.pow(b.y-a.y, 2)); }
 function compM(s){ var n = parseFloat(String(s.comp||"").replace(",", ".")); return n > 0 ? n : 90; }
 function mapaTipo(m){ return m < 60 ? "boat" : m <= 150 ? "mid" : "big"; }
-var ASPECTO = {boat:0.38, mid:0.22, big:0.22};   /* altura / largura do desenho */
+var ASPECTO = {boat:0.38, mid:0.22, big:0.22};
+var GIRO = {"3":-25, "4":-25, "5":-25};   /* graus por berço (negativo = para a esquerda, anti-horário); cada embarcação gira pelo seu próprio centro */   /* altura / largura do desenho */
 function mapaPos(lista){
   var por = {}, multi = [], itens = [];
   lista.forEach(function(s){
@@ -37,19 +38,23 @@ function mapaPos(lista){
     ships.forEach(function(s, i){
       var m = c[i], w = Math.min(Math.max(m*sc*f, 30), eixo), p = mapaPt(k, (cur + m*f/2)/Lb); cur += (m + gap)*f;
       if(ships.length >= 4) p.y += (i % 2 ? 8 : -8);
-      itens.push({s:s, x:p.x, y:p.y, w:w, kind:mapaTipo(m)});
+      itens.push({s:s, x:p.x, y:p.y, w:w, kind:mapaTipo(m), rot:GIRO[k] || 0});
     });
   });
   multi.forEach(function(g){                                                    /* navio em dois berços: ocupa os dois */
     var ps = g.ks.map(function(k){ return mapaPt(k, 0.5); }), w = g.ks.reduce(function(a, k){ return a + mapaEixo(k); }, 0);
-    itens.push({s:g.s, x:ps.reduce(function(a, p){ return a + p.x; }, 0)/ps.length, y:ps.reduce(function(a, p){ return a + p.y; }, 0)/ps.length, w:Math.min(w, compM(g.s)*0.5), kind:mapaTipo(compM(g.s))});
+    itens.push({s:g.s, x:ps.reduce(function(a, p){ return a + p.x; }, 0)/ps.length, y:ps.reduce(function(a, p){ return a + p.y; }, 0)/ps.length, w:Math.min(w, compM(g.s)*0.5), kind:mapaTipo(compM(g.s)), rot:g.ks.every(function(k){ return GIRO[k]; }) ? GIRO[g.ks[0]] : 0});
   });
-  itens.forEach(function(d){ d.h = d.w*ASPECTO[d.kind]; });
+  itens.forEach(function(d){
+    d.h = d.w*ASPECTO[d.kind];
+    var a = Math.abs(d.rot)*Math.PI/180;                                        /* caixa que o desenho girado ocupa, para a separação */
+    d.ew = d.w*Math.cos(a) + d.h*Math.sin(a); d.eh = d.w*Math.sin(a) + d.h*Math.cos(a);
+  });
   for(var it = 0; it < 80; it++){                                               /* separa desenhos que ainda se sobreponham */
     var moved = false;
     for(var i = 0; i < itens.length; i++) for(var j = i+1; j < itens.length; j++){
       var A = itens[i], B = itens[j], dx = B.x - A.x, dy = B.y - A.y;
-      var ox = (A.w + B.w)/2 + 3 - Math.abs(dx), oy = (A.h + B.h)/2 + 3 - Math.abs(dy);
+      var ox = (A.ew + B.ew)/2 + 3 - Math.abs(dx), oy = (A.eh + B.eh)/2 + 3 - Math.abs(dy);
       if(ox <= 0 || oy <= 0) continue;
       if(ox < oy){ var s1 = (dx < 0 ? -1 : 1), q = ox/2 + 0.1; A.x -= s1*q; B.x += s1*q; }
       else { var s2 = (dy < 0 ? -1 : 1), r = oy/2 + 0.1; A.y -= s2*r; B.y += s2*r; }
@@ -79,7 +84,7 @@ function renderMapa(){
   box.innerHTML = mapaPos(listOf("atracados")).map(function(d){
     var s = d.s, cls = s.mod === "IMPORTAÇÃO" ? "imp" : s.mod === "EXPORTAÇÃO" ? "exp" : "out", fx = d.x / MAPA.W;
     return '<button type="button" class="navmap ' + cls + (fx > 0.85 ? " r" : fx < 0.12 ? " l" : "") + '" style="left:' + (fx*100).toFixed(2) + '%;top:' + (d.y/MAPA.H*100).toFixed(2) + '%;width:' + (d.w/MAPA.W*100).toFixed(2) +
-      '%" aria-label="' + esc(s.navio + ", cais " + s.cais) + '">' + mapaSvg(d.kind) + '<span>' + esc(s.navio) + '<small>Cais ' + esc(s.cais) + '</small></span></button>';
+      '%' + (d.rot ? ';--giro:' + d.rot + 'deg' : '') + '" aria-label="' + esc(s.navio + ", cais " + s.cais) + '">' + mapaSvg(d.kind) + '<span>' + esc(s.navio) + '<small>Cais ' + esc(s.cais) + '</small></span></button>';
   }).join("");
 }
 window.addEventListener("load", function(){

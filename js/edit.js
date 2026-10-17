@@ -3,7 +3,7 @@
 var EDIT = {on:false, senha:"", nome:""}, AVISO = "";
 var SITS = [["previstos","Previsto","Previsto (ainda não chegou)"],["fundeados","Fundeado","Fundeado (esperando no mar)"],["atracados","Atracado","Atracado (no cais)"],["desatracados","Desatracado","Desatracado (já saiu)"]];
 var FIELDS = [
-  {k:"navio",l:"Nome do navio",w:1},
+  {k:"navio",l:"Nome da embarcação",w:1},
   {k:"cais",l:"Cais",t:"cais"},
   {k:"operacao",l:"Operação / modalidade",t:"op"},
   {k:"carga",l:"Carga (ou serviço)"},
@@ -116,7 +116,7 @@ function openLogin(){
 
 function openForm(s){
   var rec = s ? s.rec : {}, atual = s ? SITS.filter(function(x){ return x[1] === rec.situacao; })[0][0] : state.tab;
-  var html = '<h2>'+(s ? "Editar navio" : "Novo navio")+'</h2><div class="fg"><label class="w"><span>Situação (para mover o navio de lista, mude aqui)</span><select id="f_sit">'+
+  var html = '<h2>'+(s ? "Editar embarcação" : "Nova embarcação")+'</h2><div class="fg"><label class="w"><span>Situação (para mover a embarcação de lista, mude aqui)</span><select id="f_sit">'+
     SITS.map(function(x){ return '<option value="'+x[0]+'"'+(x[0]===atual?" selected":"")+'>'+x[2]+'</option>'; }).join("")+'</select></label>';
   FIELDS.forEach(function(f){
     var v = rec[f.k] == null ? "" : String(rec[f.k]), c;
@@ -137,9 +137,9 @@ function openForm(s){
       var x = E("f_"+f.k).value.trim();
       reg[f.k] = f.t === "dt" ? dtOut(x) : f.t === "num" ? x.replace(/\D/g, "") : x;
     });
-    if(!reg.navio) bad = "Escreva o nome do navio.";
+    if(!reg.navio) bad = "Escreva o nome da embarcação.";
     else if(!reg.chegada && !(sit[0] === "desatracados" && reg.saida)) bad = "Informe a data e a hora de chegada (para desatracado, pode informar só a saída).";
-    else if(sit[0] === "atracados" && !reg.cais) bad = "Escolha o cais onde o navio está atracado.";
+    else if(sit[0] === "atracados" && !reg.cais) bad = "Escolha o cais onde a embarcação está atracada.";
     if(bad){ say("fmsg", bad, true); return; }
     E("fgo").disabled = true; say("fmsg", "Salvando…");
     post({acao:"salvar", registro:reg}).then(function(){ d.close(); state.tab = sit[0]; toast("Salvo."); refresh(); },
@@ -148,11 +148,11 @@ function openForm(s){
 }
 
 function askDel(s){
-  var d = dlg('<h2>Excluir navio?</h2><p><b>'+esc(s.navio)+'</b> será removido do banco. Não dá para desfazer. (Para só tirar da lista, mude a situação para "Desatracado".)</p><div class="msg" id="dmsg"></div><div class="btns"><button class="btn" data-x type="button">Cancelar</button><button class="btn dng" id="dgo" type="button">Excluir</button></div>');
+  var d = dlg('<h2>Excluir embarcação?</h2><p><b>'+esc(s.navio)+'</b> será removida do banco. Não dá para desfazer. (Para só tirar da lista, mude a situação para "Desatracado".)</p><div class="msg" id="dmsg"></div><div class="btns"><button class="btn" data-x type="button">Cancelar</button><button class="btn dng" id="dgo" type="button">Excluir</button></div>');
   E("dgo").onclick = function(){
     E("dgo").disabled = true; say("dmsg", "Excluindo…");
     post({acao:"excluir", id:s.id, versao:s.rec.atualizado_em, navio:s.navio})
-      .then(function(){ d.close(); toast("Navio excluído."); refresh(); }, function(e){ E("dgo").disabled = false; say("dmsg", e.message, true); });
+      .then(function(){ d.close(); toast("Embarcação excluída."); refresh(); }, function(e){ E("dgo").disabled = false; say("dmsg", e.message, true); });
   };
 }
 
