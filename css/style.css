@@ -145,6 +145,10 @@ footer b{color:var(--ink);font-weight:600}
 
 /* ===== Tabela completa (todas as colunas da planilha) ===== */
 .tbl-wrap{overflow-x:auto}
+/* Tabela completa em tela larga (PC): a lista sai da coluna central e ocupa quase a largura do monitor. */
+@media (min-width:1240px){
+  .list.wide{width:min(97vw,2400px);margin-left:calc(50% - min(97vw,2400px) / 2)}
+}
 .tbl{border-collapse:collapse;width:100%;min-width:1150px;font-size:13px}
 .tbl th{background:var(--blue-soft);color:var(--blue);text-align:left;padding:10px 12px;white-space:nowrap;font-size:11.5px;text-transform:uppercase;letter-spacing:.03em;position:sticky;top:0}
 .tbl td{padding:9px 12px;border-top:1px solid var(--line);vertical-align:top}
