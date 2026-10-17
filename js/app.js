@@ -309,7 +309,7 @@ function rowBase(s,lista){
   if(s.calado) meta.push('calado '+esc(s.calado));
   var cargo = special
     ? '<div class="cargo">'+esc(s.tipo)+'</div><span class="pill neutral">Sem carga</span>'
-    : '<div class="cargo">'+esc(cap(s.carga)||"Não informada")+'</div>'+modPill(s.mod)+(s.origem?'<div class="meta">Origem/destino: '+esc(s.origem)+'</div>':'');
+    : '<div class="cargo">'+esc(cap(s.carga)||"Não informada")+'</div>'+modPill(s.mod)+(s.origem?'<div class="meta">'+(s.mod==="IMPORTAÇÃO"?"Origem":s.mod==="EXPORTAÇÃO"?"Destino":"Origem/destino")+': '+esc(s.origem)+'</div>':'');
   var when, prog;
   if(prevList){
     var chega = rel(s.chegada,"chega");
@@ -372,6 +372,7 @@ function renderBerths(){
 }
 function renderPanel(){
   var id = state.tab, el = $("panel");
+  el.classList.remove("wide");   /* só a tabela completa usa a largura quase total da tela */
   var ms = document.getElementById("mapa-sec"); if(ms) ms.hidden = id !== "atracados";   /* mapa só faz sentido para quem está atracado */
   $("btn-view").textContent = viewOf(id)==="tabela" ? "Ver como cartões" : "Ver tabela completa";
   if(!data[id]){
@@ -383,7 +384,7 @@ function renderPanel(){
     el.innerHTML = '<div class="empty">'+(all.length ? "Nenhum navio encontrado com esses filtros." : EMPTY[id])+'</div>';
     return;
   }
-  if(viewOf(id)==="tabela"){ el.innerHTML = tabelaHtml(id, items); return; }
+  if(viewOf(id)==="tabela"){ el.innerHTML = tabelaHtml(id, items); el.classList.add("wide"); return; }
   el.innerHTML = '<div class="row head">'+HEADS[id].map(function(h){return '<div>'+h+'</div>'}).join("")+'</div>' +
     items.map(function(s){return row(s,id)}).join("");
 }
