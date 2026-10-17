@@ -15,7 +15,7 @@
   <div class="wrap">
     <div class="brand">
       <a class="logo" href="https://www.portodorecife.pe.gov.br/" aria-label="Porto do Recife S.A. — site oficial"><img src="assets/logo/logo.png" alt="Porto do Recife S.A."></a>
-      <div class="titles"><h1>Line-up de navios</h1><p>Movimentação de embarcações no Porto do Recife</p></div>
+      <div class="titles"><h1>Line-up de embarcações</h1><p>Movimentação de embarcações no Porto do Recife</p></div>
     </div>
     <div class="right">
       <div class="stamp">Atualizado em<b id="stamp">—</b><em id="src">Lendo a planilha…</em></div>
@@ -28,11 +28,11 @@
 <div class="warn" id="warn" hidden><div class="wrap" id="warn-t"></div></div>
 
 <main class="wrap">
-  <div class="editbar" id="editbar" hidden><span id="who"></span><button class="btn pri" id="btn-new" type="button">+ Novo navio</button><button class="btn" id="btn-aviso" type="button">Aviso no topo</button><button class="btn" id="btn-out" type="button">Sair do modo edição</button></div>
-  <div class="tabs" role="tablist" aria-label="Situação dos navios" id="tabs"></div>
+  <div class="editbar" id="editbar" hidden><span id="who"></span><button class="btn pri" id="btn-new" type="button">+ Nova embarcação</button><button class="btn" id="btn-aviso" type="button">Aviso no topo</button><button class="btn" id="btn-out" type="button">Sair do modo edição</button></div>
+  <div class="tabs" role="tablist" aria-label="Situação das embarcações" id="tabs"></div>
 
   <div class="tools">
-    <input class="search" id="q" type="search" placeholder="Buscar navio, carga, agência ou operador" aria-label="Buscar">
+    <input class="search" id="q" type="search" placeholder="Buscar embarcação, carga, agência ou operador" aria-label="Buscar">
     <div class="chips" id="chips" role="group" aria-label="Filtrar por operação">
       <button class="chip" type="button" data-m="" aria-pressed="true">Todos</button>
       <button class="chip" type="button" data-m="IMPORTAÇÃO" aria-pressed="false">Importação</button>
@@ -43,7 +43,7 @@
 
   <div class="list" id="panel" role="tabpanel" aria-live="polite"></div>
 
-  <section class="berths" aria-label="Ocupação dos cais">
+  <section class="berths" id="berths-sec" aria-label="Ocupação dos cais">
     <h2 class="sec-t">Ocupação dos cais agora</h2>
     <div class="berth-grid" id="berths"></div>
   </section>
@@ -58,7 +58,7 @@
       </div>
     </div>
     <p class="mapa-dica">↔ Deslize o mapa para os lados para ver todos os cais.</p>
-    <p class="mapa-leg"><span class="lg imp"></span>Importação <span class="lg exp"></span>Exportação <span class="lg out"></span>Outros serviços · o desenho acompanha o tamanho do navio (barco até 60 m, navio, navio grande acima de 150 m) · toque (ou passe o mouse) para ver o nome</p>
+    <p class="mapa-leg"><span class="lg imp"></span>Importação <span class="lg exp"></span>Exportação <span class="lg out"></span>Outros serviços · o desenho acompanha o tamanho da embarcação (barco até 60 m, embarcação média, embarcação grande acima de 150 m) · toque (ou passe o mouse) para ver o nome</p>
   </section>
 
   <footer>
