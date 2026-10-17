@@ -1,0 +1,32 @@
+/* Visão "Tabela completa": mostra TODAS as colunas de cada lista, na mesma ordem da planilha original.
+   Carrega ANTES do app.js; só roda depois que a página abre. */
+var _D = ["Saída","Cais","Navio","CBO","Compr.","Calado","Agência de navegação","Operador portuário","Carga","Modalidade","Procedência / destino da carga","Porto anterior","Próximo porto"];
+var COLS_TAB = {
+  desatracados: [["saida",_D[0],"d"],["cais",_D[1]],["navio",_D[2]],["cbo",_D[3]],["comp",_D[4]],["calado",_D[5]],["agencia",_D[6]],["operador",_D[7]],["carga",_D[8]],["modRaw",_D[9]],["origem",_D[10]],["anterior",_D[11]],["proximo",_D[12]],["mov","Tonelagem","n"]],
+  atracados: [["chegada","Chegada","d"],["saida","Saída","d"],["cais",_D[1]],["navio",_D[2]],["cbo",_D[3]],["comp",_D[4]],["calado",_D[5]],["agencia",_D[6]],["operador",_D[7]],["carga",_D[8]],["modRaw",_D[9]],["origem",_D[10]],["anterior",_D[11]],["proximo",_D[12]],["prev","Tonelagem prevista","n"],["mov","Tonelagem movimentada","n"],["saldo","Saldo","n"]],
+  previstos: [["chegada","Chegada","d"],["saida","Saída","d"],["cais",_D[1]],["navio",_D[2]],["imo","IMO"],["comp",_D[4]],["calado",_D[5]],["agencia",_D[6]],["operador",_D[7]],["carga",_D[8]],["modRaw",_D[9]],["origem",_D[10]],["anterior",_D[11]],["proximo",_D[12]],["prev","Tonelagem prevista","n"]]
+};
+COLS_TAB.fundeados = COLS_TAB.atracados;
+
+function viewOf(id){ return (state.views && state.views[id]) || (id === "desatracados" ? "tabela" : "cartoes"); }
+
+function tabelaHtml(id, items){
+  var cols = COLS_TAB[id], ed = typeof EDIT !== "undefined" && EDIT.on;
+  var h = '<div class="tbl-wrap"><table class="tbl"><thead><tr>' + cols.map(function(c){ return '<th>' + c[1] + '</th>'; }).join("") + (ed ? '<th>Ações</th>' : '') + '</tr></thead><tbody>';
+  items.forEach(function(s){
+    h += '<tr>' + cols.map(function(c){
+      var v = c[0] === "saldo" ? (s.prev || 0) - (s.mov || 0) : s[c[0]];
+      if(c[2] === "d") v = String(v || "").slice(0, 16);
+      else if(c[2] === "n") v = (v || v === 0) ? num(v) : "";
+      return '<td' + (c[0] === "navio" ? ' class="nv"' : c[2] === "n" ? ' class="r"' : '') + '>' + (v === "" || v == null ? '<span class="meta">—</span>' : esc(v)) + '</td>';
+    }).join("") + (ed ? '<td class="ac"><button class="btn" type="button" data-ed="' + esc(s.id) + '">✏️ Editar</button> <button class="btn dng" type="button" data-del="' + esc(s.id) + '">Excluir</button></td>' : '') + '</tr>';
+  });
+  return h + '</tbody></table></div>';
+}
+
+window.addEventListener("load", function(){
+  state.views = state.views || {};
+  var b = document.getElementById("btn-view");
+  b.onclick = function(){ state.views[state.tab] = viewOf(state.tab) === "tabela" ? "cartoes" : "tabela"; renderPanel(); };
+  renderPanel();
+});
