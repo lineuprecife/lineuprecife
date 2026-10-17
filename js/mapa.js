@@ -18,52 +18,74 @@ function mapaPt(k, t){   /* ponto na linha central do berço: t = 0 (lado leste)
   var p = GEO[k].p, ax = (p[0][0]+p[2][0])/2, ay = (p[0][1]+p[2][1])/2, bx = (p[1][0]+p[3][0])/2, by = (p[1][1]+p[3][1])/2;
   return {x: ax + (bx-ax)*t - MAPA.OX, y: ay + (by-ay)*t - MAPA.OY};
 }
+var MAPA_IMG_LIMPA = false;   /* mude para true quando a imagem do mapa NÃO tiver as divisões dos berços desenhadas: a página passa a desenhá-las */
+function mapaEixo(k){ var p = GEO[k].p, a = mapaPt(k, 0), b = mapaPt(k, 1); return Math.sqrt(Math.pow(b.x-a.x, 2) + Math.pow(b.y-a.y, 2)); }
+function compM(s){ var n = parseFloat(String(s.comp||"").replace(",", ".")); return n > 0 ? n : 90; }
+function mapaTipo(m){ return m < 60 ? "boat" : m <= 150 ? "mid" : "big"; }
+var ASPECTO = {boat:0.38, mid:0.22, big:0.22};   /* altura / largura do desenho */
 function mapaPos(lista){
-  var por = {}, multi = [], dots = [];
+  var por = {}, multi = [], itens = [];
   lista.forEach(function(s){
     var ks = caisKeys(s.cais); if(!ks.length) return;
     if(ks.length > 1) multi.push({s:s, ks:ks}); else (por[ks[0]] = por[ks[0]] || []).push(s);
   });
   Object.keys(por).forEach(function(k){
-    var Lb = GEO[k].L, ships = por[k].slice().sort(function(a, b){ var da = parseDate(a.chegada), db = parseDate(b.chegada); return (da?+da:0) - (db?+db:0); });
-    var c = ships.map(function(s){ var n = parseFloat(String(s.comp||"").replace(",", ".")); return n > 0 ? n : 90; });
-    var gap = 12, total = c.reduce(function(a, b){ return a + b; }, 0) + gap*(c.length-1), f = total > Lb ? Lb/total : 1, cur = (Lb - total*f)/2;
+    var Lb = GEO[k].L, eixo = mapaEixo(k), sc = eixo/Lb;                       /* sc = pixels da imagem por metro neste berço */
+    var ships = por[k].slice().sort(function(a, b){ var da = parseDate(a.chegada), db = parseDate(b.chegada); return (da?+da:0) - (db?+db:0); });
+    var c = ships.map(compM), gap = 10, total = c.reduce(function(a, b){ return a + b; }, 0) + gap*(c.length-1), f = total > Lb ? Lb/total : 1, cur = (Lb - total*f)/2;
     ships.forEach(function(s, i){
-      var w = c[i]*f, p = mapaPt(k, (cur + w/2)/Lb); cur += w + gap*f;
-      if(ships.length >= 4) p.y += (i % 2 ? 7 : -7);    /* muitos navios: escalona para não encostar */
-      dots.push({s:s, x:p.x, y:p.y});
+      var m = c[i], w = Math.min(Math.max(m*sc*f, 30), eixo), p = mapaPt(k, (cur + m*f/2)/Lb); cur += (m + gap)*f;
+      if(ships.length >= 4) p.y += (i % 2 ? 8 : -8);
+      itens.push({s:s, x:p.x, y:p.y, w:w, kind:mapaTipo(m)});
     });
   });
-  multi.forEach(function(m){                              /* navio ocupando 2 berços: ponto entre eles */
-    var ps = m.ks.map(function(k){ return mapaPt(k, 0.5); });
-    dots.push({s:m.s, x:ps.reduce(function(a, p){ return a + p.x; }, 0)/ps.length, y:ps.reduce(function(a, p){ return a + p.y; }, 0)/ps.length});
+  multi.forEach(function(g){                                                    /* navio em dois berços: ocupa os dois */
+    var ps = g.ks.map(function(k){ return mapaPt(k, 0.5); }), w = g.ks.reduce(function(a, k){ return a + mapaEixo(k); }, 0);
+    itens.push({s:g.s, x:ps.reduce(function(a, p){ return a + p.x; }, 0)/ps.length, y:ps.reduce(function(a, p){ return a + p.y; }, 0)/ps.length, w:Math.min(w, compM(g.s)*0.5), kind:mapaTipo(compM(g.s))});
   });
-  for(var it = 0; it < 60; it++){                         /* afasta pontos que ainda estiverem perto demais */
+  itens.forEach(function(d){ d.h = d.w*ASPECTO[d.kind]; });
+  for(var it = 0; it < 80; it++){                                               /* separa desenhos que ainda se sobreponham */
     var moved = false;
-    for(var i = 0; i < dots.length; i++) for(var j = i+1; j < dots.length; j++){
-      var dx = dots[j].x - dots[i].x, dy = dots[j].y - dots[i].y, d = Math.sqrt(dx*dx + dy*dy);
-      if(d >= MAPA.MIN) continue;
-      if(d < 0.01){ dx = 1; dy = 0; d = 1; }
-      var push = (MAPA.MIN - d)/2 + 0.1, ux = dx/d, uy = dy/d;
-      dots[i].x -= ux*push; dots[i].y -= uy*push; dots[j].x += ux*push; dots[j].y += uy*push; moved = true;
+    for(var i = 0; i < itens.length; i++) for(var j = i+1; j < itens.length; j++){
+      var A = itens[i], B = itens[j], dx = B.x - A.x, dy = B.y - A.y;
+      var ox = (A.w + B.w)/2 + 3 - Math.abs(dx), oy = (A.h + B.h)/2 + 3 - Math.abs(dy);
+      if(ox <= 0 || oy <= 0) continue;
+      if(ox < oy){ var s1 = (dx < 0 ? -1 : 1), q = ox/2 + 0.1; A.x -= s1*q; B.x += s1*q; }
+      else { var s2 = (dy < 0 ? -1 : 1), r = oy/2 + 0.1; A.y -= s2*r; B.y += s2*r; }
+      moved = true;
     }
     if(!moved) break;
   }
-  return dots;
+  return itens;
+}
+function mapaSvg(kind){
+  if(kind === "boat") return '<svg viewBox="0 0 100 38" aria-hidden="true"><path class="h" d="M1 19C12 4 30 2 48 2H92Q99 2 99 9V29Q99 36 92 36H48C30 36 12 34 1 19Z"/><rect class="c" x="58" y="9" width="26" height="20" rx="4"/><rect class="c" x="38" y="14" width="12" height="10" rx="3"/></svg>';
+  var n = kind === "big" ? 4 : 2, x0 = kind === "big" ? 27 : 36, w = kind === "big" ? 11.5 : 19, step = kind === "big" ? 13.5 : 22, hat = "";
+  for(var i = 0; i < n; i++) hat += '<rect class="t" x="' + (x0 + i*step) + '" y="5" width="' + w + '" height="12" rx="1"/>';
+  return '<svg viewBox="0 0 100 22" aria-hidden="true"><path class="h" d="M1 11C9 3 18 1.5 28 1.5H95Q99 1.5 99 5V17Q99 20.5 95 20.5H28C18 20.5 9 19 1 11Z"/>' + hat + '<rect class="c" x="83" y="4.5" width="11" height="13" rx="1.5"/></svg>';
+}
+function mapaBercos(){                                                          /* divisões e números dos berços, desenhados pela página */
+  var sv = document.getElementById("bercos"); if(!sv || sv.getAttribute("data-ok")) return;
+  sv.setAttribute("data-ok", "1");
+  sv.innerHTML = Object.keys(GEO).map(function(k){
+    var p = GEO[k].p.map(function(q){ return [q[0]-MAPA.OX, q[1]-MAPA.OY]; }), cx = (p[0][0]+p[1][0]+p[2][0]+p[3][0])/4, cy = (p[0][1]+p[1][1]+p[2][1]+p[3][1])/4;
+    return '<polygon points="' + [p[0], p[1], p[3], p[2]].map(function(q){ return q[0] + "," + q[1]; }).join(" ") + '"/><text x="' + cx + '" y="' + cy + '">' + (k.length < 2 ? "0" + k : k) + '</text>';
+  }).join("");
 }
 function renderMapa(){
   var box = document.getElementById("dots"); if(!box) return;
+  if(MAPA_IMG_LIMPA) mapaBercos();
   box.innerHTML = mapaPos(listOf("atracados")).map(function(d){
     var s = d.s, cls = s.mod === "IMPORTAÇÃO" ? "imp" : s.mod === "EXPORTAÇÃO" ? "exp" : "out", fx = d.x / MAPA.W;
-    return '<button type="button" class="dot ' + cls + (fx > 0.85 ? " r" : fx < 0.12 ? " l" : "") + '" style="left:' + (fx*100).toFixed(2) + '%;top:' + (d.y/MAPA.H*100).toFixed(2) +
-      '%" aria-label="' + esc(s.navio + ", cais " + s.cais) + '"><span>' + esc(s.navio) + '<small>Cais ' + esc(s.cais) + '</small></span></button>';
+    return '<button type="button" class="ship ' + cls + (fx > 0.85 ? " r" : fx < 0.12 ? " l" : "") + '" style="left:' + (fx*100).toFixed(2) + '%;top:' + (d.y/MAPA.H*100).toFixed(2) + '%;width:' + (d.w/MAPA.W*100).toFixed(2) +
+      '%" aria-label="' + esc(s.navio + ", cais " + s.cais) + '">' + mapaSvg(d.kind) + '<span>' + esc(s.navio) + '<small>Cais ' + esc(s.cais) + '</small></span></button>';
   }).join("");
 }
 window.addEventListener("load", function(){
   var box = document.getElementById("dots"); if(!box) return;
-  document.addEventListener("click", function(e){        /* toque no ponto abre o nome; toque fora fecha */
-    var b = e.target.closest ? e.target.closest(".dot") : null;
-    Array.prototype.forEach.call(box.querySelectorAll(".dot.on"), function(x){ if(x !== b) x.classList.remove("on"); });
+  document.addEventListener("click", function(e){        /* toque no navio abre o nome; toque fora fecha */
+    var b = e.target.closest ? e.target.closest(".ship") : null;
+    Array.prototype.forEach.call(box.querySelectorAll(".ship.on"), function(x){ if(x !== b) x.classList.remove("on"); });
     if(b) b.classList.toggle("on");
   });
 });

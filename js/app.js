@@ -261,6 +261,7 @@ function renderBerths(){
 }
 function renderPanel(){
   var id = state.tab, el = $("panel");
+  var ms = document.getElementById("mapa-sec"); if(ms) ms.hidden = id !== "atracados";   /* mapa só faz sentido para quem está atracado */
   $("btn-view").textContent = viewOf(id)==="tabela" ? "Ver como cartões" : "Ver tabela completa";
   if(!data[id]){
     el.innerHTML = '<div class="empty">'+(errors[id] ? "Não foi possível ler a aba "+esc(CONFIG.tabs[id].sheet)+". Veja a mensagem no topo da página." : "Carregando a planilha…")+'</div>';
