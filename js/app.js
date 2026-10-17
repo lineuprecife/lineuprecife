@@ -10,7 +10,7 @@ var CONFIG = {
      apague o bloco "banco" abaixo.
      "url": opcional. Se a aba BANCO foi publicada na web em CSV, cole o link aqui (é o caminho mais
      garantido; sem ele a página lê direto da planilha compartilhada). */
-  banco: {sheet:"BANCO", url:""},
+  banco: {sheet:"BANCO", url:"https://docs.google.com/spreadsheets/d/e/2PACX-1vTh-SB8_7r_RVvPQ-1DcqZNXKntlghVag1el1uGWedOy_c0ZZPHgHLZ-izmPJCKl2ZpByBDKMtzHjSv/pub?gid=1623702709&single=true&output=csv"},
 
   /* (Só vale se o bloco "banco" acima for apagado.) Nome de cada aba, exatamente como aparece embaixo na planilha.
      "layout" diz em que colunas estão os dados (veja LAYOUTS abaixo).
