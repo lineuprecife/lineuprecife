@@ -9,7 +9,7 @@
   --f-body:"Montserrat","Segoe UI",system-ui,sans-serif;
   --f-mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
 }
-@media (prefers-color-scheme: dark){
+@media not all /* modo escuro desligado: a página é sempre clara */{
   :root{
     color-scheme:dark;
     --bg:#07131E; --surface:#0E2031; --ink:#E6EEF5; --muted:#8CA3B8; --line:#1C3347;
@@ -121,7 +121,7 @@ footer b{color:var(--ink);font-weight:600}
 .tab[aria-selected="true"] .n{color:#fff}
 .tab[aria-selected="true"]{border-bottom:4px solid var(--sun)}
 .ship{color:var(--blue)}
-@media (prefers-color-scheme: dark){.logo{background:#fff;padding:5px 10px}.ship,.tab .n,.sec-t{color:var(--ink)}}
+@media not all /* modo escuro desligado: a página é sempre clara */{.logo{background:#fff;padding:5px 10px}.ship,.tab .n,.sec-t{color:var(--ink)}}
 @media (max-width:520px){.logo img{height:52px}}
 
 /* ===== Título da barra azul: nome grande, traço azul-claro do logotipo e subtítulo abaixo ===== */
