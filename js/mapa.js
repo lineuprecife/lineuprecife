@@ -14,11 +14,12 @@ var GEO = {
   "8":    {L:120,    p:[[612,409],[523,414],[614,450],[524,454]]},
   "9":    {L:239.9,  p:[[523,414],[414,421],[524,454],[415,459]]}
 };
-function mapaPt(k, t){   /* ponto na linha central do berço: t = 0 (lado leste) a 1 (lado oeste) */
-  var p = GEO[k].p, ax = (p[0][0]+p[2][0])/2, ay = (p[0][1]+p[2][1])/2, bx = (p[1][0]+p[3][0])/2, by = (p[1][1]+p[3][1])/2;
+function mapaPt(k, t, s){   /* ponto no berço: t = 0 (lado leste) a 1 (lado oeste); s = 0 (borda do cais) a 1 (lado da água). Navios ficam encostados no cais (s = 0,36). */
+  if(s == null) s = 0.36;
+  var p = GEO[k].p, ax = p[0][0] + (p[2][0]-p[0][0])*s, ay = p[0][1] + (p[2][1]-p[0][1])*s, bx = p[1][0] + (p[3][0]-p[1][0])*s, by = p[1][1] + (p[3][1]-p[1][1])*s;
   return {x: ax + (bx-ax)*t - MAPA.OX, y: ay + (by-ay)*t - MAPA.OY};
 }
-var MAPA_IMG_LIMPA = false;   /* mude para true quando a imagem do mapa NÃO tiver as divisões dos berços desenhadas: a página passa a desenhá-las */
+var MAPA_IMG_LIMPA = true;   /* mude para true quando a imagem do mapa NÃO tiver as divisões dos berços desenhadas: a página passa a desenhá-las */
 function mapaEixo(k){ var p = GEO[k].p, a = mapaPt(k, 0), b = mapaPt(k, 1); return Math.sqrt(Math.pow(b.x-a.x, 2) + Math.pow(b.y-a.y, 2)); }
 function compM(s){ var n = parseFloat(String(s.comp||"").replace(",", ".")); return n > 0 ? n : 90; }
 function mapaTipo(m){ return m < 60 ? "boat" : m <= 150 ? "mid" : "big"; }
@@ -68,7 +69,7 @@ function mapaBercos(){                                                          
   var sv = document.getElementById("bercos"); if(!sv || sv.getAttribute("data-ok")) return;
   sv.setAttribute("data-ok", "1");
   sv.innerHTML = Object.keys(GEO).map(function(k){
-    var p = GEO[k].p.map(function(q){ return [q[0]-MAPA.OX, q[1]-MAPA.OY]; }), cx = (p[0][0]+p[1][0]+p[2][0]+p[3][0])/4, cy = (p[0][1]+p[1][1]+p[2][1]+p[3][1])/4;
+    var p = GEO[k].p.map(function(q){ return [q[0]-MAPA.OX, q[1]-MAPA.OY]; }), c = mapaPt(k, 0.5, 0.82), cx = c.x, cy = c.y;   /* número no lado da água, longe dos navios */
     return '<polygon points="' + [p[0], p[1], p[3], p[2]].map(function(q){ return q[0] + "," + q[1]; }).join(" ") + '"/><text x="' + cx + '" y="' + cy + '">' + (k.length < 2 ? "0" + k : k) + '</text>';
   }).join("");
 }
@@ -77,15 +78,15 @@ function renderMapa(){
   if(MAPA_IMG_LIMPA) mapaBercos();
   box.innerHTML = mapaPos(listOf("atracados")).map(function(d){
     var s = d.s, cls = s.mod === "IMPORTAÇÃO" ? "imp" : s.mod === "EXPORTAÇÃO" ? "exp" : "out", fx = d.x / MAPA.W;
-    return '<button type="button" class="ship ' + cls + (fx > 0.85 ? " r" : fx < 0.12 ? " l" : "") + '" style="left:' + (fx*100).toFixed(2) + '%;top:' + (d.y/MAPA.H*100).toFixed(2) + '%;width:' + (d.w/MAPA.W*100).toFixed(2) +
+    return '<button type="button" class="navmap ' + cls + (fx > 0.85 ? " r" : fx < 0.12 ? " l" : "") + '" style="left:' + (fx*100).toFixed(2) + '%;top:' + (d.y/MAPA.H*100).toFixed(2) + '%;width:' + (d.w/MAPA.W*100).toFixed(2) +
       '%" aria-label="' + esc(s.navio + ", cais " + s.cais) + '">' + mapaSvg(d.kind) + '<span>' + esc(s.navio) + '<small>Cais ' + esc(s.cais) + '</small></span></button>';
   }).join("");
 }
 window.addEventListener("load", function(){
   var box = document.getElementById("dots"); if(!box) return;
   document.addEventListener("click", function(e){        /* toque no navio abre o nome; toque fora fecha */
-    var b = e.target.closest ? e.target.closest(".ship") : null;
-    Array.prototype.forEach.call(box.querySelectorAll(".ship.on"), function(x){ if(x !== b) x.classList.remove("on"); });
+    var b = e.target.closest ? e.target.closest(".navmap") : null;
+    Array.prototype.forEach.call(box.querySelectorAll(".navmap.on"), function(x){ if(x !== b) x.classList.remove("on"); });
     if(b) b.classList.toggle("on");
   });
 });
