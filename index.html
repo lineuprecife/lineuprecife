@@ -31,11 +31,6 @@
   <div class="editbar" id="editbar" hidden><span id="who"></span><button class="btn pri" id="btn-new" type="button">+ Novo navio</button><button class="btn" id="btn-aviso" type="button">Aviso no topo</button><button class="btn" id="btn-out" type="button">Sair do modo edição</button></div>
   <div class="tabs" role="tablist" aria-label="Situação dos navios" id="tabs"></div>
 
-  <section class="berths" aria-label="Ocupação dos cais">
-    <h2 class="sec-t">Ocupação dos cais agora</h2>
-    <div class="berth-grid" id="berths"></div>
-  </section>
-
   <div class="tools">
     <input class="search" id="q" type="search" placeholder="Buscar navio, carga, agência ou operador" aria-label="Buscar">
     <div class="chips" id="chips" role="group" aria-label="Filtrar por operação">
@@ -48,15 +43,32 @@
 
   <div class="list" id="panel" role="tabpanel" aria-live="polite"></div>
 
+  <section class="berths" aria-label="Ocupação dos cais">
+    <h2 class="sec-t">Ocupação dos cais agora</h2>
+    <div class="berth-grid" id="berths"></div>
+  </section>
+
+  <section class="mapa-sec" aria-label="Mapa dos cais">
+    <h2 class="sec-t">Mapa dos cais</h2>
+    <div class="mapa-wrap">
+      <div class="mapa" id="mapa">
+        <img src="assets/mapa/mapa-cais.jpg" alt="Vista aérea do Porto do Recife com os berços numerados de 00-TA a 09" width="1050" height="390">
+        <div class="dots" id="dots"></div>
+      </div>
+    </div>
+    <p class="mapa-leg"><span class="lg imp"></span>Importação <span class="lg exp"></span>Exportação <span class="lg out"></span>Outros serviços · toque (ou passe o mouse) no ponto para ver o navio</p>
+  </section>
+
   <footer>
     <span><b>Telefones</b> <span id="f-tel"></span></span>
     <span><b>E-mail</b> <span id="f-mail"></span></span>
-    <span>N/I: não informado</span>
+    <span>—: não informado</span>
   </footer>
 </main>
 
 <script src="js/edit.js"></script>
 <script src="js/tabela.js"></script>
+<script src="js/mapa.js"></script>
 <script src="js/app.js"></script>
 </body>
 </html>
