@@ -240,15 +240,24 @@ function renderTabs(){
     return '<button class="tab" role="tab" type="button" data-t="'+t.id+'" aria-selected="'+sel+'"><span class="n">'+n+'</span><span class="l">'+t.label+'</span></button>';
   }).join("");
 }
+var BERCOS = ["00-TA","1","2","3","4","5","6","7","8","9"];
+function caisKeys(c){   /* "2" -> ["2"]; "0 E 1" -> ["00-TA","1"]; "7 / CB" -> ["7"]; "MARINA" -> [] */
+  var out = [];
+  (String(c == null ? "" : c).toUpperCase().match(/00-TA|TA|\d+/g) || []).forEach(function(t){
+    var k = (t === "00-TA" || t === "TA" || /^0+$/.test(t)) ? "00-TA" : String(parseInt(t, 10));
+    if(BERCOS.indexOf(k) >= 0 && out.indexOf(k) < 0) out.push(k);
+  });
+  return out;
+}
 function renderBerths(){
   var map = {};
-  listOf("atracados").forEach(function(s){ if(s.cais){ (map[s.cais]=map[s.cais]||[]).push(s.navio); } });
-  var html = "";
-  for(var c=1;c<=9;c++){
-    var sh = map[String(c)];
-    html += '<div class="berth '+(sh?"busy":"free")+'"><div class="c">CAIS '+c+'</div><div class="s">'+(sh?sh.map(esc).join("<br>"):"Livre")+'</div></div>';
-  }
-  $("berths").innerHTML = html;
+  listOf("atracados").forEach(function(s){ caisKeys(s.cais).forEach(function(k){ (map[k] = map[k] || []).push(s.navio); }); });
+  $("berths").innerHTML = BERCOS.map(function(k){
+    var sh = map[k], vis = sh ? (sh.length > 3 ? sh.slice(0, 2) : sh) : [];
+    var lines = vis.map(function(n){ return "<span>" + esc(n) + "</span>"; }).join("") + (sh && sh.length > 3 ? '<span class="mais">+' + (sh.length - 2) + " navios</span>" : "");
+    return '<div class="berth ' + (sh ? "busy" : "free") + '"' + (sh ? ' title="' + esc(sh.join(", ")) + '"' : "") + '><div class="c">CAIS ' + k + '</div><div class="s">' + (sh ? lines : "Livre") + "</div></div>";
+  }).join("");
+  if(typeof renderMapa === "function") renderMapa();
 }
 function renderPanel(){
   var id = state.tab, el = $("panel");
