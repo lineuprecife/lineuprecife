@@ -2,10 +2,17 @@
    CONFIGURAÇÃO — é só aqui que se mexe.
    ===================================================================== */
 var CONFIG = {
-  /* Código da planilha: o trecho entre /d/ e /edit no endereço dela. */
-  sheetId: "1XjIAXf2Gvq-qDe9cvhflgSkjTF3CJ-019d9Uqr2MDRg",
+  /* Código da planilha: o trecho entre /d/ e /edit no endereço dela. (bd_lineup_recife) */
+  sheetId: "15Vhne-dxn4Pw_LuqMwNluvJAE5FuZZYYPtgZaJ7R_kI",
 
-  /* Nome de cada aba, exatamente como aparece embaixo na planilha.
+  /* BANCO ÚNICO: uma aba só (BANCO), uma linha por navio; a coluna "Situação" (Previsto, Fundeado,
+     Atracado, Desatracado) decide em qual lista o navio aparece. Para voltar a ler 4 abas separadas,
+     apague o bloco "banco" abaixo.
+     "url": opcional. Se a aba BANCO foi publicada na web em CSV, cole o link aqui (é o caminho mais
+     garantido; sem ele a página lê direto da planilha compartilhada). */
+  banco: {sheet:"BANCO", url:""},
+
+  /* (Só vale se o bloco "banco" acima for apagado.) Nome de cada aba, exatamente como aparece embaixo na planilha.
      "layout" diz em que colunas estão os dados (veja LAYOUTS abaixo).
      "url": opcional. Se a aba foi publicada na web em CSV, cole o link aqui. */
   tabs: {
@@ -62,7 +69,12 @@ function clean(v){
   var u = v.toUpperCase();
   return (u==="N/I" || u==="N/A" || u==="-" ) ? "" : v;
 }
-function toNum(v){ var n = parseInt(String(v||"").replace(/\D/g,""),10); return isNaN(n)?0:n; }
+function toNum(v){
+  var s = String(v==null?"":v).trim().replace(/[^\d.,-]/g,""); if(!s) return 0;
+  if(s.indexOf(",")>=0) s = s.replace(/\./g,"").replace(",",".");          /* 1.234,5 -> 1234.5 */
+  else if(/^-?\d{1,3}(\.\d{3})+$/.test(s)) s = s.replace(/\./g,"");      /* 10.000 -> 10000 */
+  var n = parseFloat(s); return isNaN(n)?0:n;
+}
 function cap(s){ return s ? s.charAt(0)+s.slice(1).toLowerCase() : s; }
 var DATE_RE = /^\d\d\/\d\d\/\d{4}/;
 
@@ -143,6 +155,105 @@ function loadTab(id){
   });
 }
 
+/* ===== BANCO ÚNICO (aba BANCO) =====
+   Lê as colunas pelo NOME do cabeçalho, então a ordem das colunas na planilha pode mudar à vontade.
+   Colunas esperadas: Situação, Previsão de Chegada, Previsão de Atracação, Atracação, Previsão Desatracação,
+   Desatracação, Previsão de Cais, Cais Atracado, Navio, IMO, CBO, Compr., Calado, Agência de Navegação,
+   Operador Portuário, Carga, Modalidade, Procedência / Destino da Carga, Porto Anterior, Próximo Porto,
+   Tonelagem Prevista, Tonelagem Movimentada, Saldo, Tonelagem final. (Saldo é recalculado pela página.) */
+var BCOL = {
+  situacao:[/^situacao$/], navio:[/^navio/,/embarcac/], imo:[/^imo$/], cbo:[/^cbo$/],
+  prevChegada:[/^previsao de chegada/], chegadaConf:[/^chegada confirmada/],
+  prevAtrac:[/^previsao de atracacao/], atrac:[/^atracacao$/,/^chegada$/],
+  prevSaida:[/^previsao (de )?(desatracacao|saida)/], saida:[/^desatracacao$/,/^saida$/],
+  prevCais:[/^previsao de cais/], cais:[/^cais atracado/,/^cais$/],
+  comp:[/^compr/], calado:[/^calado/], agencia:[/^agencia/], operador:[/^operador/], carga:[/^carga$/], mod:[/^modalidade/],
+  origem:[/^proced|destino/], anterior:[/^porto anterior/], proximo:[/^proximo porto/],
+  prev:[/^tonelagem prevista/], mov:[/^tonelagem movimentada/], final:[/^tonelagem final/]
+};
+function bancoCols(rows){
+  for(var i=0;i<Math.min(rows.length,6);i++){
+    var h = rows[i].map(normH);
+    if(h.indexOf("situacao")<0 || !h.some(function(t){ return /^navio/.test(t); })) continue;
+    var L = {hdr:i};
+    Object.keys(BCOL).forEach(function(k){
+      BCOL[k].forEach(function(re){ if(L[k]==null) h.forEach(function(t,c){ if(L[k]==null && re.test(t)) L[k] = c; }); });
+    });
+    return L;
+  }
+  return null;
+}
+function dataBR(v){   /* aceita 22/10/2026 07:00(:00) e 2026-10-22 07:00; devolve dd/mm/aaaa hh:mm */
+  v = String(v==null?"":v).trim();
+  var m = /^(\d\d\/\d\d\/\d{4})(?:[ T](\d\d:\d\d))?/.exec(v);
+  if(m) return m[1]+(m[2]?" "+m[2]:"");
+  m = /^(\d{4})-(\d\d)-(\d\d)(?:[ T](\d\d:\d\d))?/.exec(v);
+  return m ? m[3]+"/"+m[2]+"/"+m[1]+(m[4]?" "+m[4]:"") : "";
+}
+function sitDe(v){
+  var t = normH(v);
+  if(/^previst|^programad/.test(t)) return "previstos";
+  if(/^fundead|^aguard|^ao largo/.test(t)) return "fundeados";
+  if(/^desatrac/.test(t)) return "desatracados";
+  if(/^atrac/.test(t)) return "atracados";
+  return "";
+}
+function mapBanco(rows){
+  var L = bancoCols(rows); if(!L) throw new Error("cabecalho");
+  var by = {previstos:[], fundeados:[], atracados:[], desatracados:[]}, aviso = "";
+  rows.forEach(function(r, idx){
+    if(idx <= L.hdr) return;
+    var a = String(r[L.situacao]||"").trim();
+    if(/^(nota|aviso)/i.test(a)){ var t = String(r[L.situacao+1]||"").trim(); if(t) aviso = t; return; }   /* linha "AVISO | texto" vira a faixa amarela do topo */
+    var sit = sitDe(a);
+    var g = function(k){ return L[k]==null ? "" : clean(r[L[k]]); };
+    var d = function(k){ return L[k]==null ? "" : dataBR(r[L[k]]); };
+    var navio = g("navio"); if(!sit || !navio) return;
+    var prevL = sit==="previstos" || sit==="fundeados", desat = sit==="desatracados";
+    var s = {
+      chegada: prevL ? (d("chegadaConf") || d("prevChegada") || d("atrac")) : (d("atrac") || d("chegadaConf") || d("prevChegada")),
+      atracacao: d("prevAtrac"),
+      saida: desat ? (d("saida") || d("prevSaida")) : d("prevSaida"),
+      cais: prevL ? (g("prevCais") || g("cais")) : (g("cais") || g("prevCais")),
+      navio: navio, cbo: g("cbo"), imo: g("imo"),
+      comp: g("comp"), calado: g("calado"), agencia: g("agencia"), operador: g("operador"), carga: g("carga"),
+      mod: g("mod").toUpperCase(), origem: g("origem"), anterior: g("anterior"), proximo: g("proximo"),
+      prev: toNum(g("prev")), mov: toNum(desat ? g("final") : g("mov")), tipo: ""
+    };
+    s.id = sit+"-"+(idx+1); s.row = idx+1; s.raw = r; s.modRaw = s.mod;
+    if(s.mod!=="IMPORTAÇÃO" && s.mod!=="EXPORTAÇÃO" && !s.prev){
+      var t2 = s.mod || s.carga;
+      if(t2){ s.tipo = cap(t2); s.mod = ""; }
+    }
+    if(!/ m$/i.test(s.comp) && s.comp) s.comp += " m";
+    by[sit].push(s);
+  });
+  if(typeof ord === "function") Object.keys(by).forEach(function(k){ by[k].sort(function(x, y){ return ord(k, x, y); }); });
+  return {by:by, aviso:aviso};
+}
+function loadBanco(){
+  var b = CONFIG.banco;
+  var url = b.url || "https://docs.google.com/spreadsheets/d/"+encodeURIComponent(CONFIG.sheetId)+"/gviz/tq?tqx=out:csv&sheet="+encodeURIComponent(b.sheet);
+  return fetch(url, {cache:"no-store"}).then(function(res){
+    if(!res.ok) throw new Error("HTTP "+res.status);
+    return res.text();
+  }).then(function(text){
+    if(/^\s*<(!doctype|html)/i.test(text)) throw new Error("login");
+    return mapBanco(parseCsv(text));
+  });
+}
+function refreshBanco(){
+  return loadBanco().then(function(r){
+    var d = new Date(), agora = p2(d.getDate())+"/"+p2(d.getMonth()+1)+"/"+d.getFullYear()+" "+p2(d.getHours())+":"+p2(d.getMinutes());
+    TABS.forEach(function(t){
+      var items = r.by[t.id]; if(t.id==="desatracados") items = items.filter(recente);   /* só os últimos dias; o histórico fica na planilha */
+      data[t.id] = {items:items, aviso:r.aviso, atualizado:agora}; errors[t.id] = false;
+    });
+    lastOk = p2(d.getHours())+":"+p2(d.getMinutes()); lastErr = "";
+  }).catch(function(e){ lastErr = String((e && e.message) || ""); TABS.forEach(function(t){ errors[t.id] = true; }); }).then(renderAll);
+}
+function nomeAba(id){ return (CONFIG.banco && !CONFIG.api) ? CONFIG.banco.sheet : CONFIG.tabs[id].sheet; }
+
 /* === INTERFACE === */
 var MES = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
 var HEADS = {
@@ -160,7 +271,7 @@ var EMPTY = {
 var state = {tab:"atracados", mod:"", q:""};
 var data = {};      /* id -> {items, aviso, atualizado} da última leitura boa */
 var errors = {};    /* id -> true quando a última leitura falhou */
-var lastOk = null;
+var lastOk = null, lastErr = "";
 
 function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
 function $(id){return document.getElementById(id)}
@@ -264,7 +375,7 @@ function renderPanel(){
   var ms = document.getElementById("mapa-sec"); if(ms) ms.hidden = id !== "atracados";   /* mapa só faz sentido para quem está atracado */
   $("btn-view").textContent = viewOf(id)==="tabela" ? "Ver como cartões" : "Ver tabela completa";
   if(!data[id]){
-    el.innerHTML = '<div class="empty">'+(errors[id] ? "Não foi possível ler a aba "+esc(CONFIG.tabs[id].sheet)+". Veja a mensagem no topo da página." : "Carregando a planilha…")+'</div>';
+    el.innerHTML = '<div class="empty">'+(errors[id] ? "Não foi possível ler a aba "+esc(nomeAba(id))+". Veja a mensagem no topo da página." : "Carregando a planilha…")+'</div>';
     return;
   }
   var all = data[id].items, items = all.filter(matches);
@@ -286,11 +397,11 @@ function renderHead(){
     if(txt === txt.toUpperCase()){ txt = txt.toLowerCase(); txt = txt.charAt(0).toUpperCase()+txt.slice(1); }
     $("notice-t").textContent = txt;
   }
-  var bad = TABS.filter(function(t){return errors[t.id]}).map(function(t){return CONFIG.tabs[t.id].sheet});
+  var bad = TABS.filter(function(t){return errors[t.id]}).map(function(t){return nomeAba(t.id)}).filter(function(n,i,a){return a.indexOf(n)===i});
   var w = $("warn");
   if(bad.length){
     w.hidden = false;
-    $("warn-t").textContent = "Não foi possível ler "+(bad.length>1?"as abas ":"a aba ")+bad.join(", ")+". Confira se a planilha está compartilhada como \"Qualquer pessoa com o link\" (leitor) e se o nome da aba está igual ao da planilha."+(lastOk?" Os dados abaixo são da última leitura, às "+lastOk+".":"");
+    $("warn-t").textContent = "Não foi possível ler "+(bad.length>1?"as abas ":"a aba ")+bad.join(", ")+". Confira se a planilha está compartilhada como \"Qualquer pessoa com o link\" (leitor) e se o nome da aba está igual ao da planilha."+(lastErr==="cabecalho"?" A primeira linha da aba precisa ter as colunas Situação e Navio.":"")+(lastOk?" Os dados abaixo são da última leitura, às "+lastOk+".":"");
   } else w.hidden = true;
   $("src").textContent = lastOk ? "Lido da planilha às "+lastOk+" · atualiza a cada "+CONFIG.refreshSeconds+" s" : "Lendo a planilha…";
 }
@@ -298,6 +409,7 @@ function renderAll(){ renderHead(); renderTabs(); renderBerths(); renderPanel();
 
 function refresh(){
   if(CONFIG.api) return refreshApi();
+  if(CONFIG.banco) return refreshBanco();
   var jobs = TABS.map(function(t){
     return loadTab(t.id).then(function(r){ data[t.id] = r; errors[t.id] = false; return true; },
                               function(){ errors[t.id] = true; return false; });
