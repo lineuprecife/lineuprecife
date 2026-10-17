@@ -244,7 +244,7 @@ function renderBerths(){
   var map = {};
   listOf("atracados").forEach(function(s){ if(s.cais){ (map[s.cais]=map[s.cais]||[]).push(s.navio); } });
   var html = "";
-  for(var c=2;c<=9;c++){
+  for(var c=1;c<=9;c++){
     var sh = map[String(c)];
     html += '<div class="berth '+(sh?"busy":"free")+'"><div class="c">CAIS '+c+'</div><div class="s">'+(sh?sh.map(esc).join("<br>"):"Livre")+'</div></div>';
   }

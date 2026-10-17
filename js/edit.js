@@ -50,7 +50,7 @@ function dlg(html){
 /* ---- Leitura: uma requisição traz todos os navios; a situação decide em qual lista cada um aparece ---- */
 function toItem(r){
   var n = function(x){ return x === "" || x == null ? 0 : Number(x) || 0; };
-  var m = function(x){ return x === "" || x == null ? "" : String(x).replace(".", ",") + " m"; };
+  var m = function(x){ return x === "" || x == null ? "" : Number(x).toFixed(2).replace(".", ",") + " m"; };
   var s = {id:r.id, rec:r, chegada:r.chegada||"", saida:r.saida||"", atracacao:r.previsao_atracacao||"", cais:String(r.cais||""), navio:String(r.navio||""),
     cbo:r.cbo||"", imo:r.imo||"", comp:m(r.comprimento), calado:m(r.calado), agencia:r.agencia||"", operador:r.operador||"",
     carga:r.carga||"", mod:String(r.operacao||"").toUpperCase(), origem:r.origem_destino||"", anterior:r.porto_anterior||"", proximo:r.proximo_porto||"",
@@ -123,8 +123,8 @@ function openForm(s){
     if(f.t === "dec") v = v.replace(".", ",");
     if(f.t === "dt") c = '<input type="datetime-local" id="f_'+f.k+'" value="'+dtIn(v)+'">';
     else if(f.t === "cais"){
-      var o = [""]; for(var i=2;i<=9;i++) o.push(String(i)); if(v && o.indexOf(v)<0) o.push(v);
-      c = '<select id="f_cais">'+o.map(function(x){ return '<option value="'+esc(x)+'"'+(x===v?" selected":"")+'>'+(x ? "Cais "+esc(x) : "Sem cais")+'</option>'; }).join("")+'</select>';
+      var o = [""]; for(var i=1;i<=9;i++) o.push(String(i)); o.push("MARINA"); if(v && o.indexOf(v)<0) o.push(v);
+      c = '<select id="f_cais">'+o.map(function(x){ return '<option value="'+esc(x)+'"'+(x===v?" selected":"")+'>'+(x ? (isNaN(x) ? esc(x) : "Cais "+esc(x)) : "Sem cais")+'</option>'; }).join("")+'</select>';
     } else if(f.t === "op"){
       c = '<input id="f_operacao" list="dl_op" placeholder="escolha ou escreva" value="'+esc(v)+'"><datalist id="dl_op">'+["IMPORTAÇÃO","EXPORTAÇÃO","DRAGAGEM","ABASTECIMENTO","OP. MILITAR","PESQUISA"].map(function(x){ return '<option value="'+x+'">'; }).join("")+'</datalist>';
     } else c = '<input id="f_'+f.k+'"'+(f.t==="num"?' inputmode="numeric"':f.t==="dec"?' inputmode="decimal"':"")+' value="'+esc(v)+'">';
