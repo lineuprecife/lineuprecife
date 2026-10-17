@@ -217,7 +217,7 @@ footer b{color:var(--ink);font-weight:600}
 
 /* ===== Navios desenhados no mapa (viram para a esquerda) ===== */
 .navmap{position:absolute;transform:translate(-50%,-50%);padding:0;border:0;background:none;cursor:pointer;line-height:0;filter:drop-shadow(0 1px 2px rgba(0,0,0,.65))}
-.navmap svg{display:block;width:100%;height:auto;overflow:visible}
+.navmap svg{display:block;width:100%;height:auto;overflow:visible;transform:rotate(var(--giro,0deg));transform-origin:50% 50%}   /* gira só o desenho, pelo centro; o nome continua reto */
 .navmap .h{stroke:#fff;stroke-width:1.6;vector-effect:non-scaling-stroke}
 .navmap.imp .h{fill:#0060B0}
 .navmap.exp .h{fill:#00AEEF}
@@ -235,3 +235,46 @@ footer b{color:var(--ink);font-weight:600}
 
 .mapa-dica{display:none;margin:6px 2px 0;font-size:12px;font-weight:600;color:var(--blue)}
 @media (max-width:700px){.mapa-dica{display:block}}
+
+/* ===== Refino de layout: nada passa por cima de nada, no PC e no celular ===== */
+.dt{white-space:nowrap}
+.when div{white-space:normal;overflow-wrap:anywhere}
+.when>div+div{margin-top:2px}
+.prog{overflow-wrap:anywhere}
+.row{grid-template-columns:64px minmax(0,1.3fr) minmax(0,1.05fr) minmax(0,1.05fr) minmax(250px,1.9fr) minmax(0,1fr);gap:6px 20px}
+.row.head>div{overflow-wrap:anywhere;line-height:1.3}
+
+/* Quadro de ocupação: altura acompanha o conteúdo; nomes longos quebram em até 2 linhas em vez de cortar */
+.berth{height:auto;min-height:84px}
+.berth .s span{display:-webkit-box;-webkit-box-orient:vertical;-webkit-line-clamp:2;line-clamp:2;white-space:normal;overflow:hidden;overflow-wrap:anywhere;text-overflow:clip}
+.berth .s span+span{margin-top:2px}
+
+/* Tablet e celular: cartão por embarcação */
+@media (max-width:900px){
+  .row{grid-template-columns:52px minmax(0,1fr);padding:16px;gap:12px 14px}
+  .c-rest{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px 18px}
+  .c-when{grid-column:auto}
+  .c-prog{grid-column:auto}
+}
+@media (max-width:700px){
+  .berth-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
+  .berth{height:auto;min-height:72px;padding:7px 8px}
+  .stamp{width:100%;display:flex;flex-wrap:wrap;align-items:baseline;gap:2px 8px;text-align:left}
+  .stamp b{display:inline;font-size:14px}
+  .stamp em{flex-basis:100%;margin:0}
+  .right{flex-direction:column;align-items:flex-start;gap:8px}
+  .right .btn{width:100%}
+  /* tabela completa vira cartão: o rótulo quebra de linha e o valor nunca encosta nele */
+  .tbl td,.tbl td.r,.tbl td.nv{white-space:normal;overflow-wrap:anywhere}
+  .tbl td{grid-template-columns:minmax(96px,40%) minmax(0,1fr);column-gap:10px;align-items:start}
+  .tbl td::before{overflow-wrap:anywhere;line-height:1.3}
+}
+@media (max-width:520px){
+  .berth-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .c-rest{grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:14px 14px}
+  .c-when,.c-prog{grid-column:1/-1}
+  .row{padding:14px 12px;gap:10px 12px}
+  .ship{font-size:17px}
+  .tabs{gap:8px}
+}
+.search{text-overflow:ellipsis}
