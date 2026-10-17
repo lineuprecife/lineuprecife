@@ -4,8 +4,8 @@
           Aba CONFIG guarda o aviso do topo; aba REGISTRO guarda quem mexeu em quê.
    SENHAS: Configurações do projeto > Propriedades do script > SENHAS (ex.: Pedro:1234,Maria:abcd).
    PRIMEIRO USO: executar a função criarBanco() uma vez. */
-var COLS = ["id","situacao","navio","cbo","imo","chegada","saida","cais","comprimento","calado","agencia","operador","carga","operacao","origem_destino","porto_anterior","proximo_porto","ton_prevista","ton_movimentada","saldo","atualizado_em","atualizado_por"];
-var DATAS = ["chegada","saida","atualizado_em"], NUMS = ["comprimento","calado","ton_prevista","ton_movimentada"];
+var COLS = ["id","situacao","navio","cbo","imo","chegada","previsao_atracacao","saida","cais","comprimento","calado","agencia","operador","carga","operacao","origem_destino","porto_anterior","proximo_porto","ton_prevista","ton_movimentada","saldo","atualizado_em","atualizado_por"];
+var DATAS = ["chegada","previsao_atracacao","saida","atualizado_em"], NUMS = ["comprimento","calado","ton_prevista","ton_movimentada"];
 var TEXTOS = ["navio","agencia","operador","carga","origem_destino","porto_anterior","proximo_porto"];
 var SITU = ["Previsto","Fundeado","Atracado","Desatracado"], OPER = ["IMPORTAÇÃO","EXPORTAÇÃO","DRAGAGEM","ABASTECIMENTO","OP. MILITAR","PESQUISA"];
 var FMT = "dd/MM/yyyy HH:mm", DATA = /^\d\d\/\d\d\/\d{4}/;
@@ -81,7 +81,7 @@ function norm(r){
     var x = t(r[k]).replace(",", "."); o[k] = x === "" ? "" : Number(x);
     if(x !== "" && isNaN(o[k])) throw new Error("Número inválido em " + k + ".");
   });
-  ["chegada","saida"].forEach(function(k){ var x = t(r[k]); o[k] = x ? Utilities.parseDate(x, tz(), FMT) : ""; });
+  ["chegada","previsao_atracacao","saida"].forEach(function(k){ var x = t(r[k]); o[k] = x ? Utilities.parseDate(x, tz(), FMT) : ""; });
   if(!o.chegada && !(o.situacao === "Desatracado" && o.saida)) throw new Error("Falta a data de chegada.");
   return o;
 }
@@ -124,7 +124,7 @@ function defAviso(txt){
 }
 
 /* Lê as colunas das abas antigas pelo NOME do cabeçalho (cada aba tem colunas em posições diferentes). */
-var HDR = {chegada:/chegada/, saida:/saida|desatrac/, cais:/^cais/, navio:/^navio|embarcac/, cbo:/^cbo/, imo:/^imo/, comp:/compr/, calado:/calado/, agencia:/agencia/, operador:/operador/, carga:/^carga/, mod:/modalidade/, origem:/proced|destino/, anterior:/anterior/, proximo:/proximo/, prev:/tonelagem.*prev|^prev.*ton/, mov:/movimentad/, ton:/^tonelagem$/};
+var HDR = {chegada:/chegada/, saida:/saida|desatrac/, cais:/^cais/, navio:/^navio|embarcac/, cbo:/^cbo/, imo:/^imo/, comp:/compr/, calado:/calado/, agencia:/agencia/, operador:/operador/, carga:/^carga/, mod:/modalidade/, origem:/proced|destino/, anterior:/anterior/, proximo:/proximo/, prev:/tonelagem.*prev|^prev.*ton/, mov:/movimentad/, ton:/^tonelagem$/, atracacao:/atracacao/};
 function normH(t){ return String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim(); }
 function layoutPorCabecalho(rows){
   for(var i = 0; i < Math.min(rows.length, 8); i++){
@@ -159,8 +159,8 @@ function criarBanco(){
 function importarAntigo(sh){
   var A = {chegada:0, saida:1, cais:2, navio:3, cbo:4, comp:5, calado:6, agencia:7, operador:8, carga:9, mod:10, origem:11, anterior:12, proximo:13, prev:14, mov:15};
   var D = {saida:0, cais:1, navio:2, cbo:3, comp:4, calado:5, agencia:6, operador:7, carga:8, mod:9, origem:10, anterior:11, proximo:12, prev:13, mov:13};
-  var P = {chegada:0, saida:2, cais:3, navio:4, imo:5, comp:6, calado:7, agencia:8, operador:9, carga:10, mod:11, origem:12, anterior:13, proximo:14, prev:15};
-  var abas = [["ATRACADOS","Atracado",A],["PREVISTOS","Previsto",P],["FUNDEADOS","Fundeado",A],["DESATRACADOS","Desatracado",D]];
+  var P = {chegada:0, atracacao:1, saida:2, cais:3, navio:4, imo:5, comp:6, calado:7, agencia:8, operador:9, carga:10, mod:11, origem:12, anterior:13, proximo:14, prev:15};
+  var abas = [["ATRACADOS","Atracado",A],["PREVISTOS","Previsto",P],["FUNDEADOS","Fundeado",P],["DESATRACADOS","Desatracado",D]];
   var linhas = [], ln = 2, agora = new Date();
   var dt = function(x){ x = String(x || "").trim(); if(!DATA.test(x)) return ""; x = x.slice(0, 16); return x.length === 10 ? x + " 00:00" : x; };
   abas.forEach(function(a){
@@ -171,7 +171,7 @@ function importarAntigo(sh){
       if(/^NOTA/i.test(String(r[0]).trim())){ if(String(r[1]).trim()) defAviso(String(r[1]).trim()); return; }
       if(!DATA.test(String(r[0]).trim()) || !g("navio")) return;
       var op = g("mod").toUpperCase(), prev = g("prev").replace(/\D/g, ""), carga = g("carga");
-      var v = norm({situacao:a[1], navio:g("navio"), cbo:g("cbo"), imo:g("imo"), chegada:L.chegada != null ? dt(r[0]) : "", saida:dt(r[L.saida]),
+      var v = norm({situacao:a[1], navio:g("navio"), cbo:g("cbo"), imo:g("imo"), chegada:L.chegada != null ? dt(r[0]) : "", previsao_atracacao:L.atracacao != null ? dt(r[L.atracacao]) : "", saida:dt(r[L.saida]),
         cais:g("cais"), comprimento:g("comp").replace(/[^\d,.]/g, ""), calado:g("calado").replace(/[^\d,.]/g, ""),
         agencia:g("agencia"), operador:g("operador"), carga:carga, operacao:op, origem_destino:g("origem"),
         porto_anterior:g("anterior"), proximo_porto:g("proximo"), ton_prevista:prev, ton_movimentada:g("mov").replace(/\D/g, "")});
