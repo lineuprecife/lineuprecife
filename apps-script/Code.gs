@@ -3,11 +3,11 @@
           A "situação" (Previsto, Fundeado, Atracado, Desatracado) é só uma coluna.
           Aba CONFIG guarda o aviso do topo; aba REGISTRO guarda quem mexeu em quê.
    SENHAS: Configurações do projeto > Propriedades do script > SENHAS (ex.: Pedro:1234,Maria:abcd).
-   PRIMEIRO USO: executar a função criarBanco() uma vez. */
+   PRIMEIRO USO: executar a função prepararBanco() uma vez. */
 var COLS = ["id","situacao","navio","cbo","imo","chegada","previsao_atracacao","saida","cais","comprimento","calado","agencia","operador","carga","operacao","origem_destino","porto_anterior","proximo_porto","ton_prevista","ton_movimentada","saldo","atualizado_em","atualizado_por"];
 var DATAS = ["chegada","previsao_atracacao","saida","atualizado_em"], NUMS = ["comprimento","calado","ton_prevista","ton_movimentada"];
 var TEXTOS = ["navio","agencia","operador","carga","origem_destino","porto_anterior","proximo_porto"];
-var SITU = ["Previsto","Fundeado","Atracado","Desatracado"], OPER = ["IMPORTAÇÃO","EXPORTAÇÃO","DRAGAGEM","ABASTECIMENTO","OP. MILITAR","PESQUISA"];
+var SITU = ["Previsto","Fundeado","Atracado","Desatracado"];
 var FMT = "dd/MM/yyyy HH:mm", DATA = /^\d\d\/\d\d\/\d{4}/;
 
 function ss(){ return SpreadsheetApp.getActive(); }
@@ -15,19 +15,28 @@ function tz(){ return ss().getSpreadsheetTimeZone(); }
 function col(n){ return COLS.indexOf(n); }
 function letra(n){ return String.fromCharCode(65 + col(n)); }
 function resp(o){ return ContentService.createTextOutput(JSON.stringify(o)).setMimeType(ContentService.MimeType.JSON); }
-function banco(){ var sh = ss().getSheetByName("NAVIOS"); if(!sh) throw new Error("Aba NAVIOS não existe. Execute criarBanco() no Apps Script."); return sh; }
+function banco(){ var sh = ss().getSheetByName("NAVIOS"); if(!sh) throw new Error("Aba NAVIOS não existe. Abra o arquivo lineup_banco e execute prepararBanco()."); return sh; }
 function fmt(d){ return Utilities.formatDate(d, tz(), FMT); }
 
 /* ---------- leitura pública ---------- */
+var DIAS_DESATRACADOS = 30;   /* a página recebe os desatracados dos últimos N dias; o histórico completo fica na aba NAVIOS */
 function doGet(){
+  var cache = CacheService.getScriptCache(), hit = cache.get("dados");
+  if(hit) return ContentService.createTextOutput(hit).setMimeType(ContentService.MimeType.JSON);
   var out = {atualizado: PropertiesService.getScriptProperties().getProperty("ULTIMA") || "", aviso: aviso(), navios: []};
-  var sh = ss().getSheetByName("NAVIOS");
+  var sh = ss().getSheetByName("NAVIOS"), lim = Date.now() - DIAS_DESATRACADOS * 864e5;
   if(sh && sh.getLastRow() > 1){
-    out.navios = sh.getRange(2, 1, sh.getLastRow() - 1, COLS.length).getValues().filter(function(r){ return r[0]; }).map(function(r){
-      var o = {}; COLS.forEach(function(c, i){ o[c] = r[i] instanceof Date ? fmt(r[i]) : r[i]; }); return o;
+    sh.getRange(2, 1, sh.getLastRow() - 1, COLS.length).getValues().forEach(function(r){
+      if(!r[0]) return;
+      var d = r[col("saida")] || r[col("chegada")];
+      if(r[col("situacao")] === "Desatracado" && d instanceof Date && d.getTime() < lim) return;
+      var o = {}; COLS.forEach(function(c, i){ o[c] = r[i] instanceof Date ? fmt(r[i]) : r[i]; });
+      out.navios.push(o);
     });
   }
-  return resp(out);
+  var json = JSON.stringify(out);
+  try { cache.put("dados", json, 20); } catch(x){}
+  return ContentService.createTextOutput(json).setMimeType(ContentService.MimeType.JSON);
 }
 
 /* ---------- gravação (só com senha) ---------- */
@@ -52,6 +61,7 @@ function doPost(e){
     } else if(b.acao === "aviso"){
       defAviso(String(b.texto || "").trim()); registrar(quem, "mudou o aviso", "", "");
     } else throw new Error("Ação desconhecida.");
+    CacheService.getScriptCache().remove("dados");
     return resp({ok:true});
   } catch(err){
     return resp({ok:false, erro:String(err.message || err)});
@@ -123,62 +133,26 @@ function defAviso(txt){
   sh.appendRow(["aviso", txt]);
 }
 
-/* Lê as colunas das abas antigas pelo NOME do cabeçalho (cada aba tem colunas em posições diferentes). */
-var HDR = {chegada:/chegada/, saida:/saida|desatrac/, cais:/^cais/, navio:/^navio|embarcac/, cbo:/^cbo/, imo:/^imo/, comp:/compr/, calado:/calado/, agencia:/agencia/, operador:/operador/, carga:/^carga/, mod:/modalidade/, origem:/proced|destino/, anterior:/anterior/, proximo:/proximo/, prev:/tonelagem.*prev|^prev.*ton/, mov:/movimentad/, ton:/^tonelagem$/, atracacao:/atracacao/};
-function normH(t){ return String(t || "").normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim(); }
-function layoutPorCabecalho(rows){
-  for(var i = 0; i < Math.min(rows.length, 8); i++){
-    if(!/^(chegada|saida|previs)/.test(normH(rows[i][0]))) continue;
-    var L = {};
-    rows[i].forEach(function(h, c){ var t = normH(h); Object.keys(HDR).forEach(function(k){ if(L[k] == null && HDR[k].test(t)) L[k] = c; }); });
-    if(L.ton != null && L.mov == null){ L.mov = L.ton; L.prev = L.ton; }   /* aba com uma só coluna "Tonelagem" */
-    return L.navio != null ? L : null;
-  }
-  return null;
-}
-
-/* ---------- PRIMEIRO USO: cria o banco e traz os dados das abas antigas ---------- */
-function criarBanco(){
+/* ---------- PRIMEIRO USO: depois de abrir o arquivo lineup_banco no Google Planilhas, execute prepararBanco() uma vez ---------- */
+function prepararBanco(){
   var s = ss(); s.setSpreadsheetTimeZone("America/Recife");
-  var sh = s.getSheetByName("NAVIOS") || s.insertSheet("NAVIOS", 0);
-  if(!sh.getLastRow()){
-    sh.getRange(1, 1, 1, COLS.length).setValues([COLS]).setFontWeight("bold").setBackground("#0A3159").setFontColor("#FFFFFF");
-    sh.setFrozenRows(1);
-    var lista = function(a, livre){ return SpreadsheetApp.newDataValidation().requireValueInList(a, true).setAllowInvalid(!!livre).build(); };
-    sh.getRange(2, col("situacao") + 1, 2000).setDataValidation(lista(SITU));
-    sh.getRange(2, col("operacao") + 1, 2000).setDataValidation(lista(OPER, true));
-    DATAS.forEach(function(c){ sh.getRange(2, col(c) + 1, 2000).setNumberFormat("dd/mm/yyyy hh:mm"); });
-  }
-  if(!s.getSheetByName("CONFIG")) defAviso("");
-  if(!s.getSheetByName("REGISTRO")) registrar("sistema", "criou o banco", "", "");
-  var n = sh.getLastRow() > 1 ? 0 : importarAntigo(sh);
+  try { s.setSpreadsheetLocale("pt_BR"); } catch(x){}
+  var sh = s.getSheetByName("NAVIOS");
+  if(!sh) throw new Error("Não encontrei a aba NAVIOS. Abra o arquivo lineup_banco enviado.");
+  var cab = sh.getRange(1, 1, 1, COLS.length).getValues()[0];
+  for(var i = 0; i < COLS.length; i++)
+    if(cab[i] !== COLS[i]) throw new Error("A coluna " + (i + 1) + " deveria se chamar '" + COLS[i] + "', mas está '" + cab[i] + "'. Não mexa nos cabeçalhos.");
+  ["NAVIOS","CONFIG","REGISTRO","LISTAS","CORRECOES","REVISAR"].forEach(proteger);
   PropertiesService.getScriptProperties().setProperty("ULTIMA", fmt(new Date()));
-  var msg = "Banco pronto. Navios importados das abas antigas: " + n + ".";
+  CacheService.getScriptCache().remove("dados");
+  var msg = "Banco pronto: " + (sh.getLastRow() - 1) + " navios. Abas protegidas: só você (dono) e o sistema gravam.";
   Logger.log(msg); try { SpreadsheetApp.getUi().alert(msg); } catch(x){}
 }
-function importarAntigo(sh){
-  var A = {chegada:0, saida:1, cais:2, navio:3, cbo:4, comp:5, calado:6, agencia:7, operador:8, carga:9, mod:10, origem:11, anterior:12, proximo:13, prev:14, mov:15};
-  var D = {saida:0, cais:1, navio:2, cbo:3, comp:4, calado:5, agencia:6, operador:7, carga:8, mod:9, origem:10, anterior:11, proximo:12, prev:13, mov:13};
-  var P = {chegada:0, atracacao:1, saida:2, cais:3, navio:4, imo:5, comp:6, calado:7, agencia:8, operador:9, carga:10, mod:11, origem:12, anterior:13, proximo:14, prev:15};
-  var abas = [["ATRACADOS","Atracado",A],["PREVISTOS","Previsto",P],["FUNDEADOS","Fundeado",P],["DESATRACADOS","Desatracado",D]];
-  var linhas = [], ln = 2, agora = new Date();
-  var dt = function(x){ x = String(x || "").trim(); if(!DATA.test(x)) return ""; x = x.slice(0, 16); return x.length === 10 ? x + " 00:00" : x; };
-  abas.forEach(function(a){
-    var tab = ss().getSheetByName(a[0]); if(!tab || !tab.getLastRow()) return;
-    var vals = tab.getDataRange().getDisplayValues(), L = layoutPorCabecalho(vals) || a[2];
-    vals.forEach(function(r){
-      var g = function(k){ if(L[k] == null) return ""; var x = String(r[L[k]] || "").trim(); return /^(N\/I|N\/A|-)$/i.test(x) ? "" : x; };
-      if(/^NOTA/i.test(String(r[0]).trim())){ if(String(r[1]).trim()) defAviso(String(r[1]).trim()); return; }
-      if(!DATA.test(String(r[0]).trim()) || !g("navio")) return;
-      var op = g("mod").toUpperCase(), prev = g("prev").replace(/\D/g, ""), carga = g("carga");
-      var v = norm({situacao:a[1], navio:g("navio"), cbo:g("cbo"), imo:g("imo"), chegada:L.chegada != null ? dt(r[0]) : "", previsao_atracacao:L.atracacao != null ? dt(r[L.atracacao]) : "", saida:dt(r[L.saida]),
-        cais:g("cais"), comprimento:g("comp").replace(/[^\d,.]/g, ""), calado:g("calado").replace(/[^\d,.]/g, ""),
-        agencia:g("agencia"), operador:g("operador"), carga:carga, operacao:op, origem_destino:g("origem"),
-        porto_anterior:g("anterior"), proximo_porto:g("proximo"), ton_prevista:prev, ton_movimentada:g("mov").replace(/\D/g, "")});
-      v.id = Utilities.getUuid().slice(0, 8); v.atualizado_em = agora; v.atualizado_por = "migração";
-      linhas.push(linha(v, ln++));
-    });
-  });
-  if(linhas.length) sh.getRange(2, 1, linhas.length, COLS.length).setValues(linhas);
-  return linhas.length;
+function proteger(nome){
+  var sh = ss().getSheetByName(nome); if(!sh) return;
+  sh.getProtections(SpreadsheetApp.ProtectionType.SHEET).forEach(function(p){ p.remove(); });
+  var p = sh.protect().setDescription("Só o sistema grava aqui. Não edite à mão."), eu = Session.getEffectiveUser();
+  p.addEditor(eu);
+  p.removeEditors(p.getEditors().filter(function(u){ return u.getEmail() !== eu.getEmail(); }));
+  if(p.canDomainEdit()) p.setDomainEdit(false);
 }
