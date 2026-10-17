@@ -11,7 +11,7 @@ var CONFIG = {
   tabs: {
     atracados:    {sheet:"ATRACADOS",    layout:"atracados", url:""},
     previstos:    {sheet:"PREVISTOS",    layout:"previstos", url:""},
-    fundeados:    {sheet:"FUNDEADOS",    layout:"atracados", url:""},
+    fundeados:    {sheet:"FUNDEADOS",    layout:"previstos", url:""},
     desatracados: {sheet:"DESATRACADOS", layout:"desatracados", url:""}
   },
 
@@ -28,7 +28,7 @@ var CONFIG = {
 var LAYOUTS = {
   atracados: {chegada:0, saida:1, cais:2, navio:3, cbo:4, comp:5, calado:6, agencia:7, operador:8, carga:9, mod:10, origem:11, anterior:12, proximo:13, prev:14, mov:15},
   desatracados: {saida:0, cais:1, navio:2, cbo:3, comp:4, calado:5, agencia:6, operador:7, carga:8, mod:9, origem:10, anterior:11, proximo:12, prev:13, mov:13},
-  previstos: {chegada:0, saida:2, cais:3, navio:4, imo:5, comp:6, calado:7, agencia:8, operador:9, carga:10, mod:11, origem:12, anterior:13, proximo:14, prev:15}
+  previstos: {chegada:0, atracacao:1, saida:2, cais:3, navio:4, imo:5, comp:6, calado:7, agencia:8, operador:9, carga:10, mod:11, origem:12, anterior:13, proximo:14, prev:15}
 };
 
 /* ===== LEITURA DA PLANILHA ===== */
@@ -67,7 +67,7 @@ function cap(s){ return s ? s.charAt(0)+s.slice(1).toLowerCase() : s; }
 var DATE_RE = /^\d\d\/\d\d\/\d{4}/;
 
 /* Lê as colunas pelo NOME do cabeçalho (cada aba pode ter colunas em posições diferentes). */
-var HDR = {chegada:/chegada/, saida:/saida|desatrac/, cais:/^cais/, navio:/^navio|embarcac/, cbo:/^cbo/, imo:/^imo/, comp:/compr/, calado:/calado/, agencia:/agencia/, operador:/operador/, carga:/^carga/, mod:/modalidade/, origem:/proced|destino/, anterior:/anterior/, proximo:/proximo/, prev:/tonelagem.*prev|^prev.*ton/, mov:/movimentad/, ton:/^tonelagem$/};
+var HDR = {chegada:/chegada/, saida:/saida|desatrac/, cais:/^cais/, navio:/^navio|embarcac/, cbo:/^cbo/, imo:/^imo/, comp:/compr/, calado:/calado/, agencia:/agencia/, operador:/operador/, carga:/^carga/, mod:/modalidade/, origem:/proced|destino/, anterior:/anterior/, proximo:/proximo/, prev:/tonelagem.*prev|^prev.*ton/, mov:/movimentad/, ton:/^tonelagem$/, atracacao:/atracacao/};
 function normH(t){ return String(t||"").normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().trim(); }
 function layoutPorCabecalho(rows){
   for(var i=0;i<Math.min(rows.length,8);i++){
@@ -97,6 +97,7 @@ function mapRows(rows, layout){
     var s = {
       chegada: L.chegada!=null ? a : "",
       saida: clean(r[L.saida]),
+      atracacao: L.atracacao!=null ? clean(r[L.atracacao]) : "",
       cais: clean(r[L.cais]),
       navio: navio,
       cbo: L.cbo!=null ? clean(r[L.cbo]) : "",
@@ -188,7 +189,7 @@ function modPill(m){
 function listOf(id){ return (data[id] && data[id].items) || []; }
 
 function rowBase(s,lista){
-  var prevList = lista==="previstos", special = !!s.tipo;
+  var prevList = lista==="previstos" || lista==="fundeados", special = !!s.tipo;
   var pct = s.prev>0 ? Math.min(100,Math.round((s.mov||0)/s.prev*100)) : 0;
   var meta = [];
   if(s.cbo) meta.push('<span class="mono">CBO '+esc(s.cbo)+'</span>');
@@ -201,7 +202,7 @@ function rowBase(s,lista){
   var when, prog;
   if(prevList){
     var chega = rel(s.chegada,"chega");
-    when = '<div>Chegada '+esc(fmt(s.chegada))+'</div>'+(chega?'<div class="rel">'+esc(chega)+'</div>':'')+(s.saida?'<div>Saída '+esc(fmt(s.saida))+'</div>':'');
+    when = '<div>Chegada '+esc(fmt(s.chegada))+'</div>'+(chega?'<div class="rel">'+esc(chega)+'</div>':'')+(s.atracacao?'<div>Atracação (POB) '+esc(fmt(s.atracacao))+'</div>':'')+(s.saida?'<div>Saída '+esc(fmt(s.saida))+'</div>':'');
     prog = '<div><b>'+num(s.prev)+'</b> t</div>'+(s.anterior?'<div class="meta">Vem de '+esc(s.anterior)+'</div>':'');
   } else {
     when = '<div>Chegada '+esc(fmt(s.chegada))+'</div>'+

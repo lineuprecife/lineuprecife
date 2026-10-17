@@ -10,7 +10,8 @@ var FIELDS = [
   {k:"origem_destino",l:"Origem / destino da carga"},
   {k:"agencia",l:"Agência"},
   {k:"operador",l:"Operador"},
-  {k:"chegada",l:"Chegada",t:"dt"},
+  {k:"chegada",l:"Chegada (ou previsão de chegada)",t:"dt"},
+  {k:"previsao_atracacao",l:"Previsão de atracação (POB)",t:"dt"},
   {k:"saida",l:"Saída",t:"dt"},
   {k:"ton_prevista",l:"Toneladas previstas",t:"num"},
   {k:"ton_movimentada",l:"Toneladas já movimentadas",t:"num"},
@@ -50,7 +51,7 @@ function dlg(html){
 function toItem(r){
   var n = function(x){ return x === "" || x == null ? 0 : Number(x) || 0; };
   var m = function(x){ return x === "" || x == null ? "" : String(x).replace(".", ",") + " m"; };
-  var s = {id:r.id, rec:r, chegada:r.chegada||"", saida:r.saida||"", cais:String(r.cais||""), navio:String(r.navio||""),
+  var s = {id:r.id, rec:r, chegada:r.chegada||"", saida:r.saida||"", atracacao:r.previsao_atracacao||"", cais:String(r.cais||""), navio:String(r.navio||""),
     cbo:r.cbo||"", imo:r.imo||"", comp:m(r.comprimento), calado:m(r.calado), agencia:r.agencia||"", operador:r.operador||"",
     carga:r.carga||"", mod:String(r.operacao||"").toUpperCase(), origem:r.origem_destino||"", anterior:r.porto_anterior||"", proximo:r.proximo_porto||"",
     prev:n(r.ton_prevista), mov:n(r.ton_movimentada), tipo:""};
