@@ -24,7 +24,7 @@ var CONFIG = {
 
   /* A página relê a planilha sozinha a cada tantos segundos. */
   api: "",   /* endereço do Apps Script (passo a passo no final da conversa) */
-  diasDesatracados: 7,   /* quantos dias os desatracados continuam aparecendo na lista */
+  diasDesatracados: 9999,   /* quantos dias os desatracados continuam aparecendo na lista */
   refreshSeconds: 60,
 
   telefones: "81 3183-1919 · 81 99488-2036",
