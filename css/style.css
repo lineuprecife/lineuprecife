@@ -165,7 +165,7 @@ footer b{color:var(--ink);font-weight:600}
   .right .btn{padding:8px 12px;min-height:40px;font-size:14px}
   .nav{height:8px;border-bottom-width:3px}
   .tab{padding:10px 12px}
-  .berth-grid{grid-template-columns:repeat(4,minmax(0,1fr))}
+  .berth-grid{grid-template-columns:repeat(3,minmax(0,1fr))}
   .berth{padding:6px 7px;min-height:54px}
   .berth .s{font-size:11.5px}
   .search{flex:1 1 100%}
