@@ -278,3 +278,18 @@ footer b{color:var(--ink);font-weight:600}
   .tabs{gap:8px}
 }
 .search{text-overflow:ellipsis}
+
+/* ===== Celular e tablet: a lista de cartões fica IGUAL à do PC (mesmas 6 colunas e cabeçalho) =====
+   Em vez de empilhar os dados, a lista mantém a largura do PC e desliza para os lados com o dedo. */
+@media (max-width:900px){
+  .list{overflow-x:auto;-webkit-overflow-scrolling:touch;overscroll-behavior-x:contain}
+  .list>.row{min-width:940px}
+  .list>.row.head{display:grid}
+  .list>.row{grid-template-columns:64px minmax(0,1.3fr) minmax(0,1.05fr) minmax(0,1.05fr) minmax(250px,1.9fr) minmax(0,1fr);gap:6px 20px;padding:14px 18px}
+  .list>.row.head{padding-block:9px}
+  .list .c-rest{display:contents}
+  .list .c-when,.list .c-prog{grid-column:auto}
+  .list .lab{display:none}
+  .list .ship{font-size:18px}
+  .list>.row .acts{position:sticky;left:14px;width:max-content;max-width:calc(100vw - 60px)}
+}
