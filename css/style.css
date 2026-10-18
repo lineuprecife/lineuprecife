@@ -259,7 +259,7 @@ footer b{color:var(--ink);font-weight:600}
 .mapa-leg .lg:first-child{margin-left:0}
 
 /* ===== Navios desenhados no mapa (viram para a esquerda) ===== */
-.navmap{position:absolute;transform:translate(-50%,-50%);padding:0;border:0;background:none;cursor:pointer;line-height:0;filter:drop-shadow(0 1px 2px rgba(0,0,0,.65))}
+.navmap{position:absolute;transform:translate(-50%,-50%);padding:0;border:0;background:none;cursor:pointer;line-height:0;filter:drop-shadow(0 1px 2px rgba(11,34,54,.4))}
 .navmap svg{display:block;width:100%;height:auto;overflow:visible;transform:rotate(var(--giro,0deg));transform-origin:50% 50%}   /* gira só o desenho, pelo centro; o nome continua reto */
 .navmap .h{stroke:#fff;stroke-width:1.6;vector-effect:non-scaling-stroke}
 .navmap.imp .h{fill:#0060B0}
@@ -273,8 +273,7 @@ footer b{color:var(--ink);font-weight:600}
 .navmap.r span{left:auto;right:0;transform:none}
 .navmap.l span{left:0;transform:none}
 .bercos{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
-.bercos polygon{fill:rgba(255,255,255,.07);stroke:rgba(255,255,255,.85);stroke-width:1.2;vector-effect:non-scaling-stroke}
-.bercos text{fill:#fff;font:600 15px var(--f-body);text-anchor:middle;dominant-baseline:middle;paint-order:stroke;stroke:rgba(0,0,0,.5);stroke-width:2.5px}
+.bercos text{fill:var(--blue);font:600 15px var(--f-body);text-anchor:middle;dominant-baseline:middle;paint-order:stroke;stroke:rgba(255,255,255,.9);stroke-width:3px;stroke-linejoin:round}
 
 .mapa-dica{display:none;margin:6px 2px 0;font-size:12px;font-weight:600;color:var(--blue)}
 @media (max-width:700px){.mapa-dica{display:block}}
