@@ -19,7 +19,7 @@ var FDLAB  = {atracados:"Atracação", previstos:"Previsão de chegada", fundead
 var FPRE = {
   desatracados:[["Últimos 7 dias",-7,0],["Últimos 30 dias",-30,0],["Últimos 90 dias",-90,0],["Este mês","mes"]],
   atracados:   [["Hoje",0,0],["Últimos 7 dias",-7,0],["Últimos 30 dias",-30,0]],
-  previstos:   [["Hoje",0,0],["Próx. 48 h",0,2],["Próx. 7 dias",0,7],["Próx. 30 dias",0,30]],
+  previstos:   [["Hoje",0,0],["Próx. 48 horas",0,2],["Próx. 7 dias",0,7],["Próx. 30 dias",0,30]],
   fundeados:   [["Hoje",0,0],["Últimos 7 dias",-7,0]]
 };
 var FSORT = [["","Padrão"],["data-desc","Data: mais recente"],["data-asc","Data: mais antiga"],["navio","Embarcação (A–Z)"],["cais","Berço"],["ton","Maior tonelagem"]];

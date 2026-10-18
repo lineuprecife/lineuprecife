@@ -299,7 +299,8 @@ function rel(s,verb){
   var d = parseDate(s); if(!d) return "";
   var h = (d - new Date())/36e5;
   if(h<=0) return "";
-  return verb+" "+(h<24 ? "em "+Math.max(1,Math.round(h))+" h" : "em "+Math.round(h/24)+" d");
+  var n = h<24 ? Math.max(1,Math.round(h)) : Math.round(h/24), un = h<24 ? "hora" : "dia";
+  return verb+" em "+n+" "+un+(n===1 ? "" : "s");   /* 1 dia / 2 dias, 1 hora / 2 horas */
 }
 function num(n){return Number(n||0).toLocaleString("pt-BR")}
 function modPill(m){
