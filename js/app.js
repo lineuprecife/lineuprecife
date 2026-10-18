@@ -23,7 +23,7 @@ var CONFIG = {
   },
 
   /* A página relê a planilha sozinha a cada tantos segundos. */
-  api: "",   /* endereço do Apps Script (passo a passo no final da conversa) */
+  api: "",   /* cole aqui o endereço do Apps Script (termina em /exec). Com ele, entra o login por pessoa e a página passa a ler direto do Apps Script */
   diasDesatracados: 9999,   /* quantos dias os desatracados continuam aparecendo na lista */
   refreshSeconds: 60,
 

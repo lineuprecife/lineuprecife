@@ -23,7 +23,7 @@ function tabelaHtml(id, items){
       if(/^(cbo|imo|comp|calado|cais)$/.test(c[0])) k.push("nw");
       if(vazio) k.push("vz");
       return '<td' + (k.length ? ' class="' + k.join(" ") + '"' : '') + ' data-label="' + esc(c[1]) + '">' + (vazio ? '<span class="meta">—</span>' : esc(v)) + '</td>';
-    }).join("") + (ed ? '<td class="ac"><button class="btn" type="button" data-ed="' + esc(s.id) + '">✏️ Editar</button> <button class="btn dng" type="button" data-del="' + esc(s.id) + '">Excluir</button></td>' : '') + '</tr>';
+    }).join("") + (ed ? '<td class="ac">' + botoes(s) + '</td>' : '') + '</tr>';
   });
   return h + '</tbody></table></div>';
 }
