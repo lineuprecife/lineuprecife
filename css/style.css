@@ -380,3 +380,7 @@ footer b{color:var(--ink);font-weight:600}
 .pill{border:1px solid #BCD6EE;background:var(--blue-soft);color:#004A8F}
 .pill.exp{border-color:#A6DCF2;background:var(--sun-soft);color:var(--sun-ink)}
 .pill.neutral{border-color:var(--line);background:var(--track);color:var(--muted)}
+
+/* ===== Largura da página em telas grandes: ajuste só este valor (era 1180px) ===== */
+:root{--largura:1600px}
+.wrap{max-width:var(--largura)}
