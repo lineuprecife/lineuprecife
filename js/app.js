@@ -312,11 +312,12 @@ function dt(v){ return '<span class="dt">'+esc(fmt(v))+'</span>'; }   /* data in
 function rowBase(s,lista){
   var prevList = lista==="previstos" || lista==="fundeados", special = !!s.tipo;
   var pct = s.prev>0 ? Math.min(100,Math.round((s.mov||0)/s.prev*100)) : 0;
-  var meta = [];
-  if(s.cbo) meta.push('<span class="mono">CBO '+esc(s.cbo)+'</span>');
-  if(s.imo) meta.push('<span class="mono">IMO '+esc(s.imo)+'</span>');
-  if(s.comp) meta.push(esc(s.comp));
-  if(s.calado) meta.push('calado '+esc(s.calado));
+  var meta = [];   /* dados do navio, um embaixo do outro: nunca quebram no meio */
+  function sp(r, v, mono){ return '<div><span>'+r+'</span> <b'+(mono?' class="mono"':'')+'>'+esc(v)+'</b></div>'; }
+  if(s.cbo) meta.push(sp("CBO", s.cbo, 1));
+  if(s.imo) meta.push(sp("IMO", s.imo, 1));
+  if(s.comp) meta.push(sp("Compr.", s.comp));
+  if(s.calado) meta.push(sp("Calado", s.calado));
   var cargo = special
     ? '<div class="cargo">'+esc(s.tipo)+'</div><span class="pill neutral">Sem carga</span>'
     : '<div class="cargo">'+esc(cap(s.carga)||"Não informada")+'</div>'+modPill(s.mod)+(s.origem?'<div class="meta">'+(s.mod==="IMPORTAÇÃO"?"Origem":s.mod==="EXPORTAÇÃO"?"Destino":"Origem/destino")+': '+esc(s.origem)+'</div>':'');
@@ -338,7 +339,7 @@ function rowBase(s,lista){
   }
   return '<div class="row">'+
     '<div class="c-berth berth-n'+(s.cais.length>3?' sm':'')+'"><small>BERÇO</small>'+(s.cais?esc(s.cais):"—")+'</div>'+
-    '<div class="c-ship"><div class="ship">'+esc(s.navio)+'</div><div class="meta">'+meta.join(" · ")+'</div></div>'+
+    '<div class="c-ship"><div class="ship">'+esc(s.navio)+'</div><div class="specs">'+meta.join("")+'</div></div>'+
     '<div class="c-rest">'+
       '<div class="c-cargo"><span class="lab">Carga</span>'+cargo+'</div>'+
       '<div class="c-who who"><span class="lab">Agência / Operador</span><b>'+esc(s.agencia||"Não informada")+'</b><span class="meta">'+(s.operador?esc(s.operador):"Sem operador")+'</span></div>'+
