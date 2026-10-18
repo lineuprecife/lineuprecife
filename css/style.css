@@ -153,7 +153,7 @@ footer b{color:var(--ink);font-weight:600}
   .tab .n{font-size:26px}
 }
 @media (max-width:520px){
-  .tabs{grid-template-columns:repeat(2,minmax(0,1fr))}
+  .tabs{grid-template-columns:repeat(4,minmax(0,1fr))}
   .stamp{text-align:left}
 }
 @media (prefers-reduced-motion:no-preference){.bar i{transition:width .5s ease}}
@@ -349,3 +349,14 @@ footer b{color:var(--ink);font-weight:600}
   .tbl{font-size:13px}
   .tbl th,.tbl td{padding:9px 10px}
 }
+
+/* Celular: os 4 botões das abas lado a lado, sem rolagem lateral */
+@media (max-width:520px){
+  .tabs{gap:5px}
+  .tab{padding:8px 4px 7px;align-items:center;text-align:center;gap:3px;border-radius:7px}
+  .tab .n{font-size:20px}
+  .tab .l{font-size:8.5px;letter-spacing:0;max-width:100%;overflow:hidden;text-overflow:clip}
+  .tab[aria-selected="true"]{border-bottom-width:3px}
+}
+@media (max-width:350px){ .tabs{gap:4px} .tab{padding:8px 1px 7px} .tab .l{font-size:7px} .tab .n{font-size:18px} }
+@media (min-width:375px) and (max-width:520px){ .tab .l{font-size:9px;letter-spacing:0} }
