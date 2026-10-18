@@ -352,3 +352,13 @@ footer b{color:var(--ink);font-weight:600}
   .list .ship{font-size:18px}
   .list>.row .acts{position:sticky;left:14px;width:max-content;max-width:calc(100vw - 60px)}
 }
+
+/* ===== Avisos: geral (acima dos botões das abas) e por aba (logo abaixo dos botões) ===== */
+.avisos{display:grid;gap:8px;margin-top:16px}
+.avisos[hidden]{display:none}
+.aviso{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:baseline;padding:11px 16px;background:var(--sun-soft);color:var(--sun-ink);border:1px solid #BFE6F7;border-left:4px solid var(--sun);border-radius:8px;font-size:14px}
+.aviso strong{flex:none;font:700 11.5px var(--f-body);letter-spacing:.12em;text-transform:uppercase}
+.aviso span{flex:1 1 240px;min-width:0;white-space:pre-line;overflow-wrap:anywhere}
+.tabaviso{margin-top:14px}
+.tabaviso .aviso{background:#FFF6DA;color:#5C4300;border-color:#F1DB9C;border-left-color:#F2B705}
+.avisos+.tabs,.editbar+.avisos{margin-top:16px}
