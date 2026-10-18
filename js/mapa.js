@@ -1,18 +1,19 @@
 /* Mapa dos cais: marca com um ponto cada navio atracado, na posição do seu berço, sem um ponto cobrir o outro.
    Carrega ANTES do app.js; renderMapa() é chamada pelo renderBerths() do app.js. */
 var MAPA = {W:1050, H:390, OX:360, OY:150, MIN:24};   /* tamanho e recorte da imagem; MIN = distância mínima entre pontos (px da imagem) */
-/* Cada berço: L = comprimento real (m, tabela de 2023); p = [cais-leste, cais-oeste, água-leste, água-oeste] em pixels da imagem original. */
+/* Cada berço: L = comprimento real (m, tabela de 2023); p = [cais-leste, cais-oeste, água-leste, água-oeste] em pixels da imagem original.
+   Coordenadas ajustadas ao desenho atual (mapa-cais-desenho.png, 2057×764), que é um pouco mais estreito e mais baixo que a foto de satélite original. */
 var GEO = {
-  "00-TA":{L:180,    p:[[1346,272],[1256,270],[1346,315],[1255,314]]},
-  "1":    {L:160,    p:[[1256,270],[1172,268],[1255,314],[1171,311]]},
-  "2":    {L:228.51, p:[[1172,268],[1059,264],[1171,311],[1059,306]]},
-  "3":    {L:162.9,  p:[[1059,264],[969,312],[1059,306],[986,349]]},
-  "4":    {L:200.29, p:[[969,312],[887,356],[986,349],[903,392]]},
-  "5":    {L:211.42, p:[[887,356],[806,398],[903,392],[812,437]]},
-  "6":    {L:196.59, p:[[806,398],[704,404],[812,437],[706,444]]},
-  "7":    {L:137,    p:[[704,404],[612,409],[706,444],[614,450]]},
-  "8":    {L:120,    p:[[612,409],[523,414],[614,450],[524,454]]},
-  "9":    {L:239.9,  p:[[523,414],[414,421],[524,454],[415,459]]}
+  "00-TA":{L:180,    p:[[1315,272],[1225,270],[1315,315],[1224,314]]},
+  "1":    {L:160,    p:[[1225,270],[1141,268],[1224,314],[1140,311]]},
+  "2":    {L:228.51, p:[[1141,268],[1028,264],[1140,311],[1028,306]]},
+  "3":    {L:162.9,  p:[[1028,264],[938,307],[1028,306],[955,345]]},
+  "4":    {L:200.29, p:[[938,307],[856,347],[955,345],[872,384]]},
+  "5":    {L:211.42, p:[[856,347],[775,385],[872,384],[781,424]]},
+  "6":    {L:196.59, p:[[775,385],[679,391],[781,424],[681,431]]},
+  "7":    {L:137,    p:[[679,391],[592,396],[681,431],[594,437]]},
+  "8":    {L:120,    p:[[592,396],[508,401],[594,437],[509,441]]},
+  "9":    {L:239.9,  p:[[508,401],[405,408],[509,441],[406,446]]}
 };
 function mapaPt(k, t, s){   /* ponto no berço: t = 0 (lado leste) a 1 (lado oeste); s = 0 (borda do cais) a 1 (lado da água). Navios ficam encostados no cais (s = 0,36). */
   if(s == null) s = 0.36;
