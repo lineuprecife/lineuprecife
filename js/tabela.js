@@ -29,7 +29,5 @@ function tabelaHtml(id, items){
 
 window.addEventListener("load", function(){
   state.views = state.views || {};
-  var b = document.getElementById("btn-view");
-  b.onclick = function(){ state.views[state.tab] = viewOf(state.tab) === "tabela" ? "cartoes" : "tabela"; renderPanel(); };
   renderPanel();
 });

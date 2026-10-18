@@ -268,7 +268,7 @@ var EMPTY = {
   fundeados:"Nenhuma embarcação fundeada no momento.",
   desatracados:"Nenhuma embarcação desatracada nesta lista."
 };
-var state = {tab:"atracados", mod:"", q:""};
+var state = {tab:"atracados", q:"", f:{}, fopen:false};
 var data = {};      /* id -> {items, aviso, atualizado} da última leitura boa */
 var errors = {};    /* id -> true quando a última leitura falhou */
 var lastOk = null, lastErr = "";
@@ -337,14 +337,7 @@ function rowBase(s,lista){
       '<div class="c-prog prog"><span class="lab">'+esc(HEADS[lista][5])+'</span>'+prog+'</div>'+
     '</div></div>';
 }
-function matches(s){
-  if(state.mod && s.mod!==state.mod) return false;
-  if(state.q){
-    var hay = [s.navio,s.carga,s.agencia,s.operador,s.origem,s.tipo].join(" ").toLowerCase();
-    if(hay.indexOf(state.q)<0) return false;
-  }
-  return true;
-}
+/* matches() e fsort() ficam em js/filtros.js */
 function renderTabs(){
   $("tabs").innerHTML = TABS.map(function(t){
     var sel = t.id===state.tab;
@@ -376,14 +369,16 @@ function renderPanel(){
   el.classList.remove("wide");   /* só a tabela completa usa a largura quase total da tela */
   var ms = document.getElementById("mapa-sec"); if(ms) ms.hidden = id !== "atracados";
   var bs = document.getElementById("berths-sec"); if(bs) bs.hidden = id === "previstos" || id === "desatracados";   /* ocupação dos cais: fora das abas Previstos e Desatracados */   /* mapa só faz sentido para quem está atracado */
-  $("btn-view").textContent = viewOf(id)==="tabela" ? "Ver como cartões" : "Ver tabela completa";
+  if(typeof syncView === "function") syncView();
   if(!data[id]){
+    state.n = null; renderFsum();
     el.innerHTML = '<div class="empty">'+(errors[id] ? "Não foi possível ler a aba "+esc(nomeAba(id))+". Veja a mensagem no topo da página." : "Carregando a planilha…")+'</div>';
     return;
   }
-  var all = data[id].items, items = all.filter(matches);
+  var all = data[id].items, items = fsort(all.filter(matches));
+  state.n = [items.length, all.length]; renderFsum();
   if(!items.length){
-    el.innerHTML = '<div class="empty">'+(all.length ? "Nenhuma embarcação encontrada com esses filtros." : EMPTY[id])+'</div>';
+    el.innerHTML = '<div class="empty">'+(all.length ? 'Nenhuma embarcação encontrada com esses filtros.<br><button class="fclear" type="button" data-clearall>Limpar filtros</button>' : EMPTY[id])+'</div>';
     return;
   }
   if(viewOf(id)==="tabela"){ el.innerHTML = tabelaHtml(id, items); el.classList.add("wide"); return; }
@@ -408,7 +403,7 @@ function renderHead(){
   } else w.hidden = true;
   $("src").textContent = lastOk ? "Lido da planilha às "+lastOk+" · atualiza a cada "+CONFIG.refreshSeconds+" s" : "Lendo a planilha…";
 }
-function renderAll(){ renderHead(); renderTabs(); renderBerths(); renderPanel(); }
+function renderAll(){ renderHead(); renderTabs(); renderBerths(); renderFilters(); renderPanel(); }
 
 function refresh(){
   if(CONFIG.api) return refreshApi();
@@ -425,13 +420,7 @@ function refresh(){
 
 $("tabs").addEventListener("click",function(e){
   var b = e.target.closest("[data-t]"); if(!b) return;
-  state.tab = b.getAttribute("data-t"); renderTabs(); renderPanel();
-});
-$("chips").addEventListener("click",function(e){
-  var b = e.target.closest("[data-m]"); if(!b) return;
-  state.mod = b.getAttribute("data-m");
-  Array.prototype.forEach.call(document.querySelectorAll("#chips .chip"),function(c){ c.setAttribute("aria-pressed", String(c===b)); });
-  renderPanel();
+  state.tab = b.getAttribute("data-t"); renderTabs(); renderFilters(); renderPanel();
 });
 $("q").addEventListener("input",function(e){ state.q = e.target.value.trim().toLowerCase(); renderPanel(); });
 document.addEventListener("visibilitychange",function(){ if(!document.hidden) refresh(); });
