@@ -197,12 +197,14 @@ footer b{color:var(--ink);font-weight:600}
 
 /* ===== Tabela completa (todas as colunas da planilha) ===== */
 .tbl-wrap{overflow-x:auto}
-/* Tabela completa em tela larga (PC): a lista sai da coluna central e ocupa quase a largura do monitor. */
-@media (min-width:1240px){
-  .list.wide{width:min(97vw,2400px);margin-left:calc(50% - min(97vw,2400px) / 2)}
-}
+/* Tabela completa: fica na mesma largura do resto da página; a rolagem acontece dentro dela
+   (cabeçalho e coluna da embarcação ficam fixos ao rolar). */
+.tbl-wrap{max-height:72vh;overflow:auto;overscroll-behavior:contain}
 .tbl{border-collapse:collapse;width:100%;min-width:1150px;font-size:13px}
-.tbl th{background:var(--blue-soft);color:var(--blue);text-align:left;padding:10px 12px;white-space:nowrap;font-size:11.5px;text-transform:uppercase;letter-spacing:.03em;position:sticky;top:0}
+.tbl th{background:var(--blue-soft);color:var(--blue);text-align:left;padding:10px 12px;white-space:nowrap;font-size:11.5px;text-transform:uppercase;letter-spacing:.03em;position:sticky;top:0;z-index:2;box-shadow:inset 0 -1px 0 var(--line)}
+.tbl th.nv,.tbl td.nv{position:sticky;left:0;box-shadow:inset -1px 0 0 var(--line)}
+.tbl th.nv{z-index:3}
+.tbl td.nv{background:var(--surface);z-index:1}
 .tbl td{padding:9px 12px;border-top:1px solid var(--line);vertical-align:top}
 .tbl td.nv{font-weight:700;color:var(--blue);white-space:nowrap}
 .tbl td.r{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
@@ -235,7 +237,8 @@ footer b{color:var(--ink);font-weight:600}
   .ms-p{position:static;width:auto;max-width:none;margin-top:4px;box-shadow:none}
   .row{padding:14px}
   .editbar .btn{flex:1 1 140px}
-  .tbl-wrap{overflow:visible}
+  .tbl-wrap{overflow:visible;max-height:none}
+  .tbl td.nv{position:static;box-shadow:none}
   .tbl{display:block;min-width:0}
   .tbl thead{display:none}
   .tbl tbody{display:block}
