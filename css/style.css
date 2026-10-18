@@ -360,3 +360,23 @@ footer b{color:var(--ink);font-weight:600}
 }
 @media (max-width:350px){ .tabs{gap:4px} .tab{padding:8px 1px 7px} .tab .l{font-size:7px} .tab .n{font-size:18px} }
 @media (min-width:375px) and (max-width:520px){ .tab .l{font-size:9px;letter-spacing:0} }
+
+/* Celular: o subtítulo ocupa a largura toda, abaixo do logo e do título, em uma linha só */
+@media (max-width:700px){
+  .brand{flex-wrap:wrap;gap:6px 12px}
+  .titles{display:contents}
+  .titles h1{flex:1 1 0;min-width:0;padding-left:12px;border-left:2px solid var(--line)}
+  .titles p{flex:1 1 100%;margin:0;white-space:nowrap;font-size:clamp(9px,calc((100vw - 32px) / 31),13px)}
+}
+
+/* Dados abaixo do nome da embarcação (CBO, IMO, comprimento, calado): um por linha, sem quebrar no meio */
+.specs{margin-top:5px;display:grid;gap:1px;font-size:12.5px;color:var(--muted)}
+.specs div{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.specs b{font-weight:600;color:var(--ink)}
+.specs .mono{font-weight:500;font-size:12px}
+.tbl td.nw{white-space:nowrap}
+
+/* Rótulos Importação / Exportação: fundos suaves, texto escuro, legíveis (a exportação deixa de usar o ciano forte) */
+.pill{border:1px solid #BCD6EE;background:var(--blue-soft);color:#004A8F}
+.pill.exp{border-color:#A6DCF2;background:var(--sun-soft);color:var(--sun-ink)}
+.pill.neutral{border-color:var(--line);background:var(--track);color:var(--muted)}
