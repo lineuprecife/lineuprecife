@@ -384,3 +384,17 @@ footer b{color:var(--ink);font-weight:600}
 /* ===== Largura da página em telas grandes: ajuste só este valor (era 1180px) ===== */
 :root{--largura:1600px}
 .wrap{max-width:var(--largura)}
+
+/* Legenda do mapa maior e coordenador responsável junto da data de atualização */
+.mapa-leg{margin-top:12px;font-size:15px;font-weight:500;color:var(--ink)}
+.mapa-leg .lg{width:15px;height:15px;margin:0 6px 0 22px;vertical-align:-2px}
+.mapa-leg .lg:first-child{margin-left:0}
+.stamp .resp{display:block;font-size:13px;margin-top:3px;color:var(--muted)}
+.stamp .resp[hidden]{display:none}
+.stamp .resp strong{font-weight:600;color:var(--ink)}
+.stamp .resp a{color:inherit;text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:3px}
+.stamp .resp a:hover{color:var(--blue);text-decoration-color:var(--blue)}
+@media (max-width:700px){ .stamp .resp{flex-basis:100%;margin-top:0} .mapa-leg{font-size:14px} }
+
+.stamp .resp strong{white-space:nowrap}
+.stamp .resp #resp-c{display:inline-block;white-space:nowrap}
