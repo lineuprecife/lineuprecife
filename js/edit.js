@@ -224,7 +224,7 @@ function campoHtml(f, v, rec){
     var o = ["", "00-TA"]; for(var i=1;i<=9;i++) o.push(String(i)); o.push("MARINA"); if(v && o.indexOf(v)<0) o.push(v);
     c = '<select id="f_cais">'+o.map(function(x){ return '<option value="'+esc(x)+'"'+(x===v?" selected":"")+'>'+(x ? ((isNaN(x) && x !== "00-TA") ? esc(x) : "Berço "+esc(x)) : "Sem berço")+'</option>'; }).join("")+'</select>';
   } else if(f.t === "op"){
-    c = '<input id="f_operacao" list="dl_operacao" autocomplete="off" placeholder="escolha ou escreva" value="'+esc(v)+'"><datalist id="dl_operacao"></datalist>';
+    c = '<input id="f_operacao" list="dl_operacao" autocomplete="off" placeholder="escolha ou digite" value="'+esc(v)+'"><datalist id="dl_operacao"></datalist>';
   } else if(!f.t){
     c = '<input id="f_'+f.k+'" list="dl_'+f.k+'" autocomplete="off" value="'+esc(v)+'"><datalist id="dl_'+f.k+'"></datalist>';
   } else c = '<input id="f_'+f.k+'"'+(f.t==="num"?' inputmode="numeric"':f.t==="dec"?' inputmode="decimal"':"")+' value="'+esc(v)+'">';
