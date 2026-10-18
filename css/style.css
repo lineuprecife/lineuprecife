@@ -212,7 +212,7 @@ footer b{color:var(--ink);font-weight:600}
 .tbl td.ac{white-space:nowrap}
 .tbl td.ac .btn{padding:6px 10px;min-height:34px;font-size:13px}
 
-/* ===== Celular: cabeçalho compacto, vagas em 4 colunas, filtros fáceis de tocar, tabela vira cartão por navio ===== */
+/* ===== Celular: cabeçalho compacto, vagas em colunas, filtros fáceis de tocar (a tabela completa é igual à do PC e rola para o lado) ===== */
 @media (max-width:700px){
   .top .wrap{padding-block:10px;gap:8px 12px}
   .brand{flex-wrap:nowrap;gap:12px;width:100%}
@@ -237,22 +237,6 @@ footer b{color:var(--ink);font-weight:600}
   .ms-p{position:static;width:auto;max-width:none;margin-top:4px;box-shadow:none}
   .row{padding:14px}
   .editbar .btn{flex:1 1 140px}
-  .tbl-wrap{overflow:visible;max-height:none}
-  .tbl td.nv{position:static;box-shadow:none}
-  .tbl{display:block;min-width:0}
-  .tbl thead{display:none}
-  .tbl tbody{display:block}
-  .tbl tr{display:flex;flex-direction:column;padding:12px 14px;border-top:1px solid var(--line)}
-  .tbl tbody tr:first-child{border-top:0}
-  .tbl td{display:grid;grid-template-columns:42% minmax(0,1fr);gap:8px;border:0;padding:3px 0;font-size:13.5px;white-space:normal}
-  .tbl td::before{content:attr(data-label);font:600 10.5px var(--f-body);letter-spacing:.08em;text-transform:uppercase;color:var(--muted);padding-top:2px}
-  .tbl td.vz{display:none}
-  .tbl td.nv{order:-1;display:block;font-size:17px;padding-bottom:6px;white-space:normal}
-  .tbl td.nv::before{display:none}
-  .tbl td.r{text-align:left}
-  .tbl td.ac{display:flex;gap:8px;padding-top:10px}
-  .tbl td.ac::before{display:none}
-  .tbl tr:hover td{background:none}
 }
 
 /* ===== Ocupação no fim da página + mapa dos cais ===== */
@@ -323,10 +307,6 @@ footer b{color:var(--ink);font-weight:600}
   .stamp em{flex-basis:100%;margin:0}
   .right{flex-direction:column;align-items:flex-start;gap:8px}
   .right .btn{width:100%}
-  /* tabela completa vira cartão: o rótulo quebra de linha e o valor nunca encosta nele */
-  .tbl td,.tbl td.r,.tbl td.nv{white-space:normal;overflow-wrap:anywhere}
-  .tbl td{grid-template-columns:minmax(96px,40%) minmax(0,1fr);column-gap:10px;align-items:start}
-  .tbl td::before{overflow-wrap:anywhere;line-height:1.3}
 }
 @media (max-width:520px){
   .berth-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
@@ -362,3 +342,10 @@ footer b{color:var(--ink);font-weight:600}
 .tabaviso{margin-top:14px}
 .tabaviso .aviso{background:#FFF6DA;color:#5C4300;border-color:#F1DB9C;border-left-color:#F2B705}
 .avisos+.tabs,.editbar+.avisos{margin-top:16px}
+
+/* Tabela completa no celular: igual à do PC, deslizando para os lados com o dedo */
+@media (max-width:700px){
+  .tbl-wrap{-webkit-overflow-scrolling:touch;max-height:75vh}
+  .tbl{font-size:13px}
+  .tbl th,.tbl td{padding:9px 10px}
+}
