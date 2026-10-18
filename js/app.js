@@ -166,7 +166,9 @@ function loadTab(id){
    Colunas esperadas: Situação, Previsão de Chegada, Previsão de Atracação, Atracação, Previsão Desatracação,
    Desatracação, Previsão de Cais, Cais Atracado, Navio, IMO, CBO, Compr., Calado, Agência de Navegação,
    Operador Portuário, Carga, Modalidade, Procedência / Destino da Carga, Porto Anterior, Próximo Porto,
-   Tonelagem Prevista, Tonelagem Movimentada, Saldo, Tonelagem final. (Saldo é recalculado pela página.) */
+   Tonelagem Prevista, Tonelagem Movimentada, Saldo, Tonelagem final. (Saldo é recalculado pela página.)
+   DATA "Atualizado em" (topo da página): vem de uma linha da aba BANCO com Situação = ATUALIZADO e, ao lado, a data e hora
+   (ex.: ATUALIZADO | 18/10/2026 14:30). Só muda quando o responsável alterar essa célula; sem essa linha a página mostra "—". */
 var BCOL = {
   situacao:[/^situacao$/], navio:[/^navio/,/embarcac/], imo:[/^imo$/], cbo:[/^cbo$/],
   prevChegada:[/^previsao de chegada/], chegadaConf:[/^chegada confirmada/],
@@ -206,10 +208,14 @@ function sitDe(v){
 }
 function mapBanco(rows){
   var L = bancoCols(rows); if(!L) throw new Error("cabecalho");
-  var by = {previstos:[], fundeados:[], atracados:[], desatracados:[]}, aviso = "", avisos = {geral:[], previstos:[], fundeados:[], atracados:[]}, resp = null;
+  var by = {previstos:[], fundeados:[], atracados:[], desatracados:[]}, aviso = "", avisos = {geral:[], previstos:[], fundeados:[], atracados:[]}, resp = null, atualizado = "";
   rows.forEach(function(r, idx){
     if(idx <= L.hdr) return;
     var a = String(r[L.situacao]||"").trim();
+    if(/^atualiza/.test(normH(a))){   /* linha "ATUALIZADO | 18/10/2026 14:30": a data só muda quando o responsável a altera na planilha */
+      for(var k = L.situacao+1; k < r.length; k++){ var dv = dataBR(r[k]); if(dv){ atualizado = dv; break; } }
+      return;
+    }
     if(/^respons/.test(normH(a))){   /* linha "RESPONSÁVEL | nome | e-mail" */
       var rn = String(r[L.situacao+1]||"").trim();
       if(rn){
@@ -249,7 +255,7 @@ function mapBanco(rows){
     by[sit].push(s);
   });
   if(typeof ord === "function") Object.keys(by).forEach(function(k){ by[k].sort(function(x, y){ return ord(k, x, y); }); });
-  return {by:by, aviso:aviso, avisos:avisos, resp:resp};
+  return {by:by, aviso:aviso, avisos:avisos, resp:resp, atualizado:atualizado};
 }
 function loadBanco(){
   var b = CONFIG.banco;
@@ -265,10 +271,10 @@ function loadBanco(){
 function refreshBanco(){
   return loadBanco().then(function(r){
     AVISOS = r.avisos; RESP = r.resp;
-    var d = new Date(), agora = p2(d.getDate())+"/"+p2(d.getMonth()+1)+"/"+d.getFullYear()+" "+p2(d.getHours())+":"+p2(d.getMinutes());
+    var d = new Date();
     TABS.forEach(function(t){
       var items = r.by[t.id]; if(t.id==="desatracados") items = items.filter(recente);   /* só os últimos dias; o histórico fica na planilha */
-      data[t.id] = {items:items, aviso:r.aviso, atualizado:agora}; errors[t.id] = false;
+      data[t.id] = {items:items, aviso:r.aviso, atualizado:r.atualizado}; errors[t.id] = false;
     });
     lastOk = p2(d.getHours())+":"+p2(d.getMinutes()); lastErr = "";
   }).catch(function(e){ lastErr = String((e && e.message) || ""); TABS.forEach(function(t){ errors[t.id] = true; }); }).then(renderAll);

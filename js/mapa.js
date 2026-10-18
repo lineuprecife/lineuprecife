@@ -71,12 +71,12 @@ function mapaSvg(kind){
   for(var i = 0; i < n; i++) hat += '<rect class="t" x="' + (x0 + i*step) + '" y="5" width="' + w + '" height="12" rx="1"/>';
   return '<svg viewBox="0 0 100 22" aria-hidden="true"><path class="h" d="M1 11C9 3 18 1.5 28 1.5H95Q99 1.5 99 5V17Q99 20.5 95 20.5H28C18 20.5 9 19 1 11Z"/>' + hat + '<rect class="c" x="83" y="4.5" width="11" height="13" rx="1.5"/></svg>';
 }
-function mapaBercos(){                                                          /* divisões e números dos berços, desenhados pela página */
+function mapaBercos(){                                                          /* números dos berços, desenhados pela página (sem os quadrados de delimitação) */
   var sv = document.getElementById("bercos"); if(!sv || sv.getAttribute("data-ok")) return;
   sv.setAttribute("data-ok", "1");
   sv.innerHTML = Object.keys(GEO).map(function(k){
-    var p = GEO[k].p.map(function(q){ return [q[0]-MAPA.OX, q[1]-MAPA.OY]; }), c = mapaPt(k, 0.5, 0.82), cx = c.x, cy = c.y;   /* número no lado da água, longe dos navios */
-    return '<polygon points="' + [p[0], p[1], p[3], p[2]].map(function(q){ return q[0] + "," + q[1]; }).join(" ") + '"/><text x="' + cx + '" y="' + cy + '">' + (k.length < 2 ? "0" + k : k) + '</text>';
+    var c = mapaPt(k, 0.5, 0.82), cx = c.x, cy = c.y;   /* número no lado da água, longe dos navios */
+    return '<text x="' + cx + '" y="' + cy + '">' + (k.length < 2 ? "0" + k : k) + '</text>';
   }).join("");
 }
 function renderMapa(){
