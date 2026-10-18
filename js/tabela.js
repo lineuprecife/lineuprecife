@@ -12,7 +12,7 @@ function viewOf(id){ return (state.views && state.views[id]) || (id === "desatra
 
 function tabelaHtml(id, items){
   var cols = COLS_TAB[id], ed = typeof EDIT !== "undefined" && EDIT.on;
-  var h = '<div class="tbl-wrap"><table class="tbl"><thead><tr>' + cols.map(function(c){ return '<th>' + c[1] + '</th>'; }).join("") + (ed ? '<th>Ações</th>' : '') + '</tr></thead><tbody>';
+  var h = '<div class="tbl-wrap"><table class="tbl"><thead><tr>' + cols.map(function(c){ return '<th' + (c[0] === 'navio' ? ' class="nv"' : '') + '>' + c[1] + '</th>'; }).join("") + (ed ? '<th>Ações</th>' : '') + '</tr></thead><tbody>';
   items.forEach(function(s){
     h += '<tr>' + cols.map(function(c){
       var v = c[0] === "saldo" ? (s.prev || 0) - (s.mov || 0) : s[c[0]];
