@@ -265,10 +265,10 @@ function nomeAba(id){ return (CONFIG.banco && !CONFIG.api) ? CONFIG.banco.sheet 
 /* === INTERFACE === */
 var MES = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
 var HEADS = {
-  atracados:["Cais","Embarcação","Carga","Agência / Operador","Datas","Carga movimentada"],
-  previstos:["Cais","Embarcação","Carga","Agência / Operador","Datas","Tonelagem prevista"],
-  fundeados:["Cais","Embarcação","Carga","Agência / Operador","Datas","Carga prevista"],
-  desatracados:["Cais","Embarcação","Carga","Agência / Operador","Datas","Carga movimentada"]
+  atracados:["Berço","Embarcação","Carga","Agência / Operador","Datas","Carga movimentada"],
+  previstos:["Berço","Embarcação","Carga","Agência / Operador","Datas","Tonelagem prevista"],
+  fundeados:["Berço","Embarcação","Carga","Agência / Operador","Datas","Carga prevista"],
+  desatracados:["Berço","Embarcação","Carga","Agência / Operador","Datas","Carga movimentada"]
 };
 var EMPTY = {
   atracados:"Nenhuma embarcação atracada no momento.",
@@ -337,7 +337,7 @@ function rowBase(s,lista){
     if(!special && (s.mov||s.prev)) prog = '<div><b>'+num(s.mov||s.prev)+'</b> t movimentadas</div>';
   }
   return '<div class="row">'+
-    '<div class="c-berth berth-n'+(s.cais.length>3?' sm':'')+'"><small>CAIS</small>'+(s.cais?esc(s.cais):"—")+'</div>'+
+    '<div class="c-berth berth-n'+(s.cais.length>3?' sm':'')+'"><small>BERÇO</small>'+(s.cais?esc(s.cais):"—")+'</div>'+
     '<div class="c-ship"><div class="ship">'+esc(s.navio)+'</div><div class="meta">'+meta.join(" · ")+'</div></div>'+
     '<div class="c-rest">'+
       '<div class="c-cargo"><span class="lab">Carga</span>'+cargo+'</div>'+
@@ -369,7 +369,7 @@ function renderBerths(){
   $("berths").innerHTML = BERCOS.map(function(k){
     var sh = map[k], vis = sh ? (sh.length > 3 ? sh.slice(0, 2) : sh) : [];
     var lines = vis.map(function(n){ return "<span>" + esc(n) + "</span>"; }).join("") + (sh && sh.length > 3 ? '<span class="mais">+' + (sh.length - 2) + " embarcações</span>" : "");
-    return '<div class="berth ' + (sh ? "busy" : "free") + '"' + (sh ? ' title="' + esc(sh.join(", ")) + '"' : "") + '><div class="c">CAIS ' + k + '</div><div class="s">' + (sh ? lines : "Livre") + "</div></div>";
+    return '<div class="berth ' + (sh ? "busy" : "free") + '"' + (sh ? ' title="' + esc(sh.join(", ")) + '"' : "") + '><div class="c">BERÇO ' + k + '</div><div class="s">' + (sh ? lines : "Livre") + "</div></div>";
   }).join("");
   if(typeof renderMapa === "function") renderMapa();
 }

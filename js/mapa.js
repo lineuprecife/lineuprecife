@@ -85,7 +85,7 @@ function renderMapa(){
   box.innerHTML = mapaPos(listOf("atracados")).map(function(d){
     var s = d.s, cls = s.mod === "IMPORTAÇÃO" ? "imp" : s.mod === "EXPORTAÇÃO" ? "exp" : "out", fx = d.x / MAPA.W;
     return '<button type="button" class="navmap ' + cls + (fx > 0.85 ? " r" : fx < 0.12 ? " l" : "") + '" style="left:' + (fx*100).toFixed(2) + '%;top:' + (d.y/MAPA.H*100).toFixed(2) + '%;width:' + (d.w/MAPA.W*100).toFixed(2) +
-      '%' + (d.rot ? ';--giro:' + d.rot + 'deg' : '') + '" aria-label="' + esc(s.navio + ", cais " + s.cais) + '">' + mapaSvg(d.kind) + '<span>' + esc(s.navio) + '<small>Cais ' + esc(s.cais) + '</small></span></button>';
+      '%' + (d.rot ? ';--giro:' + d.rot + 'deg' : '') + '" aria-label="' + esc(s.navio + ", berço " + s.cais) + '">' + mapaSvg(d.kind) + '<span>' + esc(s.navio) + '<small>Berço ' + esc(s.cais) + '</small></span></button>';
   }).join("");
 }
 window.addEventListener("load", function(){

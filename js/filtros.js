@@ -4,7 +4,7 @@
 
 /* Filtros de múltipla escolha: k = campo da embarcação, label = nome na tela. */
 var FMS = [
-  {k:"cais",     label:"Cais"},
+  {k:"cais",     label:"Berço"},
   {k:"agencia",  label:"Agência de navegação"},
   {k:"operador", label:"Operador portuário"},
   {k:"carga",    label:"Carga"},
@@ -22,7 +22,7 @@ var FPRE = {
   previstos:   [["Hoje",0,0],["Próx. 48 h",0,2],["Próx. 7 dias",0,7],["Próx. 30 dias",0,30]],
   fundeados:   [["Hoje",0,0],["Últimos 7 dias",-7,0]]
 };
-var FSORT = [["","Padrão"],["data-desc","Data: mais recente"],["data-asc","Data: mais antiga"],["navio","Embarcação (A–Z)"],["cais","Cais"],["ton","Maior tonelagem"]];
+var FSORT = [["","Padrão"],["data-desc","Data: mais recente"],["data-asc","Data: mais antiga"],["navio","Embarcação (A–Z)"],["cais","Berço"],["ton","Maior tonelagem"]];
 
 function fnew(){ var f = {mod:"", from:"", to:"", cmin:"", cmax:"", sort:""}; FMS.forEach(function(m){ f[m.k] = []; }); return f; }
 function fget(id){ id = id || state.tab; state.f = state.f || {}; return state.f[id] || (state.f[id] = fnew()); }
@@ -111,7 +111,7 @@ function renderFilters(force){
         '<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="m6 9 6 6 6-6"/></svg></button>' +
       '<div class="ms-p" hidden>' + (opts.length > 7 ? '<input class="ms-s" type="search" placeholder="Buscar…" aria-label="Buscar em '+m.label+'">' : '') +
         '<div class="ms-l">' + opts.map(function(o){
-          return '<label class="ms-o"><input type="checkbox" value="'+esc(o.key)+'"'+(f[m.k].indexOf(o.key)>=0?' checked':'')+'><span>'+(m.k==="cais"?"Cais ":"")+esc(o.label)+'</span><em>'+o.n+'</em></label>';
+          return '<label class="ms-o"><input type="checkbox" value="'+esc(o.key)+'"'+(f[m.k].indexOf(o.key)>=0?' checked':'')+'><span>'+(m.k==="cais"?"Berço ":"")+esc(o.label)+'</span><em>'+o.n+'</em></label>';
         }).join("") + '</div>' +
         '<div class="ms-f"><button type="button" data-clear>Limpar seleção</button></div></div></div></div>';
   });
@@ -133,7 +133,7 @@ function syncLabels(){
     var box = document.querySelector('#fpanel [data-ms="'+m.k+'"]'); if(!box) return;
     var sel = f[m.k], t = box.querySelector(".ms-t"), b = box.querySelector(".ms-b");
     var lab = "Todos";
-    if(sel.length === 1){ var o = fopts(state.tab, m.k).filter(function(x){ return x.key === sel[0]; })[0]; lab = (m.k==="cais"?"Cais ":"") + (o ? o.label : sel[0]); }
+    if(sel.length === 1){ var o = fopts(state.tab, m.k).filter(function(x){ return x.key === sel[0]; })[0]; lab = (m.k==="cais"?"Berço ":"") + (o ? o.label : sel[0]); }
     else if(sel.length > 1) lab = sel.length + " selecionados";
     t.textContent = lab; b.classList.toggle("has", sel.length > 0);
   });

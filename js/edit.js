@@ -1,10 +1,10 @@
 /* Modo edição do Line-up: entrar com senha, adicionar, editar, mover (mudando a situação) e excluir navios.
    Este arquivo carrega ANTES do app.js; tudo aqui só roda depois que a página abre. */
 var EDIT = {on:false, senha:"", nome:""}, AVISO = "";
-var SITS = [["previstos","Previsto","Previsto (ainda não chegou)"],["fundeados","Fundeado","Fundeado (esperando no mar)"],["atracados","Atracado","Atracado (no cais)"],["desatracados","Desatracado","Desatracado (já saiu)"]];
+var SITS = [["previstos","Previsto","Previsto (ainda não chegou)"],["fundeados","Fundeado","Fundeado (esperando no mar)"],["atracados","Atracado","Atracado (no berço)"],["desatracados","Desatracado","Desatracado (já saiu)"]];
 var FIELDS = [
   {k:"navio",l:"Nome da embarcação",w:1},
-  {k:"cais",l:"Cais",t:"cais"},
+  {k:"cais",l:"Berço",t:"cais"},
   {k:"operacao",l:"Operação / modalidade",t:"op"},
   {k:"carga",l:"Carga (ou serviço)"},
   {k:"origem_destino",l:"Origem / destino da carga"},
@@ -124,7 +124,7 @@ function openForm(s){
     if(f.t === "dt") c = '<input type="datetime-local" id="f_'+f.k+'" value="'+dtIn(v)+'">';
     else if(f.t === "cais"){
       var o = ["", "00-TA"]; for(var i=1;i<=9;i++) o.push(String(i)); o.push("MARINA"); if(v && o.indexOf(v)<0) o.push(v);
-      c = '<select id="f_cais">'+o.map(function(x){ return '<option value="'+esc(x)+'"'+(x===v?" selected":"")+'>'+(x ? ((isNaN(x) && x !== "00-TA") ? esc(x) : "Cais "+esc(x)) : "Sem cais")+'</option>'; }).join("")+'</select>';
+      c = '<select id="f_cais">'+o.map(function(x){ return '<option value="'+esc(x)+'"'+(x===v?" selected":"")+'>'+(x ? ((isNaN(x) && x !== "00-TA") ? esc(x) : "Berço "+esc(x)) : "Sem berço")+'</option>'; }).join("")+'</select>';
     } else if(f.t === "op"){
       c = '<input id="f_operacao" list="dl_op" placeholder="escolha ou escreva" value="'+esc(v)+'"><datalist id="dl_op">'+["IMPORTAÇÃO","EXPORTAÇÃO","DRAGAGEM","ABASTECIMENTO","OP. MILITAR","PESQUISA"].map(function(x){ return '<option value="'+x+'">'; }).join("")+'</datalist>';
     } else c = '<input id="f_'+f.k+'"'+(f.t==="num"?' inputmode="numeric"':f.t==="dec"?' inputmode="decimal"':"")+' value="'+esc(v)+'">';
@@ -139,7 +139,7 @@ function openForm(s){
     });
     if(!reg.navio) bad = "Escreva o nome da embarcação.";
     else if(!reg.chegada && !(sit[0] === "desatracados" && reg.saida)) bad = "Informe a data e a hora de chegada (para desatracado, pode informar só a saída).";
-    else if(sit[0] === "atracados" && !reg.cais) bad = "Escolha o cais onde a embarcação está atracada.";
+    else if(sit[0] === "atracados" && !reg.cais) bad = "Escolha o berço onde a embarcação está atracada.";
     if(bad){ say("fmsg", bad, true); return; }
     E("fgo").disabled = true; say("fmsg", "Salvando…");
     post({acao:"salvar", registro:reg}).then(function(){ d.close(); state.tab = sit[0]; toast("Salvo."); refresh(); },
