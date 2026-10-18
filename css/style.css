@@ -246,9 +246,9 @@ footer b{color:var(--ink);font-weight:600}
 .mapa img{display:block;width:100%;height:auto}
 .dots{position:absolute;inset:0}
 .dot{position:absolute;width:16px;height:16px;margin:-8px 0 0 -8px;padding:0;border-radius:50%;border:2px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.6);cursor:pointer}
-.dot.imp,.lg.imp{background:#0060B0}
-.dot.exp,.lg.exp{background:#00AEEF}
-.dot.out,.lg.out{background:#FFD400}
+.dot.imp,.lg.imp{background:var(--blue)}
+.dot.exp,.lg.exp{background:var(--sun)}
+.dot.out,.lg.out{background:var(--muted)}
 .dot span{position:absolute;bottom:135%;left:50%;transform:translateX(-50%);display:none;z-index:5;background:var(--head);color:#fff;padding:5px 9px;border-radius:6px;font:600 12px/1.3 var(--f-body);white-space:nowrap;pointer-events:none}
 .dot span small{display:block;font-weight:500;font-size:10.5px;opacity:.85}
 .dot:hover span,.dot:focus span,.dot.on span{display:block}
@@ -262,18 +262,19 @@ footer b{color:var(--ink);font-weight:600}
 .navmap{position:absolute;transform:translate(-50%,-50%);padding:0;border:0;background:none;cursor:pointer;line-height:0;filter:drop-shadow(0 1px 2px rgba(11,34,54,.4))}
 .navmap svg{display:block;width:100%;height:auto;overflow:visible;transform:rotate(var(--giro,0deg));transform-origin:50% 50%}   /* gira só o desenho, pelo centro; o nome continua reto */
 .navmap .h{stroke:#fff;stroke-width:1.6;vector-effect:non-scaling-stroke}
-.navmap.imp .h{fill:#0060B0}
-.navmap.exp .h{fill:#00AEEF}
-.navmap.out .h{fill:#FFD400}
+.navmap.imp .h{fill:var(--blue)}
+.navmap.exp .h{fill:var(--sun)}
+.navmap.out .h{fill:var(--muted)}
 .navmap .c{fill:rgba(255,255,255,.88)}
-.navmap .t{fill:rgba(0,0,0,.3)}
+.navmap .t{fill:rgba(11,34,54,.28)}
 .navmap span{position:absolute;bottom:calc(100% + 4px);left:50%;transform:translateX(-50%);display:none;z-index:5;background:var(--head);color:#fff;padding:5px 9px;border-radius:6px;font:600 12px/1.3 var(--f-body);white-space:nowrap;pointer-events:none}
 .navmap span small{display:block;font-weight:500;font-size:10.5px;opacity:.85}
 .navmap:hover span,.navmap:focus span,.navmap.on span{display:block;z-index:9}
 .navmap.r span{left:auto;right:0;transform:none}
 .navmap.l span{left:0;transform:none}
 .bercos{position:absolute;inset:0;width:100%;height:100%;pointer-events:none}
-.bercos text{fill:var(--blue);font:600 15px var(--f-body);text-anchor:middle;dominant-baseline:middle;paint-order:stroke;stroke:rgba(255,255,255,.9);stroke-width:3px;stroke-linejoin:round}
+.bercos rect{fill:var(--surface);stroke:var(--blue);stroke-width:1;vector-effect:non-scaling-stroke}
+.bercos text{fill:var(--blue);font:600 12.5px var(--f-body);text-anchor:middle;dominant-baseline:central}
 
 .mapa-dica{display:none;margin:6px 2px 0;font-size:12px;font-weight:600;color:var(--blue)}
 @media (max-width:700px){.mapa-dica{display:block}}
