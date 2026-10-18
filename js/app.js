@@ -438,7 +438,6 @@ function renderHead(){
     w.hidden = false;
     $("warn-t").textContent = "Não foi possível ler "+(bad.length>1?"as abas ":"a aba ")+bad.join(", ")+". Confira se a planilha está compartilhada como \"Qualquer pessoa com o link\" (leitor) e se o nome da aba está igual ao da planilha."+(lastErr==="cabecalho"?" A primeira linha da aba precisa ter as colunas Situação e Navio.":"")+(lastOk?" Os dados abaixo são da última leitura, às "+lastOk+".":"");
   } else w.hidden = true;
-  $("src").textContent = lastOk ? "Lido da planilha às "+lastOk+" · atualiza a cada "+CONFIG.refreshSeconds+" s" : "Lendo a planilha…";
 }
 function renderAll(){ renderHead(); renderTabs(); renderBerths(); renderFilters(); renderPanel(); }
 
