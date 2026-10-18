@@ -28,7 +28,12 @@ var CONFIG = {
   refreshSeconds: 60,
 
   telefones: "81 3183-1919 · 81 99488-2036",
-  emails: "operacoes@portodorecife.pe.gov.br · pedro.guarines@portodorecife.pe.gov.br"
+  emails: "operacoes@portodorecife.pe.gov.br",
+
+  /* Responsável pelo preenchimento (aparece junto da data de atualização). Pode ser coordenador, gerente etc.
+     Para trocar sem mexer no código: na aba BANCO, coluna Situação = RESPONSÁVEL; ao lado o nome e, nas colunas
+     seguintes (em qualquer ordem, ambos opcionais), o cargo e o e-mail. Exemplo: RESPONSÁVEL | Maria Souza | Gerente de Operações | maria@... */
+  responsavel: {nome:"Pedro Guarines", cargo:"Coordenador de Operações", email:"pedro.guarines@portodorecife.pe.gov.br"}
 };
 
 /* Posição de cada informação na linha da planilha (A = 0, B = 1, C = 2...). */
@@ -201,10 +206,18 @@ function sitDe(v){
 }
 function mapBanco(rows){
   var L = bancoCols(rows); if(!L) throw new Error("cabecalho");
-  var by = {previstos:[], fundeados:[], atracados:[], desatracados:[]}, aviso = "", avisos = {geral:[], previstos:[], fundeados:[], atracados:[]};
+  var by = {previstos:[], fundeados:[], atracados:[], desatracados:[]}, aviso = "", avisos = {geral:[], previstos:[], fundeados:[], atracados:[]}, resp = null;
   rows.forEach(function(r, idx){
     if(idx <= L.hdr) return;
     var a = String(r[L.situacao]||"").trim();
+    if(/^respons/.test(normH(a))){   /* linha "RESPONSÁVEL | nome | e-mail" */
+      var rn = String(r[L.situacao+1]||"").trim();
+      if(rn){
+        resp = {nome:rn, cargo:"", email:""};
+        [r[L.situacao+2], r[L.situacao+3]].forEach(function(v){ v = String(v||"").trim(); if(!v) return; if(v.indexOf("@")>=0) resp.email = v; else resp.cargo = v; });
+      }
+      return;
+    }
     /* Avisos: coluna Situação = AVISO (geral, acima das abas) ou AVISO ATRACADOS / AVISO PREVISTOS / AVISO FUNDEADOS (só naquela aba); o texto vai na coluna ao lado. */
     var av = /^(nota|aviso)s?\s*[-:·]?\s*(previst|fundead|atracad)?/.exec(normH(a));
     if(av){
@@ -236,7 +249,7 @@ function mapBanco(rows){
     by[sit].push(s);
   });
   if(typeof ord === "function") Object.keys(by).forEach(function(k){ by[k].sort(function(x, y){ return ord(k, x, y); }); });
-  return {by:by, aviso:aviso, avisos:avisos};
+  return {by:by, aviso:aviso, avisos:avisos, resp:resp};
 }
 function loadBanco(){
   var b = CONFIG.banco;
@@ -251,7 +264,7 @@ function loadBanco(){
 }
 function refreshBanco(){
   return loadBanco().then(function(r){
-    AVISOS = r.avisos;
+    AVISOS = r.avisos; RESP = r.resp;
     var d = new Date(), agora = p2(d.getDate())+"/"+p2(d.getMonth()+1)+"/"+d.getFullYear()+" "+p2(d.getHours())+":"+p2(d.getMinutes());
     TABS.forEach(function(t){
       var items = r.by[t.id]; if(t.id==="desatracados") items = items.filter(recente);   /* só os últimos dias; o histórico fica na planilha */
@@ -280,6 +293,7 @@ var state = {tab:"atracados", q:"", f:{}, fopen:false};
 var data = {};      /* id -> {items, aviso, atualizado} da última leitura boa */
 var errors = {};    /* id -> true quando a última leitura falhou */
 var lastOk = null, lastErr = "";
+var RESP = null;     /* coordenador responsável lido da planilha; se não houver, vale CONFIG.responsavel */
 var AVISOS = null;   /* avisos lidos da planilha: {geral:[], previstos:[], fundeados:[], atracados:[]} */
 
 function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,function(c){return {"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]})}
@@ -413,6 +427,11 @@ function renderHead(){
   var base = data.atracados || data.previstos || null;
   $("stamp").textContent = (base && base.atualizado) || "—";
   renderAvisos();
+  var rp = RESP || CONFIG.responsavel, rb = $("resp"); rb.hidden = !(rp && rp.nome);
+  if(!rb.hidden){
+    $("resp-n").innerHTML = rp.email ? '<a href="mailto:'+esc(rp.email)+'" title="'+esc(rp.email)+'">'+esc(rp.nome)+'</a>' : esc(rp.nome);
+    $("resp-c").textContent = rp.cargo ? " · "+rp.cargo : "";
+  }
   var bad = TABS.filter(function(t){return errors[t.id]}).map(function(t){return nomeAba(t.id)}).filter(function(n,i,a){return a.indexOf(n)===i});
   var w = $("warn");
   if(bad.length){
