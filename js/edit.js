@@ -100,11 +100,11 @@ function ord(id, a, b){
   return da - db;
 }
 function lerPublico(){
-  return fetch(CONFIG.api, {cache:"no-store"}).then(function(r){ return r.json(); }).then(function(j){ if(j.ok === false) throw new Error(j.erro); return j; });
+  return fetch(CONFIG.api + (CONFIG.api.indexOf("?") < 0 ? "?" : "&") + "dias=" + (CONFIG.diasDesatracados || 7), {cache:"no-store"}).then(function(r){ return r.json(); }).then(function(j){ if(j.ok === false) throw new Error(j.erro); return j; });
 }
 function refreshApi(){
   /* quem está logado recebe também os campos internos (observações, prático, rebocadores...); o público recebe só o essencial */
-  var ler = EDIT.on ? post({acao:"lista"}).catch(function(e){ if(!EDIT.on) return lerPublico(); throw e; }) : lerPublico();
+  var ler = EDIT.on ? post({acao:"lista", dias:CONFIG.diasDesatracados || 7}).catch(function(e){ if(!EDIT.on) return lerPublico(); throw e; }) : lerPublico();
   return ler.then(function(j){
     AVISO = j.aviso || ""; RESP = j.responsavel && j.responsavel.nome ? j.responsavel : null;
     var by = {previstos:[], fundeados:[], atracados:[], desatracados:[]}, lim = Date.now() - (CONFIG.diasDesatracados || 7) * 864e5;
