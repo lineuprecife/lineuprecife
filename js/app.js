@@ -345,11 +345,11 @@ function rowBase(s,lista){
   var when, prog;
   if(prevList){
     var chega = rel(s.chegada,"chega");
-    when = '<div>'+(lista==="fundeados"?'Chegada confirmada ':'Previsão de chegada ')+dt(s.chegada)+'</div>'+(chega?'<div class="rel">'+esc(chega)+'</div>':'')+(s.atracacao?'<div>Previsão de atracação (POB) '+dt(s.atracacao)+'</div>':'')+(s.saida?'<div>Previsão de saída '+dt(s.saida)+'</div>':'');
+    when = '<div>'+(lista==="fundeados"?'Chegada confirmada ':'Previsão de chegada (ETA) ')+dt(s.chegada)+'</div>'+(chega?'<div class="rel">'+esc(chega)+'</div>':'')+(s.atracacao?'<div>Previsão de atracação (POB) '+dt(s.atracacao)+'</div>':'')+(s.saida?'<div>Previsão de saída (ETD) '+dt(s.saida)+'</div>':'');
     prog = '<div><b>'+num(s.prev)+'</b> t</div>'+(s.anterior?'<div class="meta">Vem de '+esc(s.anterior)+'</div>':'');
   } else {
     when = '<div>Atracação '+dt(s.chegada)+'</div>'+
-      (s.saida?'<div>Previsão de saída '+dt(s.saida)+'</div>'+(lista==="atracados"?'<div class="rel">'+esc(rel(s.saida,"sai"))+'</div>':''):'<div class="meta">Previsão de saída não informada</div>');
+      (s.saida?'<div>Previsão de saída (ETD) '+dt(s.saida)+'</div>'+(lista==="atracados"?'<div class="rel">'+esc(rel(s.saida,"sai"))+'</div>':''):'<div class="meta">Previsão de saída não informada</div>');
     if(special || !s.prev){ prog = '<span class="meta">Sem movimentação de carga</span>'; }
     else if(lista==="fundeados"){ prog = '<div><b>'+num(s.prev)+'</b> t previstas</div>'; }
     else { prog = '<div class="bar"><i style="width:'+pct+'%"></i></div><div><b>'+num(s.mov)+'</b> de '+num(s.prev)+' t · '+pct+'%</div><div class="meta">Saldo '+num(s.prev-(s.mov||0))+' t</div>'; }

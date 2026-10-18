@@ -14,7 +14,7 @@ var FMS = [
 ];
 var FMODS  = [["","Todos"],["IMPORTAÇÃO","Importação"],["EXPORTAÇÃO","Exportação"],["_SEM","Sem carga"]];
 var FDATE  = {atracados:"chegada", previstos:"chegada", fundeados:"chegada", desatracados:"saida"};
-var FDLAB  = {atracados:"Atracação", previstos:"Previsão de chegada", fundeados:"Chegada confirmada", desatracados:"Saída"};
+var FDLAB  = {atracados:"Atracação", previstos:"Previsão de chegada (ETA)", fundeados:"Chegada confirmada", desatracados:"Saída"};
 /* atalhos de período: [rótulo, dias a partir de hoje (início), dias a partir de hoje (fim)] — "mes" = mês atual */
 var FPRE = {
   desatracados:[["Últimos 7 dias",-7,0],["Últimos 30 dias",-30,0],["Últimos 90 dias",-90,0],["Este mês","mes"]],
@@ -116,7 +116,7 @@ function renderFilters(force){
         '<div class="ms-f"><button type="button" data-clear>Limpar seleção</button></div></div></div></div>';
   });
 
-  h += '<div class="ff"><span class="fl">Comprimento (m)</span><div class="dr"><input type="number" inputmode="numeric" min="0" placeholder="mín." data-c="cmin" value="'+esc(f.cmin)+'" aria-label="Comprimento mínimo"><span>a</span><input type="number" inputmode="numeric" min="0" placeholder="máx." data-c="cmax" value="'+esc(f.cmax)+'" aria-label="Comprimento máximo"></div></div>';
+  h += '<div class="ff"><span class="fl">Comprimento (em metros)</span><div class="dr"><input type="number" inputmode="numeric" min="0" placeholder="mín." data-c="cmin" value="'+esc(f.cmin)+'" aria-label="Comprimento mínimo"><span>a</span><input type="number" inputmode="numeric" min="0" placeholder="máx." data-c="cmax" value="'+esc(f.cmax)+'" aria-label="Comprimento máximo"></div></div>';
 
   h += '<div class="ff"><span class="fl">Ordenar por</span><select data-sort aria-label="Ordenar por">' +
     FSORT.map(function(o){ return '<option value="'+o[0]+'"'+(f.sort===o[0]?' selected':'')+'>'+o[1]+'</option>'; }).join("") + '</select></div>';

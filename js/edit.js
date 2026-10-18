@@ -12,24 +12,55 @@ var G_MANOBRA = ["hora_pratico","hora_amarracao","inicio_manobra","termino_manob
 var CAMPOS_ETAPA = {previsao:G_IDENT.concat(G_DATAS), fundeio:G_IDENT.concat(G_DATAS), atracacao:G_IDENT.concat(G_DATAS, G_MANOBRA, ["ton_movimentada"]), movimentacao:["ton_movimentada","observacoes"], desatracacao:["saida","ton_movimentada","observacoes"]};
 /* Formulário em blocos, na ordem dos formulários de papel (previsão, livro de registro, manobra de acostagem) */
 var SECOES = [
-  ["Embarcação", [{k:"navio",l:"Nome da embarcação",w:1},{k:"nacionalidade",l:"Bandeira / porto de matrícula"},{k:"nr_livro",l:"Nº no livro de registro"},{k:"cbo",l:"CBO"},{k:"imo",l:"IMO"},{k:"comprimento",l:"Comprimento (m)",t:"dec"},{k:"calado",l:"Calado máximo (m)",t:"dec"}]],
+  ["Embarcação", [{k:"navio",l:"Nome da embarcação",w:1},{k:"nacionalidade",l:"Bandeira / porto de matrícula"},{k:"nr_livro",l:"Nº no livro de registro"},{k:"cbo",l:"CBO"},{k:"imo",l:"IMO"},{k:"comprimento",l:"Comprimento (em metros)",t:"dec"},{k:"calado",l:"Calado máximo (em metros)",t:"dec"}]],
   ["Carga e operação", [{k:"operacao",l:"Operação / modalidade",t:"op"},{k:"carga",l:"Carga (ou serviço)"},{k:"origem_destino",l:"Origem / destino da carga"},{k:"agencia",l:"Agência"},{k:"operador",l:"Operador"},{k:"porto_anterior",l:"Porto anterior"},{k:"proximo_porto",l:"Próximo porto"},{k:"ton_prevista",l:"Toneladas previstas",t:"num"}]],
   ["Datas e berço", [{k:"chegada",l:"Chegada",t:"dt"},{k:"previsao_atracacao",l:"Previsão de atracação (POB)",t:"dt"},{k:"saida",l:"Saída",t:"dt"},{k:"cais",l:"Berço",t:"cais"}]],
-  ["Manobra de atracação (coordenadores de operação)", [{k:"hora_pratico",l:"Prático (hora)",t:"hm"},{k:"hora_amarracao",l:"Amarração (hora)",t:"hm"},{k:"inicio_manobra",l:"Início da manobra",t:"hm"},{k:"termino_manobra",l:"Término da manobra",t:"hm"},{k:"bordo",l:"Bordo de atracação",t:"bordo"},{k:"pratico",l:"Prático (nome)"},{k:"calado_proa",l:"Calado proa (m)",t:"dec"},{k:"calado_popa",l:"Calado popa (m)",t:"dec"},{k:"cabecos",l:"Cabeços de amarração (ex.: 47, 50, 53, 57)",w:1},{k:"rebocadores",l:"Rebocadores",w:1}]],
+  ["Manobra de atracação (coordenadores de operação)", [{k:"hora_pratico",l:"Hora do Prático (POB)",t:"hm"},{k:"hora_amarracao",l:"Hora da Amarração (ATB)",t:"hm"},{k:"inicio_manobra",l:"Hora de Início da manobra (BOSP)",t:"hm"},{k:"termino_manobra",l:"Hora do Término da manobra (ATB)",t:"hm"},{k:"bordo",l:"Bordo de atracação",t:"bordo"},{k:"pratico",l:"Prático (nome)"},{k:"calado_proa",l:"Calado proa (em metros)",t:"dec"},{k:"calado_popa",l:"Calado popa (em metros)",t:"dec"},{k:"cabecos",l:"Cabeços de amarração (ex.: 47, 50, 53, 57)",w:1},{k:"rebocadores",l:"Rebocadores",w:1}]],
   ["Movimentação", [{k:"ton_movimentada",l:"Toneladas já movimentadas",t:"num"}]],
   ["Observações", [{k:"observacoes",l:"Observações",t:"ta",w:1}]]
 ];
 var FIELDS = []; SECOES.forEach(function(s){ s[1].forEach(function(f){ FIELDS.push(f); }); });
 /* Alguns campos mudam de nome conforme a situação escolhida */
 function rotulo(k, sit, padrao){
-  if(k === "chegada") return {previstos:"Previsão de chegada", fundeados:"Chegada confirmada (fundeio)", atracados:"Data e hora da atracação", desatracados:"Data e hora da atracação"}[sit] || padrao;
-  if(k === "saida") return sit === "desatracados" ? "Data e hora da saída (desatracação)" : "Previsão de saída";
-  if(k === "cais") return (sit === "previstos" || sit === "fundeados") ? "Berço previsto" : sit === "atracados" ? "Berço atracado" : "Berço";
+  if(k === "chegada") return {previstos:"Previsão de chegada (ETA)", fundeados:"Chegada confirmada (fundeio)", atracados:"Data e hora da atracação", desatracados:"Data e hora da atracação"}[sit] || padrao;
+  if(k === "saida") return sit === "desatracados" ? "Data e hora da saída (desatracação)" : "Previsão de saída (ETD)";
+  if(k === "cais") return (sit === "previstos" || sit === "fundeados") ? "Berço previsto (ETB)" : sit === "atracados" ? "Berço atracado" : "Berço";
   if(k === "ton_movimentada") return sit === "desatracados" ? "Tonelagem final (t)" : "Toneladas já movimentadas";
   return padrao;
 }
 
 function E(id){ return document.getElementById(id); }
+/* ---- Sugestões: todo campo de texto sugere o que já existe no banco (aparece ao digitar) ---- */
+var OPS_PADRAO = ["IMPORTAÇÃO","EXPORTAÇÃO","DRAGAGEM","ABASTECIMENTO","OP. MILITAR","PESQUISA","REPARO"];
+var SUG_CAMPOS = FIELDS.filter(function(f){ return !f.t || f.t === "op"; }).map(function(f){ return f.k; }), SUG_CACHE = null;
+function montarSug(regs){
+  var m = {};
+  SUG_CAMPOS.forEach(function(k){ m[k] = {}; });
+  regs.forEach(function(r){ SUG_CAMPOS.forEach(function(k){
+    var v = String(r[k] == null ? "" : r[k]).trim(); if(!v) return;
+    var c = v.toLowerCase(), o = m[k][c] || (m[k][c] = {v:v, n:0}); o.n++;
+  }); });
+  return m;
+}
+function pintarSug(m){
+  SUG_CAMPOS.forEach(function(k){
+    var dl = E("dl_"+k); if(!dl) return;
+    var arr = Object.keys(m[k]).map(function(c){ return m[k][c]; });
+    if(k === "operacao") OPS_PADRAO.forEach(function(x){ if(!m[k][x.toLowerCase()]) arr.push({v:x, n:0}); });
+    arr.sort(function(a, b){ return b.n - a.n || a.v.localeCompare(b.v, "pt-BR"); });
+    dl.innerHTML = arr.slice(0, 400).map(function(o){ return '<option value="'+esc(o.v)+'">'; }).join("");
+  });
+}
+function carregarSug(){
+  var locais = []; TABS.forEach(function(t){ listOf(t.id).forEach(function(s){ locais.push(s.rec); }); });
+  pintarSug(montarSug(SUG_CACHE || locais));          /* já mostra o que a página tem na tela */
+  if(SUG_CACHE) return;
+  post({acao:"lista", dias:3650}).then(function(j){     /* depois completa com o banco inteiro, inclusive o histórico antigo */
+    SUG_CACHE = j.navios || []; pintarSug(montarSug(SUG_CACHE));
+    setTimeout(function(){ SUG_CACHE = null; }, 120000);
+  }, function(){});
+}
+
 function toast(t, bad){
   var el = E("toast");
   if(!el){ el = document.createElement("div"); el.id = "toast"; el.setAttribute("role","status"); document.body.appendChild(el); }
@@ -186,13 +217,16 @@ function campoHtml(f, v, rec){
   else if(f.t === "hm") c = '<input type="time" id="f_'+f.k+'" value="'+esc(v)+'">';
   else if(f.t === "ta") c = '<textarea id="f_'+f.k+'" rows="3">'+esc(v)+'</textarea>';
   else if(f.t === "bordo"){
-    var ob = ["", "Boreste", "Bombordo"]; if(v && ob.indexOf(v) < 0) ob.push(v);
-    c = '<select id="f_bordo">'+ob.map(function(x){ return '<option value="'+esc(x)+'"'+(x===v?" selected":"")+'>'+(x ? esc(x) : "—")+'</option>'; }).join("")+'</select>';
+    var ob = [["", "—"], ["Boreste", "Boreste (lado direito da embarcação)"], ["Bombordo", "Bombordo (lado esquerdo da embarcação)"]];
+    if(v && !ob.some(function(x){ return x[0] === v; })) ob.push([v, v]);
+    c = '<select id="f_bordo">'+ob.map(function(x){ return '<option value="'+esc(x[0])+'"'+(x[0]===v?" selected":"")+'>'+esc(x[1])+'</option>'; }).join("")+'</select>';
   } else if(f.t === "cais"){
     var o = ["", "00-TA"]; for(var i=1;i<=9;i++) o.push(String(i)); o.push("MARINA"); if(v && o.indexOf(v)<0) o.push(v);
     c = '<select id="f_cais">'+o.map(function(x){ return '<option value="'+esc(x)+'"'+(x===v?" selected":"")+'>'+(x ? ((isNaN(x) && x !== "00-TA") ? esc(x) : "Berço "+esc(x)) : "Sem berço")+'</option>'; }).join("")+'</select>';
   } else if(f.t === "op"){
-    c = '<input id="f_operacao" list="dl_op" placeholder="escolha ou escreva" value="'+esc(v)+'"><datalist id="dl_op">'+["IMPORTAÇÃO","EXPORTAÇÃO","DRAGAGEM","ABASTECIMENTO","OP. MILITAR","PESQUISA","REPARO"].map(function(x){ return '<option value="'+x+'">'; }).join("")+'</datalist>';
+    c = '<input id="f_operacao" list="dl_operacao" autocomplete="off" placeholder="escolha ou escreva" value="'+esc(v)+'"><datalist id="dl_operacao"></datalist>';
+  } else if(!f.t){
+    c = '<input id="f_'+f.k+'" list="dl_'+f.k+'" autocomplete="off" value="'+esc(v)+'"><datalist id="dl_'+f.k+'"></datalist>';
   } else c = '<input id="f_'+f.k+'"'+(f.t==="num"?' inputmode="numeric"':f.t==="dec"?' inputmode="decimal"':"")+' value="'+esc(v)+'">';
   return '<label'+(f.w?' class="w"':"")+'><span id="l_'+f.k+'">'+f.l+'</span>'+c+'</label>';
 }
@@ -207,6 +241,7 @@ function openForm(s){
   });
   html += '<div class="msg" id="fmsg"></div><div class="btns">'+(s ? '<button class="btn ghost" id="fhist" type="button">Histórico</button><span class="sp"></span>' : "")+'<button class="btn" data-x type="button">Cancelar</button><button class="btn pri" id="fgo" type="button">Salvar</button></div>';
   var d = dlg(html, true);
+  carregarSug();
   function aplicar(){   /* nomes dos campos e quais ficam liberados para esta pessoa, conforme a situação escolhida */
     var nova = E("f_sit").value, perm = permCampos(atual, nova), bloq = 0;
     FIELDS.forEach(function(f){
