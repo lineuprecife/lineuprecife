@@ -57,7 +57,8 @@ var COLS = [
   ['observacoes', 'Observações', /^observac/],
   ['nr_livro', 'Nº Livro', /^(n|no|num|numero)\b.*livro/],
   ['reg_alt', 'Registro alterado em', /^registro alterado em/],
-  ['atualizado_por', 'Atualizado por', /^atualizado por/]
+  ['atualizado_por', 'Atualizado por', /^atualizado por/],
+  ['aba_origem', 'Aba de origem', /^aba de origem/]
 ];
 var DATAS = ['prev_chegada', 'chegada_conf', 'prev_atrac', 'atrac', 'prev_saida', 'desatrac'];
 var HORAS = ['hora_pratico', 'hora_amarracao', 'inicio_manobra', 'termino_manobra'];
@@ -150,9 +151,14 @@ function ler_() {
     if (!String(o.id).trim()) { o.id = Utilities.getUuid().replace(/-/g, '').slice(0, 12); semId.push(o); }
     itens.push(o); porId[o.id] = o;
   }
-  if (semId.length) {   /* linhas digitadas à mão ganham um ID na primeira leitura */
+  if (semId.length) {   /* linhas digitadas à mão ganham um ID na primeira leitura (gravação única da coluna inteira) */
     var lock = LockService.getScriptLock(); lock.waitLock(20000);
-    try { semId.forEach(function (o) { s.getRange(o.r, I.id + 1).setValue(o.id); }); } finally { lock.releaseLock(); }
+    try {
+      var n0 = L.hdr + 1, col = [];
+      for (var q = n0; q < vals.length; q++) col.push([vals[q][I.id] == null ? '' : vals[q][I.id]]);
+      semId.forEach(function (o) { col[o.r - 1 - n0][0] = o.id; });
+      s.getRange(n0 + 1, I.id + 1, col.length, 1).setValues(col);
+    } finally { lock.releaseLock(); }
   }
   return {sheet: s, idx: I, n: L.n, hdr: L.hdr, itens: itens, porId: porId, aviso: aviso};
 }
@@ -167,13 +173,15 @@ function paraApi_(o) {
     chegada: prevL ? (d('chegada_conf') || d('prev_chegada') || d('atrac')) : (d('atrac') || d('chegada_conf') || d('prev_chegada')),
     previsao_atracacao: d('prev_atrac'),
     saida: desat ? (d('desatrac') || d('prev_saida')) : d('prev_saida'),
-    cais: String(prevL ? (o.prev_cais || o.cais) : (o.cais || o.prev_cais)),
+    cais: caisTxt_(prevL ? vazio_(o.prev_cais) ? o.cais : o.prev_cais : vazio_(o.cais) ? o.prev_cais : o.cais),
     ton_prevista: n('ton_prev'), ton_movimentada: desat ? (n('ton_final') !== '' ? n('ton_final') : n('ton_mov')) : n('ton_mov'),
     hora_pratico: fmtHora(o.hora_pratico), hora_amarracao: fmtHora(o.hora_amarracao), inicio_manobra: fmtHora(o.inicio_manobra), termino_manobra: fmtHora(o.termino_manobra),
     bordo: String(o.bordo), cabecos: String(o.cabecos), pratico: String(o.pratico), rebocadores: String(o.rebocadores), observacoes: String(o.observacoes), nr_livro: String(o.nr_livro),
     atualizado_em: String(o.reg_alt || '')
   };
 }
+function vazio_(v) { return v === '' || v == null; }
+function caisTxt_(v) { return vazio_(v) ? '' : (String(v).trim() === '0' ? '00-TA' : String(v).trim()); }   /* na planilha o berço 00-TA costuma estar como 0 */
 function colDe_(k, sit) {   /* campo da página + situação -> coluna da planilha */
   switch (k) {
     case 'chegada': return sit === 'previstos' ? 'prev_chegada' : sit === 'fundeados' ? 'chegada_conf' : 'atrac';
@@ -185,15 +193,33 @@ function colDe_(k, sit) {   /* campo da página + situação -> coluna da planil
   }
   return k;
 }
-function lista_(publico) {
+function lista_(publico, dias) {
   var d = ler_(), ult = {}; try { ult = JSON.parse(PropertiesService.getScriptProperties().getProperty('ultimo') || '{}'); } catch (x) { }
-  var navios = d.itens.map(function (o) {
+  var lim = Date.now() - Math.max(1, Math.min(3650, +dias || 3650)) * 864e5, navios = [];
+  d.itens.forEach(function (o) {
+    if (o.sit === 'desatracados') { var dt = o.desatrac instanceof Date ? o.desatrac : (o.atrac instanceof Date ? o.atrac : null); if (dt && +dt < lim) return; }   /* histórico antigo fica na planilha, mas não vai para a página */
     var a = paraApi_(o);
     if (publico) INTERNOS.forEach(function (k) { delete a[k]; });
-    return a;
+    Object.keys(a).forEach(function (k) { if (a[k] === '' || a[k] == null) delete a[k]; });   /* menos dados trafegando */
+    navios.push(a);
   });
   return {ok: true, aviso: d.aviso.texto, atualizado: ult.em ? fmtData(new Date(ult.em)) : '', responsavel: ult.nome ? {nome: ult.nome, cargo: ult.cargo || ''} : null, navios: navios};
 }
+/* cache em pedaços (cada item do cache aceita ~100 KB) */
+function cachePut_(chave, txt, seg) {
+  var c = CacheService.getScriptCache(), n = Math.ceil(txt.length / 90000), o = {};
+  if (n > 20) return;
+  for (var i = 0; i < n; i++) o[chave + ':' + i] = txt.slice(i * 90000, (i + 1) * 90000);
+  o[chave + ':n'] = String(n); c.putAll(o, seg);
+}
+function cacheGet_(chave) {
+  var c = CacheService.getScriptCache(), n = +c.get(chave + ':n'); if (!n) return null;
+  var ks = []; for (var i = 0; i < n; i++) ks.push(chave + ':' + i);
+  var o = c.getAll(ks), t = ''; for (var j = 0; j < n; j++) { if (o[ks[j]] == null) return null; t += o[ks[j]]; }
+  return t;
+}
+function cacheChave_(dias) { return 'pub' + (PropertiesService.getScriptProperties().getProperty('gen') || '0') + '_' + dias; }
+function cacheLimpa_() { PropertiesService.getScriptProperties().setProperty('gen', String(Date.now())); }   /* a chave nova invalida o cache antigo */
 
 /* ---------- usuários, senhas e sessões ---------- */
 function hex_(bytes) { return bytes.map(function (b) { return ('0' + (b & 255).toString(16)).slice(-2); }).join(''); }
@@ -282,6 +308,7 @@ function normCampo_(k, v) {
   if (k === 'chegada' || k === 'saida' || k === 'previsao_atracacao') return fmtData(v);
   if (/^hora_|_manobra$/.test(k)) return fmtHora(v);
   if (k === 'comprimento' || k === 'calado' || k === 'calado_proa' || k === 'calado_popa' || k === 'ton_prevista' || k === 'ton_movimentada') { var n = toNum(v); return n === '' ? '' : String(n); }
+  if (k === 'cais') return caisTxt_(v);
   return String(v == null ? '' : v).trim();
 }
 function gravarCelula_(s, r, col, ck, valor) {
@@ -289,6 +316,7 @@ function gravarCelula_(s, r, col, ck, valor) {
   if (DATAS.indexOf(ck) >= 0) rg.setNumberFormat('dd/MM/yyyy HH:mm'); else if (HORAS.indexOf(ck) >= 0) rg.setNumberFormat('@');
   rg.setValue(valor);
 }
+function colLetra_(n) { var t = ''; while (n > 0) { var m = (n - 1) % 26; t = String.fromCharCode(65 + m) + t; n = Math.floor((n - 1) / 26); } return t; }
 function salvar_(u, reg) {
   reg = reg || {};
   var sitNova = sitDe(reg.situacao); if (!sitNova) throw erro('Escolha a situação da embarcação.');
@@ -325,17 +353,21 @@ function salvar_(u, reg) {
       if (String(chk || '') !== String(o.reg_alt || '')) throw erro('Outra pessoa acabou de alterar esta embarcação. Feche, abra de novo e refaça a alteração.');
       mexidos.forEach(function (k) { var ck = colDe_(k, sitNova); gravarCelula_(s, o.r, I[ck], ck, paraCelula_(k, reg[k])); });
       s.getRange(o.r, I.situacao + 1).setValue(SIT[sitNova]);
+      if (mudouSit) s.getRange(o.r, I.aba_origem + 1).setValue(sitNova.toUpperCase());
       s.getRange(o.r, I.reg_alt + 1).setValue(agora); s.getRange(o.r, I.atualizado_por + 1).setValue(u.nome);
     } else {
       var arr = []; for (var i = 0; i < d.n; i++) arr.push('');
       arr[I.id] = id; arr[I.situacao] = SIT[sitNova]; arr[I.reg_alt] = agora; arr[I.atualizado_por] = u.nome;
       mexidos.forEach(function (k) { var ck = colDe_(k, sitNova); arr[I[ck]] = paraCelula_(k, reg[k]); });
+      arr[I.aba_origem] = sitNova.toUpperCase();
+      var cL = function (k) { return colLetra_(I[k] + 1); };
       s.appendRow(arr);
       var nr = s.getLastRow();
+      s.getRange(nr, I.saldo + 1).setFormula('=IF(AND(ISNUMBER(' + cL('ton_prev') + nr + '),ISNUMBER(' + cL('ton_mov') + nr + ')),' + cL('ton_prev') + nr + '-' + cL('ton_mov') + nr + ',"")');
       mexidos.forEach(function (k) { var ck = colDe_(k, sitNova); if (DATAS.indexOf(ck) >= 0) s.getRange(nr, I[ck] + 1).setNumberFormat('dd/MM/yyyy HH:mm'); });
     }
     PropertiesService.getScriptProperties().setProperty('ultimo', JSON.stringify({em: agora, nome: u.nome, cargo: u.cargo}));
-    CacheService.getScriptCache().remove('pub');
+    cacheLimpa_();
     log_(u, o ? 'alterou' : 'cadastrou', id, f('navio'), SIT[sitNova], trocas.join(' | '));
     return {ok: true, id: id};
   } finally { lock.releaseLock(); }
@@ -348,7 +380,7 @@ function excluir_(u, b) {
   try {
     d.sheet.deleteRow(o.r);
     PropertiesService.getScriptProperties().setProperty('ultimo', JSON.stringify({em: agora_(), nome: u.nome, cargo: u.cargo}));
-    CacheService.getScriptCache().remove('pub');
+    cacheLimpa_();
     log_(u, 'excluiu', o.id, String(o.navio), SIT[o.sit], '');
   } finally { lock.releaseLock(); }
   return {ok: true};
@@ -359,7 +391,7 @@ function salvarAviso_(u, b) {
   try {
     if (d.aviso.r) s.getRange(d.aviso.r, d.idx.situacao + 2).setValue(txt);
     else { var arr = []; for (var i = 0; i < d.n; i++) arr.push(''); arr[d.idx.situacao] = 'AVISO'; arr[d.idx.situacao + 1] = txt; s.appendRow(arr); }
-    CacheService.getScriptCache().remove('pub');
+    cacheLimpa_();
     log_(u, 'alterou o aviso', '', '', '', txt.slice(0, 300));
   } finally { lock.releaseLock(); }
   return {ok: true};
@@ -377,12 +409,12 @@ function log_(u, acao, id, navio, sit, resumo) {
 }
 
 /* ---------- endereços da página (web app) ---------- */
-function doGet() {
+function doGet(e) {
   try {
-    var cache = CacheService.getScriptCache(), c = cache.get('pub');
+    var dias = Math.min(3650, +(e && e.parameter && e.parameter.dias) || 3650), ch = cacheChave_(dias), c = cacheGet_(ch);
     if (c) return ContentService.createTextOutput(c).setMimeType(ContentService.MimeType.JSON);
-    var txt = JSON.stringify(lista_(true));
-    try { if (txt.length < 90000) cache.put('pub', txt, 20); } catch (x) { }
+    var txt = JSON.stringify(lista_(true, dias));
+    cachePut_(ch, txt, 30);
     return ContentService.createTextOutput(txt).setMimeType(ContentService.MimeType.JSON);
   } catch (err) { return json({ok: false, erro: String(err.message || err)}); }
 }
@@ -393,7 +425,7 @@ function doPost(e) {
     var u = auth_(b.token);
     switch (b.acao) {
       case 'sessao': var p = perfil_(u); p.ok = true; return json(p);
-      case 'lista': return json(lista_(false));
+      case 'lista': return json(lista_(false, b.dias));
       case 'salvar': return json(salvar_(u, b.registro));
       case 'excluir': return json(excluir_(u, b));
       case 'aviso': return json(salvarAviso_(u, b));
