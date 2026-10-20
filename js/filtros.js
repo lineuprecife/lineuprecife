@@ -122,6 +122,9 @@ function renderFilters(force){
   h += '<div class="ff"><span class="fl">Ordenar por</span><select data-sort aria-label="Ordenar por">' +
     FSORT.map(function(o){ return '<option value="'+o[0]+'"'+(f.sort===o[0]?' selected':'')+'>'+o[1]+'</option>'; }).join("") + '</select></div>';
 
+  h += '<div class="ff wall fprint"><button type="button" class="btn-print" data-print>' + ICO_PRINT + '<span class="bp-t">Imprimir relação filtrada <span id="fp-n"></span></span></button>' +
+    '<small>Imprime apenas as embarcações que estão na tela agora, na aba <b>' + esc(rotuloAba(id)) + '</b>, com os filtros e a busca aplicados.</small></div>';
+
   if(P._h !== h || force){ P.innerHTML = h; P._h = h; }
   P.setAttribute("data-tab", id);
   P.hidden = !state.fopen;
@@ -158,6 +161,7 @@ function renderFsum(){
   var badge = document.getElementById("f-badge");
   var nb = chips.filter(function(c, i){ return i === chips.findIndex(function(x){ return x[0].split("|")[0] === c[0].split("|")[0]; }); }).length;
   badge.hidden = !nb; badge.textContent = nb;
+  var pn = document.getElementById("fp-n"); if(pn) pn.textContent = n ? "(" + n[0] + ")" : "";
   var h = "";
   if(n) h += '<span class="fcount"><b>'+n[0]+'</b>'+(n[0] !== n[1] ? ' de '+n[1] : '')+' embarcaç'+(n[0] === 1 && n[0] === n[1] ? 'ão' : 'ões')+'</span>';
   chips.forEach(function(c){ h += '<span class="fchip">'+esc(c[1])+'<button type="button" data-rm="'+esc(c[0])+'" aria-label="Remover filtro '+esc(c[1])+'">×</button></span>'; });
@@ -171,6 +175,50 @@ function fApply(){ renderPanel(); syncLabels(); }
 function closeMs(){
   Array.prototype.forEach.call(document.querySelectorAll("#fpanel .ms-p"), function(p){ p.hidden = true; });
   Array.prototype.forEach.call(document.querySelectorAll("#fpanel .ms-b"), function(b){ b.setAttribute("aria-expanded", "false"); });
+}
+
+/* ---------- impressão da relação filtrada ---------- */
+var ICO_PRINT = '<svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 9V4h10v5"/><rect x="4" y="9" width="16" height="8" rx="2"/><path d="M7 14h10v6H7z" fill="#fff"/></svg>';
+function rotuloAba(id){ var t = TABS.filter(function(x){ return x.id === id; })[0]; return t ? t.label : id; }
+function agoraBR(){ var d = new Date(); return p2(d.getDate())+"/"+p2(d.getMonth()+1)+"/"+d.getFullYear()+" "+p2(d.getHours())+":"+p2(d.getMinutes()); }
+function tabelaImpressao(id, items){
+  var cols = COLS_TAB[id];
+  var h = '<table class="pt"><thead><tr><th class="pn">Nº</th>' + cols.map(function(c){ return '<th>' + esc(c[1]) + '</th>'; }).join("") + '</tr></thead><tbody>';
+  items.forEach(function(s, i){
+    h += '<tr><td class="pn">' + (i + 1) + '</td>' + cols.map(function(c){
+      var v = c[0] === "saldo" ? (s.prev || 0) - (s.mov || 0) : s[c[0]];
+      if(c[2] === "d") v = String(v || "").slice(0, 16);
+      else if(c[2] === "n") v = (v || v === 0) ? num(v) : "";
+      var k = [];
+      if(c[0] === "navio") k.push("nv"); else if(c[2] === "n") k.push("r");
+      if(/^(cbo|imo|comp|calado|cais)$/.test(c[0]) || c[2] === "d") k.push("nw");
+      return '<td' + (k.length ? ' class="' + k.join(" ") + '"' : '') + '>' + (v === "" || v == null ? "—" : esc(v)) + '</td>';
+    }).join("") + '</tr>';
+  });
+  return h + '</tbody></table>';
+}
+function imprimirRelacao(){
+  var id = state.tab, all = listOf(id), items = fsort(all.filter(matches)), f = fget(id);
+  if(!items.length){ var m = "Não há embarcações para imprimir com esses filtros."; if(typeof toast === "function") toast(m, true); else alert(m); return; }
+  var chips = fchips().map(function(c){ return c[1]; });
+  if(state.q) chips.push("Busca: “" + state.q + "”");
+  var ord = FSORT.filter(function(o){ return o[0] && o[0] === f.sort; })[0];
+  var filtros = chips.length ? chips.map(function(c){ return '<span class="pf">' + esc(c) + '</span>'; }).join("") : '<span class="pf-0">nenhum — lista completa</span>';
+  var atual = (document.getElementById("stamp") || {}).textContent;
+  var h = '<div class="ph"><img src="assets/logo/logo.png" alt="Porto do Recife"><div class="pht"><h1>Line-up de embarcações — ' + esc(rotuloAba(id)) + '</h1>' +
+    '<p>MEP — Movimentação de embarcações no Porto do Recife</p></div>' +
+    '<div class="phd">Impresso em <b>' + agoraBR() + '</b>' + (atual && atual !== "—" ? '<br>Dados atualizados em <b>' + esc(atual) + '</b>' : '') + '</div></div>' +
+    '<div class="pm"><div><b>Relação impressa:</b> ' + items.length + (items.length !== all.length ? ' de ' + all.length : '') + ' embarcaç' + (items.length === 1 ? 'ão' : 'ões') + ' · aba ' + esc(rotuloAba(id)) + (ord ? ' · ordenação: ' + esc(ord[1]) : '') + '</div>' +
+    '<div><b>Filtros aplicados:</b> ' + filtros + '</div>' +
+    (id === "rascunhos" ? '<div class="pw">Documento interno: rascunhos ainda não publicados no MEP.</div>' : '') + '</div>' +
+    tabelaImpressao(id, items) +
+    '<div class="pfoot">' + esc(CONFIG.endereco || "") + ' · Telefone: ' + esc(CONFIG.telefones || "") + ' · ' + esc(CONFIG.setor || "") + '</div>';
+  var pa = document.getElementById("print-area"); pa.innerHTML = h;
+  var st = document.createElement("style"); st.id = "print-page"; st.textContent = "@page{size:A4 landscape;margin:9mm 8mm}"; document.head.appendChild(st);
+  document.body.classList.add("printing");
+  function fim(){ window.removeEventListener("afterprint", fim); document.body.classList.remove("printing"); pa.innerHTML = ""; if(st.parentNode) st.parentNode.removeChild(st); }
+  window.addEventListener("afterprint", fim);
+  setTimeout(function(){ window.print(); }, 60);
 }
 
 /* ---------- eventos ---------- */
@@ -205,6 +253,7 @@ function closeMs(){
       if(abrir){ pop.hidden = false; x.setAttribute("aria-expanded", "true"); var si = pop.querySelector(".ms-s"); if(si) si.focus(); }
       return;
     }
+    if(t.closest("[data-print]")){ imprimirRelacao(); return; }
     if((x = t.closest("[data-clear]"))){
       var box = x.closest("[data-ms]"); f[box.getAttribute("data-ms")] = [];
       Array.prototype.forEach.call(box.querySelectorAll("input[type=checkbox]"), function(c){ c.checked = false; });

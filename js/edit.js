@@ -241,7 +241,7 @@ function setMode(){
   E("editbar").hidden = !EDIT.on; E("btn-login").hidden = EDIT.on;
   var et = EDIT.admin ? "Administrador" : EDIT.etapas.map(function(e){ return ETAPA_NOME[e]; }).join(", ");
   E("who").textContent = EDIT.on ? EDIT.nome + (EDIT.cargo ? " · " + EDIT.cargo : "") + " — " + (et || "sem etapa") : "";
-  E("btn-new").hidden = !opcoesNovo().length; E("btn-aviso").hidden = !podeAviso();
+  E("btn-new").hidden = !opcoesNovo().length; E("btn-aviso").hidden = !podeAviso(); E("btn-usu").hidden = !(EDIT.on && EDIT.admin);
   if(!verRascunhos() && state.tab === "rascunhos") state.tab = TELA_INICIAL;
   renderAll();
 }
@@ -277,6 +277,100 @@ function openSenha(){
     post({acao:"senha", atual:E("s0").value, nova:E("s1").value}).then(function(){ d.close(); toast("Senha alterada."); },
       function(e){ E("sgo").disabled = false; say("smsg", e.message, true); });
   };
+}
+
+/* =====================================================================================
+   USUÁRIOS (só o administrador): cadastrar, editar, trocar a senha e ativar/desativar, direto no site.
+   O servidor (Apps Script) confere de novo: quem não é administrador não consegue nem listar.
+   ===================================================================================== */
+var ETAPAS_USU = [["previsao","Previsão","cria e publica as previsões de chegada"],["fundeio","Ao largo","registra navios fundeados"],["atracacao","Atracação","registra a atracação e a manobra"],["movimentacao","Movimentação","atualiza as toneladas movimentadas"],["desatracacao","Desatracação","registra a saída do navio"]];
+function senhaAleatoria(){
+  var al = "abcdefghjkmnpqrstuvwxyz23456789", out = "", a = new Uint32Array(8);
+  (window.crypto || window.msCrypto).getRandomValues(a);
+  for(var i = 0; i < 8; i++) out += al.charAt(a[i] % al.length);
+  return out;
+}
+function etapasUsuTxt(u){
+  if(u.admin) return "todas (administrador)";
+  var t = (u.etapas || []).map(function(e){ return ETAPA_NOME[e]; }).filter(Boolean);
+  return t.length === 5 ? "todas" : (t.join(", ") || "nenhuma");
+}
+function openUsuarios(){
+  var d = dlg('<h2>Usuários do sistema</h2><p>Quem pode entrar para editar o line-up e o que cada pessoa pode fazer.</p><div class="btns utop"><button class="btn pri" id="un" type="button">+ Novo usuário</button></div><div id="ul" class="ulist">Carregando…</div><div class="msg" id="umsg"></div><div class="btns"><button class="btn" data-x type="button">Fechar</button></div>', true);
+  var lista = [];
+  function pintar(){
+    E("ul").innerHTML = lista.length ? lista.map(function(u){
+      var eu = u.login === EDIT.usuario;
+      return '<div class="u'+(u.ativo ? "" : " off")+'"><div class="ui"><b>'+esc(u.nome)+'</b>'+(eu ? ' <span class="ub">você</span>' : '')+(u.admin ? ' <span class="ub adm">Administrador</span>' : '')+(u.ativo ? '' : ' <span class="ub inat">Desativado</span>')+
+        '<div class="us">'+esc(u.cargo || "Sem cargo")+' · login: <span class="mono">'+esc(u.login)+'</span></div>'+
+        '<div class="us">'+(u.email ? esc(u.email) : "sem e-mail")+' · '+(u.telefone ? esc(u.telefone) : "sem telefone")+'</div>'+
+        '<div class="us">Etapas: '+esc(etapasUsuTxt(u))+'</div></div>'+
+        '<div class="ua"><button class="btn" type="button" data-ua="edit" data-l="'+esc(u.login)+'">Editar</button><button class="btn" type="button" data-ua="pw" data-l="'+esc(u.login)+'">Nova senha</button>'+
+        (eu ? '' : '<button class="btn'+(u.ativo ? ' dng' : '')+'" type="button" data-ua="at" data-l="'+esc(u.login)+'">'+(u.ativo ? "Desativar" : "Ativar")+'</button>')+'</div></div>';
+    }).join("") : '<p>Nenhum usuário cadastrado.</p>';
+  }
+  function carregar(){
+    post({acao:"usuarios"}).then(function(j){ lista = j.usuarios || []; pintar(); say("umsg", ""); },
+      function(e){ E("ul").innerHTML = ""; say("umsg", e.message + (/desconhecida/i.test(e.message) ? " (O Apps Script ainda não foi atualizado: publique uma nova versão da implantação.)" : ""), true); });
+  }
+  function achar(l){ return lista.filter(function(u){ return u.login === l; })[0]; }
+  E("un").onclick = function(){ formUsuario(null, function(j){ lista = j.usuarios; pintar(); }); };
+  E("ul").addEventListener("click", function(e){
+    var b = e.target.closest("[data-ua]"); if(!b) return;
+    var u = achar(b.getAttribute("data-l")), a = b.getAttribute("data-ua"); if(!u) return;
+    if(a === "edit") formUsuario(u, function(j){ lista = j.usuarios; pintar(); });
+    else if(a === "pw") senhaUsuario(u);
+    else if(a === "at"){
+      var ativar = !u.ativo;
+      if(!ativar && !confirm("Desativar " + u.nome + "? A pessoa não conseguirá mais entrar. Você pode ativar de novo depois.")) return;
+      b.disabled = true; say("umsg", "Salvando…");
+      post({acao:"usuario_ativo", login:u.login, ativo:ativar}).then(function(j){ lista = j.usuarios; pintar(); say("umsg", ""); toast(u.nome + (ativar ? " foi ativado(a)." : " foi desativado(a).")); },
+        function(er){ b.disabled = false; say("umsg", er.message, true); });
+    }
+  });
+  carregar();
+}
+function formUsuario(u, depois){
+  var novo = !u, u0 = u || {login:"", nome:"", cargo:"", email:"", telefone:"", etapas:[], admin:false};
+  var chk = ETAPAS_USU.map(function(x){
+    return '<label class="chk"><input type="checkbox" name="et" value="'+x[0]+'"'+(u0.etapas.indexOf(x[0]) >= 0 ? " checked" : "")+'><span><b>'+x[1]+'</b> — '+x[2]+'</span></label>';
+  }).join("");
+  var d = dlg('<h2>'+(novo ? "Novo usuário" : "Editar usuário")+'</h2><div class="fg">'+
+    '<label class="w"><span>Nome completo *</span><input id="u-nome" autocomplete="off" maxlength="80" value="'+esc(u0.nome)+'"></label>'+
+    '<label><span>Cargo</span><input id="u-cargo" autocomplete="off" maxlength="80" value="'+esc(u0.cargo)+'" placeholder="Ex.: Coordenador de Operações"></label>'+
+    '<label><span>Telefone</span><input id="u-tel" type="tel" inputmode="tel" autocomplete="off" maxlength="30" value="'+esc(u0.telefone)+'" placeholder="(81) 99999-9999"></label>'+
+    '<label class="w"><span>E-mail</span><input id="u-mail" type="email" autocomplete="off" maxlength="120" value="'+esc(u0.email)+'" placeholder="nome@portodorecife.pe.gov.br"></label>'+
+    '<label class="w"><span>Login (para entrar no sistema) *</span><input id="u-login" autocomplete="off" autocapitalize="none" spellcheck="false" maxlength="30" value="'+esc(u0.login)+'"'+(novo ? ' placeholder="Ex.: maria.souza"' : ' disabled')+'></label>'+
+    (novo ? '<label class="w"><span>Senha provisória * (mínimo 6 caracteres)</span><div class="inl"><input id="u-pw" autocomplete="off" autocapitalize="none" spellcheck="false"><button class="btn" id="u-gera" type="button">Gerar</button></div></label>' : '')+
+    '</div><div class="fl2">Etapas pelas quais a pessoa é responsável</div><div class="chks" id="u-et">'+chk+'</div>'+
+    '<label class="chk adm"><input type="checkbox" id="u-adm"'+(u0.admin ? " checked" : "")+'><span><b>Administrador</b> — pode tudo, inclusive excluir embarcações e gerenciar usuários</span></label>'+
+    '<div class="msg" id="fumsg"></div><div class="btns"><button class="btn" data-x type="button">Cancelar</button><button class="btn pri" id="u-ok" type="button">'+(novo ? "Cadastrar usuário" : "Salvar alterações")+'</button></div>', true);
+  function travar(){ var a = E("u-adm").checked; Array.prototype.forEach.call(d.querySelectorAll('input[name="et"]'), function(c){ c.disabled = a; }); }
+  E("u-adm").onchange = travar; travar();
+  if(novo) E("u-gera").onclick = function(){ E("u-pw").value = senhaAleatoria(); };
+  E("u-ok").onclick = function(){
+    var et = Array.prototype.map.call(d.querySelectorAll('input[name="et"]:checked'), function(c){ return c.value; });
+    var b = {acao:"usuario_salvar", novo:novo, login:E("u-login").value.trim(), nome:E("u-nome").value.trim(), cargo:E("u-cargo").value.trim(), email:E("u-mail").value.trim(), telefone:E("u-tel").value.trim(), etapas:et, admin:E("u-adm").checked, senha:novo ? E("u-pw").value : ""};
+    if(!b.nome){ say("fumsg", "Escreva o nome da pessoa.", true); return; }
+    if(!b.login){ say("fumsg", "Escreva o login.", true); return; }
+    if(novo && b.senha.length < 6){ say("fumsg", "A senha provisória precisa ter pelo menos 6 caracteres.", true); return; }
+    if(!b.admin && !et.length){ say("fumsg", "Marque pelo menos uma etapa ou marque Administrador.", true); return; }
+    E("u-ok").disabled = true; say("fumsg", "Salvando…");
+    post(b).then(function(j){ d.close(); toast(novo ? "Usuário cadastrado." : "Usuário atualizado."); if(depois) depois(j); refresh(); },
+      function(e){ E("u-ok").disabled = false; say("fumsg", e.message, true); });
+  };
+  E("u-nome").focus();
+}
+function senhaUsuario(u){
+  var d = dlg('<h2>Nova senha</h2><p>Para <b>'+esc(u.nome)+'</b> (login: '+esc(u.login)+'). Anote e entregue a senha provisória; a pessoa pode trocar depois em <b>Minha senha</b>.</p><div class="fg one"><label class="w"><span>Senha provisória (mínimo 6 caracteres)</span><div class="inl"><input id="np" autocomplete="off" autocapitalize="none" spellcheck="false"><button class="btn" id="np-g" type="button">Gerar</button></div></label></div><div class="msg" id="npmsg"></div><div class="btns"><button class="btn" data-x type="button">Cancelar</button><button class="btn pri" id="np-ok" type="button">Salvar senha</button></div>');
+  E("np-g").onclick = function(){ E("np").value = senhaAleatoria(); };
+  E("np-ok").onclick = function(){
+    var v = E("np").value; if(v.length < 6){ say("npmsg", "A senha precisa ter pelo menos 6 caracteres.", true); return; }
+    E("np-ok").disabled = true; say("npmsg", "Salvando…");
+    post({acao:"usuario_senha", login:u.login, senha:v}).then(function(){ d.close(); toast("Senha de " + u.nome + " redefinida."); },
+      function(e){ E("np-ok").disabled = false; say("npmsg", e.message, true); });
+  };
+  E("np").focus();
 }
 
 /* =====================================================================================
@@ -710,6 +804,7 @@ window.addEventListener("load", function(){
   E("btn-new").onclick = abrirNovo;
   E("btn-aviso").onclick = openAviso;
   E("btn-pw").onclick = openSenha;
+  E("btn-usu").onclick = openUsuarios;
   E("btn-out").onclick = function(){ sair(); };
   E("panel").addEventListener("click", function(e){
     var b = e.target.closest("[data-act]"); if(!b) return;

@@ -27,13 +27,16 @@ var CONFIG = {
   diasDesatracados: 9999,   /* quantos dias os desatracados continuam aparecendo na lista */
   refreshSeconds: 60,
 
-  telefones: "81 3183-1919 · 81 99488-2036",
+  /* Rodapé, na ordem: endereço, telefone, setor. O e-mail é opcional: deixe "" para não mostrar. */
+  endereco: "Praça Comunidade Luso-Brasileira, 70, Bairro do Recife, Recife/PE — CEP: 50030-280",
+  telefones: "(81) 3183-1919",
+  setor: "COOPE — Coordenadoria de Operações do Porto do Recife",
   emails: "operacoes@portodorecife.pe.gov.br",
 
   /* Responsável pelo preenchimento (aparece junto da data de atualização). Pode ser coordenador, gerente etc.
      Para trocar sem mexer no código: na aba BANCO, coluna Situação = RESPONSÁVEL; ao lado o nome e, nas colunas
      seguintes (em qualquer ordem, ambos opcionais), o cargo e o e-mail. Exemplo: RESPONSÁVEL | Maria Souza | Gerente de Operações | maria@... */
-  responsavel: {nome:"Pedro Guarines", cargo:"Coordenador de Operações", email:"pedro.guarines@portodorecife.pe.gov.br"}
+  responsavel: {nome:"Pedro Guarines", cargo:"Coordenador de Operações", email:"pedro.guarines@portodorecife.pe.gov.br", telefone:""}
 };
 
 /* Posição de cada informação na linha da planilha (A = 0, B = 1, C = 2...). */
@@ -408,7 +411,9 @@ function renderPanel(){
   if(typeof syncView === "function") syncView();
   if(!data[id]){
     state.n = null; renderFsum();
-    el.innerHTML = '<div class="empty">'+(errors[id] ? "Não foi possível ler a aba "+esc(nomeAba(id))+". Veja a mensagem no topo da página." : "Carregando a planilha…")+'</div>';
+    el.innerHTML = errors[id]
+      ? '<div class="empty">Não foi possível ler a aba '+esc(nomeAba(id))+'. Veja a mensagem no topo da página.</div>'
+      : '<div class="loading" role="status" aria-live="polite"><span class="spinner" aria-hidden="true"></span><span class="loading-t">Carregando dados</span></div>';
     return;
   }
   var all = data[id].items, items = fsort(all.filter(matches));
@@ -434,14 +439,21 @@ function renderAvisos(){
   var ta = $("tabnotice"); ta.hidden = !lista.length;
   ta.innerHTML = lista.map(function(t){ return avisoHtml("Aviso · "+(nome?nome.label:""), t); }).join("");
 }
+var ICO_MAIL = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="m3.5 7 8.5 6 8.5-6"/></svg>';
+var ICO_TEL = '<svg viewBox="0 0 24 24" width="13" height="13" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 4h4l2 5-2.5 1.5a11 11 0 0 0 5 5L15 13l5 2v4a2 2 0 0 1-2 2A16 16 0 0 1 3 6a2 2 0 0 1 2-2z"/></svg>';
+function telHref(t){ var d = String(t||"").replace(/\D/g,""); return "tel:"+(d.length>=10 && d.slice(0,2)!=="55" ? "+55" : "+")+d; }
 function renderHead(){
   var base = data.atracados || data.previstos || null;
   $("stamp").textContent = (base && base.atualizado) || "—";
   renderAvisos();
   var rp = RESP || CONFIG.responsavel, rb = $("resp"); rb.hidden = !(rp && rp.nome);
   if(!rb.hidden){
-    $("resp-n").innerHTML = rp.email ? '<a href="mailto:'+esc(rp.email)+'" title="'+esc(rp.email)+'">'+esc(rp.nome)+'</a>' : esc(rp.nome);
+    $("resp-n").textContent = rp.nome;
     $("resp-c").textContent = rp.cargo ? " · "+rp.cargo : "";
+    var ct = [];
+    if(rp.email) ct.push('<a class="ct" href="mailto:'+esc(rp.email)+'">'+ICO_MAIL+esc(rp.email)+'</a>');
+    if(rp.telefone) ct.push('<a class="ct" href="'+telHref(rp.telefone)+'">'+ICO_TEL+esc(rp.telefone)+'</a>');
+    $("resp-ct").innerHTML = ct.join(""); $("resp-ct").hidden = !ct.length;
   }
   var bad = TABS.filter(function(t){return errors[t.id] && tabVisivel(t)}).map(function(t){return nomeAba(t.id)}).filter(function(n,i,a){return a.indexOf(n)===i});
   var w = $("warn");
@@ -472,8 +484,10 @@ $("tabs").addEventListener("click",function(e){
 $("q").addEventListener("input",function(e){ state.q = e.target.value.trim().toLowerCase(); renderPanel(); });
 document.addEventListener("visibilitychange",function(){ if(!document.hidden) refresh(); });
 
-$("f-tel").textContent = CONFIG.telefones;
-$("f-mail").textContent = CONFIG.emails;
+$("f-end").textContent = CONFIG.endereco || "";
+$("f-tel").innerHTML = '<a href="'+telHref(CONFIG.telefones)+'">'+esc(CONFIG.telefones)+'</a>';
+$("f-setor").textContent = CONFIG.setor || "";
+if(CONFIG.emails){ $("f-mail").innerHTML = '<a href="mailto:'+esc(CONFIG.emails)+'">'+esc(CONFIG.emails)+'</a>'; $("f-mail-box").hidden = false; }
 state.tab = TELA_INICIAL;
 var h0 = (location.hash||"").replace("#","");
 if(h0 !== "rascunhos" && TABS.some(function(t){return t.id===h0})) state.tab = h0;
