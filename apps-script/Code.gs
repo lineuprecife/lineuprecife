@@ -1,6 +1,7 @@
 /* =====================================================================
    LINE-UP RECIFE — SERVIDOR (Google Apps Script, preso à planilha)
    - Cada pessoa entra com seu próprio login e senha.
+   - O ciclo de cada embarcação é: Rascunho (só a acostagem vê) > Previsto (publicado no MEP) > Fundeado > Atracado > Desatracado.
    - Cada pessoa tem uma ou mais ETAPAS: previsão, ao largo, atracação, movimentação, desatracação.
      Mais de uma pessoa pode ter a mesma etapa.
    - Quem não tem a etapa não consegue criar nem alterar aquela parte (o servidor confere, não só a tela).
@@ -10,8 +11,9 @@
    ===================================================================== */
 
 var ABA = 'BANCO', ABA_USU = 'USUARIOS', ABA_LOG = 'LOG';
-var SIT = {previstos: 'Previsto', fundeados: 'Fundeado', atracados: 'Atracado', desatracados: 'Desatracado'};
-var ETAPA_DA_SIT = {previstos: 'previsao', fundeados: 'fundeio', atracados: 'atracacao', desatracados: 'desatracacao'};
+var SIT = {rascunhos: 'Rascunho', previstos: 'Previsto', fundeados: 'Fundeado', atracados: 'Atracado', desatracados: 'Desatracado'};
+var ETAPA_DA_SIT = {rascunhos: 'previsao', previstos: 'previsao', fundeados: 'fundeio', atracados: 'atracacao', desatracados: 'desatracacao'};
+var ORDEM = {rascunhos: 0, previstos: 1, fundeados: 2, atracados: 3, desatracados: 4};   /* só anda para frente (voltar: administrador, ou despublicar previsto) */
 var ETAPA_NOME = {previsao: 'Previsão', fundeio: 'Ao largo', atracacao: 'Atracação', movimentacao: 'Movimentação', desatracacao: 'Desatracação'};
 
 /* Colunas da aba BANCO: [chave, cabeçalho padrão, padrão do cabeçalho (sem acento, minúsculo)].
@@ -54,6 +56,16 @@ var COLS = [
   ['cabecos', 'Cabeços', /^cabecos/],
   ['pratico', 'Prático', /^pratico$/],
   ['rebocadores', 'Rebocadores', /^rebocadores/],
+  ['d_hora_pratico', 'Desat. Hora Prático', /^desat\.? hora pratico/],
+  ['d_hora_amarracao', 'Desat. Hora Último Cabo', /^desat\.? hora ultimo cabo/],
+  ['d_inicio_manobra', 'Desat. Início Manobra', /^desat\.? inicio manobra/],
+  ['d_termino_manobra', 'Desat. Término Manobra', /^desat\.? termino manobra/],
+  ['d_bordo', 'Desat. Bordo', /^desat\.? bordo/],
+  ['d_calado_proa', 'Desat. Calado Proa', /^desat\.? calado proa/],
+  ['d_calado_popa', 'Desat. Calado Popa', /^desat\.? calado popa/],
+  ['d_cabecos', 'Desat. Cabeços', /^desat\.? cabecos/],
+  ['d_pratico', 'Desat. Prático', /^desat\.? pratico$/],
+  ['d_rebocadores', 'Desat. Rebocadores', /^desat\.? rebocadores/],
   ['observacoes', 'Observações', /^observac/],
   ['nr_livro', 'Nº Livro', /^(n|no|num|numero)\b.*livro/],
   ['reg_alt', 'Registro alterado em', /^registro alterado em/],
@@ -61,24 +73,27 @@ var COLS = [
   ['aba_origem', 'Aba de origem', /^aba de origem/]
 ];
 var DATAS = ['prev_chegada', 'chegada_conf', 'prev_atrac', 'atrac', 'prev_saida', 'desatrac'];
-var HORAS = ['hora_pratico', 'hora_amarracao', 'inicio_manobra', 'termino_manobra'];
-var NUMS = ['comprimento', 'calado', 'calado_proa', 'calado_popa', 'ton_prev', 'ton_mov', 'ton_final', 'saldo'];
+var HORAS = ['hora_pratico', 'hora_amarracao', 'inicio_manobra', 'termino_manobra', 'd_hora_pratico', 'd_hora_amarracao', 'd_inicio_manobra', 'd_termino_manobra'];
+var NUMS = ['comprimento', 'calado', 'calado_proa', 'calado_popa', 'd_calado_proa', 'd_calado_popa', 'ton_prev', 'ton_mov', 'ton_final', 'saldo'];
 
 /* Campos como a página os conhece (iguais aos do formulário) e quem pode mexer em cada grupo. */
-var G_IDENT = ['navio', 'nacionalidade', 'imo', 'cbo', 'comprimento', 'calado', 'agencia', 'operador', 'carga', 'operacao', 'origem_destino', 'porto_anterior', 'proximo_porto', 'ton_prevista', 'nr_livro', 'observacoes'];
+var G_IDENT = ['navio', 'nacionalidade', 'imo', 'comprimento', 'calado', 'agencia', 'operador', 'carga', 'operacao', 'origem_destino', 'porto_anterior', 'proximo_porto', 'ton_prevista', 'observacoes'];
+var G_REGISTRO = ['cbo', 'nr_livro'];   /* o CBO só passa a existir na atracação */
 var G_DATAS = ['chegada', 'previsao_atracacao', 'saida', 'cais'];
 var G_MANOBRA = ['hora_pratico', 'hora_amarracao', 'inicio_manobra', 'termino_manobra', 'bordo', 'calado_proa', 'calado_popa', 'cabecos', 'pratico', 'rebocadores'];
+var G_DMANOBRA = ['d_hora_pratico', 'd_hora_amarracao', 'd_inicio_manobra', 'd_termino_manobra', 'd_bordo', 'd_calado_proa', 'd_calado_popa', 'd_cabecos', 'd_pratico', 'd_rebocadores'];
 var G_MOV = ['ton_movimentada'];
-var TODOS = G_IDENT.concat(G_DATAS, G_MANOBRA, G_MOV);
+var TODOS = G_IDENT.concat(G_REGISTRO, G_DATAS, G_MANOBRA, G_DMANOBRA, G_MOV);
 var CAMPOS_ETAPA = {
   previsao: G_IDENT.concat(G_DATAS),
   fundeio: G_IDENT.concat(G_DATAS),
   atracacao: TODOS,
   movimentacao: ['ton_movimentada', 'observacoes'],      /* só em embarcação atracada */
-  desatracacao: ['saida', 'ton_movimentada', 'observacoes']
+  desatracacao: ['saida', 'ton_movimentada', 'observacoes'].concat(G_DMANOBRA)
 };
-var INTERNOS = ['nacionalidade', 'calado_proa', 'calado_popa', 'bordo', 'cabecos', 'pratico', 'rebocadores', 'observacoes', 'nr_livro', 'hora_pratico', 'hora_amarracao', 'inicio_manobra', 'termino_manobra'];
-var ROTULO = {navio: 'Nome da embarcação', nacionalidade: 'Bandeira / porto de matrícula', imo: 'IMO', cbo: 'CBO', comprimento: 'Comprimento', calado: 'Calado máximo', agencia: 'Agência', operador: 'Operador', carga: 'Carga', operacao: 'Operação', origem_destino: 'Origem / destino', porto_anterior: 'Porto anterior', proximo_porto: 'Próximo porto', ton_prevista: 'Toneladas previstas', nr_livro: 'Nº no livro', observacoes: 'Observações', chegada: 'Data de chegada / atracação', previsao_atracacao: 'Previsão de atracação (POB)', saida: 'Saída', cais: 'Berço', hora_pratico: 'Hora do prático', hora_amarracao: 'Hora da amarração', inicio_manobra: 'Início da manobra', termino_manobra: 'Término da manobra', bordo: 'Bordo de atracação', calado_proa: 'Calado proa', calado_popa: 'Calado popa', cabecos: 'Cabeços', pratico: 'Prático', rebocadores: 'Rebocadores', ton_movimentada: 'Toneladas movimentadas'};
+var INTERNOS = G_DMANOBRA.concat(['nacionalidade', 'calado_proa', 'calado_popa', 'bordo', 'cabecos', 'pratico', 'rebocadores', 'observacoes', 'nr_livro', 'hora_pratico', 'hora_amarracao', 'inicio_manobra', 'termino_manobra']);
+var ROTULO = {navio: 'Nome da embarcação', nacionalidade: 'Bandeira / porto de matrícula', imo: 'IMO', cbo: 'CBO', comprimento: 'Comprimento', calado: 'Calado máximo', agencia: 'Agência', operador: 'Operador', carga: 'Carga', operacao: 'Operação', origem_destino: 'Origem / destino', porto_anterior: 'Porto anterior', proximo_porto: 'Próximo porto', ton_prevista: 'Toneladas previstas', nr_livro: 'Nº no livro', observacoes: 'Observações', chegada: 'Data de chegada / atracação', previsao_atracacao: 'Previsão de atracação (POB)', saida: 'Saída', cais: 'Berço', hora_pratico: 'Hora do prático', hora_amarracao: 'Hora da amarração', inicio_manobra: 'Início da manobra', termino_manobra: 'Término da manobra', bordo: 'Bordo de atracação', calado_proa: 'Calado proa', calado_popa: 'Calado popa', cabecos: 'Cabeços', pratico: 'Prático', rebocadores: 'Rebocadores', ton_movimentada: 'Toneladas movimentadas',
+  d_hora_pratico: 'Desatracação · hora do prático', d_hora_amarracao: 'Desatracação · largada do último cabo', d_inicio_manobra: 'Desatracação · início da manobra', d_termino_manobra: 'Desatracação · término da manobra', d_bordo: 'Desatracação · bordo', d_calado_proa: 'Desatracação · calado proa', d_calado_popa: 'Desatracação · calado popa', d_cabecos: 'Desatracação · cabeços', d_pratico: 'Desatracação · prático', d_rebocadores: 'Desatracação · rebocadores'};
 
 /* ---------- utilidades ---------- */
 function ss_() { return SpreadsheetApp.getActiveSpreadsheet(); }
@@ -89,6 +104,7 @@ function json(o) { return ContentService.createTextOutput(JSON.stringify(o)).set
 function sitDe(v) {
   var t = norm(v);
   if (SIT[t]) return t;
+  if (/^rascunh/.test(t)) return 'rascunhos';
   if (/^previst|^programad/.test(t)) return 'previstos';
   if (/^fundead|^aguard|^ao largo/.test(t)) return 'fundeados';
   if (/^desatrac/.test(t)) return 'desatracados';
@@ -163,7 +179,7 @@ function ler_() {
   return {sheet: s, idx: I, n: L.n, hdr: L.hdr, itens: itens, porId: porId, aviso: aviso};
 }
 function paraApi_(o) {
-  var sit = o.sit, prevL = sit === 'previstos' || sit === 'fundeados', desat = sit === 'desatracados';
+  var sit = o.sit, prevL = sit === 'rascunhos' || sit === 'previstos' || sit === 'fundeados', desat = sit === 'desatracados';
   var d = function (k) { return fmtData(o[k]); }, n = function (k) { return toNum(o[k]); };
   return {
     id: String(o.id), situacao: SIT[sit], navio: String(o.navio).trim(), nacionalidade: String(o.nacionalidade), imo: String(o.imo), cbo: String(o.cbo),
@@ -177,6 +193,8 @@ function paraApi_(o) {
     ton_prevista: n('ton_prev'), ton_movimentada: desat ? (n('ton_final') !== '' ? n('ton_final') : n('ton_mov')) : n('ton_mov'),
     hora_pratico: fmtHora(o.hora_pratico), hora_amarracao: fmtHora(o.hora_amarracao), inicio_manobra: fmtHora(o.inicio_manobra), termino_manobra: fmtHora(o.termino_manobra),
     bordo: String(o.bordo), cabecos: String(o.cabecos), pratico: String(o.pratico), rebocadores: String(o.rebocadores), observacoes: String(o.observacoes), nr_livro: String(o.nr_livro),
+    d_hora_pratico: fmtHora(o.d_hora_pratico), d_hora_amarracao: fmtHora(o.d_hora_amarracao), d_inicio_manobra: fmtHora(o.d_inicio_manobra), d_termino_manobra: fmtHora(o.d_termino_manobra),
+    d_bordo: String(o.d_bordo), d_calado_proa: n('d_calado_proa'), d_calado_popa: n('d_calado_popa'), d_cabecos: String(o.d_cabecos), d_pratico: String(o.d_pratico), d_rebocadores: String(o.d_rebocadores),
     atualizado_em: String(o.reg_alt || '')
   };
 }
@@ -184,19 +202,21 @@ function vazio_(v) { return v === '' || v == null; }
 function caisTxt_(v) { return vazio_(v) ? '' : (String(v).trim() === '0' ? '00-TA' : String(v).trim()); }   /* na planilha o berço 00-TA costuma estar como 0 */
 function colDe_(k, sit) {   /* campo da página + situação -> coluna da planilha */
   switch (k) {
-    case 'chegada': return sit === 'previstos' ? 'prev_chegada' : sit === 'fundeados' ? 'chegada_conf' : 'atrac';
+    case 'chegada': return (sit === 'previstos' || sit === 'rascunhos') ? 'prev_chegada' : sit === 'fundeados' ? 'chegada_conf' : 'atrac';
     case 'saida': return sit === 'desatracados' ? 'desatrac' : 'prev_saida';
-    case 'cais': return (sit === 'previstos' || sit === 'fundeados') ? 'prev_cais' : 'cais';
+    case 'cais': return (sit === 'rascunhos' || sit === 'previstos' || sit === 'fundeados') ? 'prev_cais' : 'cais';
     case 'ton_movimentada': return sit === 'desatracados' ? 'ton_final' : 'ton_mov';
     case 'ton_prevista': return 'ton_prev';
     case 'previsao_atracacao': return 'prev_atrac';
   }
   return k;
 }
-function lista_(publico, dias) {
+function lista_(publico, dias, u) {
+  var verRasc = !publico && u && (u.admin || u.etapas.indexOf('previsao') >= 0);   /* rascunho nunca vai para o público */
   var d = ler_(), ult = {}; try { ult = JSON.parse(PropertiesService.getScriptProperties().getProperty('ultimo') || '{}'); } catch (x) { }
   var lim = Date.now() - Math.max(1, Math.min(3650, +dias || 3650)) * 864e5, navios = [];
   d.itens.forEach(function (o) {
+    if (o.sit === 'rascunhos' && !verRasc) return;
     if (o.sit === 'desatracados') { var dt = o.desatrac instanceof Date ? o.desatrac : (o.atrac instanceof Date ? o.atrac : null); if (dt && +dt < lim) return; }   /* histórico antigo fica na planilha, mas não vai para a página */
     var a = paraApi_(o);
     if (publico) INTERNOS.forEach(function (k) { delete a[k]; });
@@ -291,23 +311,26 @@ function permissao_(u, sitAtual, sitNova) {
   } else {
     if (tem(eNova)) add(eNova);
     if (sitNova === 'atracados' && tem('movimentacao')) add('movimentacao');
+    if (sitNova === 'desatracados' && tem('atracacao')) add('atracacao');
     if (!Object.keys(set).length) return {ok: false, motivo: 'Você não é responsável pela etapa "' + ETAPA_NOME[eNova] + '", por isso não pode alterar esta embarcação.'};
   }
   return {ok: true, set: set};
 }
 
 /* ---------- gravação ---------- */
+function ehHora_(k) { return /^(d_)?hora_|_manobra$/.test(k); }
+function ehNum_(k) { return ['comprimento', 'calado', 'calado_proa', 'calado_popa', 'd_calado_proa', 'd_calado_popa', 'ton_prevista', 'ton_movimentada'].indexOf(k) >= 0; }
 function paraCelula_(k, v) {
   v = v == null ? '' : v;
   if (k === 'chegada' || k === 'saida' || k === 'previsao_atracacao') return parseData(v);
-  if (G_MANOBRA.indexOf(k) >= 0 && /^hora|manobra$/.test(k)) return fmtHora(v);
-  if (k === 'comprimento' || k === 'calado' || k === 'calado_proa' || k === 'calado_popa' || k === 'ton_prevista' || k === 'ton_movimentada') return toNum(v);
+  if (ehHora_(k)) return fmtHora(v);
+  if (ehNum_(k)) return toNum(v);
   return String(v).trim();
 }
 function normCampo_(k, v) {
   if (k === 'chegada' || k === 'saida' || k === 'previsao_atracacao') return fmtData(v);
-  if (/^hora_|_manobra$/.test(k)) return fmtHora(v);
-  if (k === 'comprimento' || k === 'calado' || k === 'calado_proa' || k === 'calado_popa' || k === 'ton_prevista' || k === 'ton_movimentada') { var n = toNum(v); return n === '' ? '' : String(n); }
+  if (ehHora_(k)) return fmtHora(v);
+  if (ehNum_(k)) { var n = toNum(v); return n === '' ? '' : String(n); }
   if (k === 'cais') return caisTxt_(v);
   return String(v == null ? '' : v).trim();
 }
@@ -317,8 +340,49 @@ function gravarCelula_(s, r, col, ck, valor) {
   rg.setValue(valor);
 }
 function colLetra_(n) { var t = ''; while (n > 0) { var m = (n - 1) % 26; t = String.fromCharCode(65 + m) + t; n = Math.floor((n - 1) / 26); } return t; }
+/* Regras que evitam erro de cadastro. A página confere o mesmo, mas quem manda é o servidor. */
+function comCarga_(op) { var t = norm(op); return t === 'importacao' || t === 'exportacao'; }
+function ms_(s) { var x = parseData(s); return x ? +x : null; }
+function validar_(d, o, sitNova, reg, f, mexidos, avancando) {
+  var tem = function (k) { return Object.prototype.hasOwnProperty.call(reg, k) && String(reg[k] == null ? '' : reg[k]).trim() !== ''; };
+  var mexeu = function (k) { return mexidos.indexOf(k) >= 0; };
+  if (!f('navio')) throw erro('Escreva o nome da embarcação.');
+  if (avancando) {   /* cadastrando ou avançando de etapa: cada etapa exige o que a define */
+    var falta = [], exige = function (ok, nome) { if (!ok) falta.push(nome); };
+    if (sitNova === 'previstos') {
+      exige(f('agencia'), 'agência'); exige(f('operacao'), 'operação'); exige(f('chegada'), 'previsão de chegada (ETA)'); exige(f('cais'), 'berço previsto');
+      if (comCarga_(f('operacao'))) { exige(f('carga'), 'carga'); exige(f('ton_prevista'), 'toneladas previstas'); }
+    }
+    if (sitNova === 'fundeados') exige(tem('chegada'), 'data e hora da chegada');
+    if (sitNova === 'atracados') { exige(tem('chegada'), 'data e hora da atracação'); exige(tem('cais'), 'berço atracado'); }
+    if (sitNova === 'desatracados') exige(tem('saida'), 'data e hora da saída');
+    if (falta.length) throw erro('Falta preencher: ' + falta.join(', ') + '.');
+  }
+  if (mexeu('imo') && f('imo') && !/^\d{6,7}$/.test(f('imo'))) throw erro('IMO inválido: use só números (6 ou 7 dígitos).');
+  if (mexeu('cbo') && f('cbo')) {
+    if (!/^\d{4}\/\d{2}$/.test(f('cbo'))) throw erro('CBO inválido: use o formato 0000/26 (quatro dígitos, barra e o ano).');
+    d.itens.forEach(function (x) { if ((!o || x.id !== o.id) && String(x.cbo).trim() === f('cbo')) throw erro('O CBO ' + f('cbo') + ' já está registrado para ' + String(x.navio).trim() + '.'); });
+  }
+  var faixa = {comprimento: [5, 450, 'Comprimento'], calado: [0.5, 25, 'Calado'], calado_proa: [0.5, 25, 'Calado proa'], calado_popa: [0.5, 25, 'Calado popa'], d_calado_proa: [0.5, 25, 'Calado proa na saída'], d_calado_popa: [0.5, 25, 'Calado popa na saída'], ton_prevista: [0, 500000, 'Toneladas previstas'], ton_movimentada: [0, 500000, 'Toneladas movimentadas']};
+  Object.keys(faixa).forEach(function (k) {
+    if (!mexeu(k) || f(k) === '') return;
+    var n = toNum(f(k)); if (n === '' || n < faixa[k][0] || n > faixa[k][1]) throw erro(faixa[k][2] + ' fora do normal (' + String(f(k)) + '). Confira o valor e a vírgula.');
+  });
+  if (mexeu('saida') || mexeu('chegada')) {
+    var c = ms_(f('chegada')), s = ms_(f('saida'));
+    if (c && s && s < c) throw erro(sitNova === 'desatracados' ? 'A saída não pode ser antes da atracação.' : 'A previsão de saída não pode ser antes da ' + (sitNova === 'atracados' ? 'atracação' : 'chegada') + '.');
+  }
+  if ((!o || mexeu('navio') || mexeu('imo') || avancando) && sitNova !== 'desatracados') {   /* a mesma embarcação não pode estar duas vezes em andamento */
+    var nn = norm(f('navio')), im = f('imo');
+    d.itens.forEach(function (x) {
+      if ((o && x.id === o.id) || x.sit === 'desatracados') return;
+      if (norm(x.navio) === nn || (im && String(x.imo).trim() === im)) throw erro('Já existe "' + String(x.navio).trim() + '" em andamento (' + SIT[x.sit] + '). Abra esse registro em vez de criar outro.');
+    });
+  }
+}
 function salvar_(u, reg) {
   reg = reg || {};
+  if (reg.navio != null) reg.navio = String(reg.navio).replace(/\s+/g, ' ').trim();
   var sitNova = sitDe(reg.situacao); if (!sitNova) throw erro('Escolha a situação da embarcação.');
   var d = ler_(), I = d.idx, o = null, sitAtual = null;
   if (reg.id) {
@@ -327,6 +391,8 @@ function salvar_(u, reg) {
     sitAtual = o.sit;
   }
   var perm = permissao_(u, sitAtual, sitNova); if (!perm.ok) throw erro(perm.motivo);
+  var voltou = !!(sitAtual && ORDEM[sitNova] < ORDEM[sitAtual]);
+  if (voltou && !u.admin && !(sitAtual === 'previstos' && sitNova === 'rascunhos')) throw erro('Só administradores podem voltar uma embarcação para uma etapa anterior.');
   var atual = o ? paraApi_(o) : {}, mudouSit = !!(sitAtual && sitAtual !== sitNova), trocas = [], mexidos = [];
   TODOS.forEach(function (k) {
     if (!Object.prototype.hasOwnProperty.call(reg, k)) return;
@@ -338,11 +404,7 @@ function salvar_(u, reg) {
     if (novo !== velho) trocas.push(ROTULO[k] + ': ' + (velho || '—') + ' → ' + (novo || '—'));
   });
   var f = function (k) { return Object.prototype.hasOwnProperty.call(reg, k) ? String(reg[k] == null ? '' : reg[k]).trim() : String(atual[k] == null ? '' : atual[k]).trim(); };
-  if (!f('navio')) throw erro('Escreva o nome da embarcação.');
-  if (!o || mudouSit) {
-    if (!f('chegada') && !(sitNova === 'desatracados' && f('saida'))) throw erro('Informe a data e a hora (previsão de chegada, chegada ou atracação).');
-    if (sitNova === 'atracados' && !f('cais')) throw erro('Escolha o berço onde a embarcação está atracada.');
-  }
+  validar_(d, o, sitNova, reg, f, mexidos, !o || (mudouSit && !voltou));
   if (o && !mexidos.length && !mudouSit) return {ok: true, semMudanca: true};
   if (mudouSit) trocas.unshift('Situação: ' + SIT[sitAtual] + ' → ' + SIT[sitNova]);
   var lock = LockService.getScriptLock(); lock.waitLock(20000);
@@ -373,8 +435,9 @@ function salvar_(u, reg) {
   } finally { lock.releaseLock(); }
 }
 function excluir_(u, b) {
-  if (!u.admin) throw erro('Só administradores podem excluir embarcações. Para tirar da lista, mude a situação para Desatracado.');
   var d = ler_(), o = d.porId[b.id]; if (!o) throw erro('Embarcação não encontrada.');
+  var descarte = o.sit === 'rascunhos' && u.etapas.indexOf('previsao') >= 0;
+  if (!u.admin && !descarte) throw erro('Só administradores podem excluir embarcações. Para encerrar uma embarcação, registre a desatracação.');
   if (String(b.versao || '') !== String(o.reg_alt || '')) throw erro('Esta embarcação foi alterada depois que você abriu a tela. Atualize e tente de novo.');
   var lock = LockService.getScriptLock(); lock.waitLock(20000);
   try {
@@ -425,7 +488,7 @@ function doPost(e) {
     var u = auth_(b.token);
     switch (b.acao) {
       case 'sessao': var p = perfil_(u); p.ok = true; return json(p);
-      case 'lista': return json(lista_(false, b.dias));
+      case 'lista': return json(lista_(false, b.dias, u));
       case 'salvar': return json(salvar_(u, b.registro));
       case 'excluir': return json(excluir_(u, b));
       case 'aviso': return json(salvarAviso_(u, b));
