@@ -336,7 +336,7 @@ footer b{color:var(--ink);font-weight:600}
 /* ===== Avisos: geral (acima dos botões das abas) e por aba (logo abaixo dos botões) ===== */
 .avisos{display:grid;gap:8px;margin-top:16px}
 .avisos[hidden]{display:none}
-.aviso{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:baseline;padding:11px 16px;background:var(--sun-soft);color:var(--sun-ink);border:1px solid #BFE6F7;border-left:4px solid var(--sun);border-radius:8px;font-size:14px}
+.aviso{display:flex;flex-wrap:wrap;gap:4px 12px;align-items:baseline;padding:11px 16px;background:#FFF4CC;color:#5A4100;border:1px solid #EBD58F;border-left:4px solid #E0A800;border-radius:8px;font-size:14px}
 .aviso strong{flex:none;font:700 11.5px var(--f-body);letter-spacing:.12em;text-transform:uppercase}
 .aviso span{flex:1 1 240px;min-width:0;white-space:pre-line;overflow-wrap:anywhere}
 .tabaviso{margin-top:14px}
@@ -475,4 +475,100 @@ footer b{color:var(--ink);font-weight:600}
 @media (max-width:520px){
   .list .ship{font-size:15px}
   .tabs{gap:5px}
+}
+
+
+/* =====================================================================================
+   AJUSTES DE OUTUBRO/2026
+   Cadeado do login · contatos do responsável · rodapé · carregamento · botão de imprimir · impressão
+   ===================================================================================== */
+
+/* Botão de entrar para editar: só o cadeado (azul, uma cor só) */
+.btn-lock{appearance:none;display:inline-grid;place-items:center;flex:none;width:42px;height:42px;padding:0;border-radius:50%;border:1px solid var(--line);background:var(--surface);color:var(--blue);cursor:pointer;transition:background .15s,border-color .15s}
+.btn-lock:hover{background:var(--blue-soft);border-color:var(--blue)}
+.btn-lock[hidden]{display:none}
+
+/* Responsável pelo preenchimento: e-mail e telefone numa linha própria */
+.stamp .resp-ct{display:flex;flex-wrap:wrap;justify-content:flex-end;gap:2px 16px;margin-top:3px;font-size:12.5px}
+.stamp .resp-ct[hidden]{display:none}
+.stamp .resp .ct{display:inline-flex;align-items:center;gap:5px;color:var(--muted);text-decoration:none;white-space:nowrap}
+.stamp .resp .ct svg{flex:none}
+.stamp .resp .ct:hover{color:var(--blue);text-decoration:underline}
+
+/* Rodapé: endereço, telefone e setor, nesta ordem */
+footer{flex-direction:column;flex-wrap:nowrap;gap:3px;line-height:1.5}
+footer a{color:inherit;text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:3px}
+footer a:hover{color:var(--blue);text-decoration-color:var(--blue)}
+footer #f-setor{color:var(--ink);font-weight:600}
+footer #f-mail-box[hidden]{display:none}
+
+/* Carregando dados: chama atenção, com indicador azul girando */
+.loading{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:18px;padding:60px 18px;color:var(--blue)}
+.spinner{position:relative;width:54px;height:54px;border-radius:50%;background:conic-gradient(from 0deg,rgba(0,96,176,0) 0deg,rgba(0,96,176,.18) 60deg,#0060B0 360deg);-webkit-mask:radial-gradient(farthest-side,transparent calc(100% - 6px),#000 calc(100% - 5px));mask:radial-gradient(farthest-side,transparent calc(100% - 6px),#000 calc(100% - 5px));animation:girar .85s linear infinite}
+.spinner::after{content:"";position:absolute;top:0;left:calc(50% - 3px);width:6px;height:6px;border-radius:50%;background:#0060B0}
+.loading-t{font:600 18px var(--f-display);letter-spacing:.01em}
+.loading-t::after{content:"";display:inline-block;width:1.3em;text-align:left;animation:pontos 1.4s steps(1,end) infinite}
+@keyframes girar{to{transform:rotate(360deg)}}
+@keyframes pontos{0%{content:""}25%{content:"."}50%{content:".."}75%{content:"..."}}
+@media (prefers-reduced-motion:reduce){.spinner{animation-duration:2.4s}.loading-t::after{animation:none}}
+
+/* Botão de imprimir dentro do painel Filtrar/Imprimir */
+.ff.wall{grid-column:1/-1}
+.fprint{flex-direction:row;flex-wrap:wrap;align-items:center;gap:8px 16px;padding-top:12px;border-top:1px solid var(--line)}
+.btn-print{appearance:none;display:inline-flex;align-items:center;gap:8px;min-height:44px;padding:0 18px;border:1px solid var(--blue);background:var(--blue);color:var(--on-blue);border-radius:10px;font:600 14px var(--f-body);cursor:pointer}
+.btn-print:hover{filter:brightness(1.08)}
+.btn-print svg{flex:none}
+.fprint small{flex:1 1 240px;color:var(--muted);font-size:12.5px;line-height:1.4}
+
+@media (max-width:700px){
+  .btn-lock{width:36px;height:36px}
+  .btn-lock svg{width:18px;height:18px}
+  .stamp .resp-ct{justify-content:flex-start;font-size:11.5px;gap:1px 12px}
+  .btn-print{width:100%;justify-content:center;min-height:40px}
+  .loading{padding:44px 14px}
+}
+
+/* ===== Impressão da relação filtrada (só aparece ao imprimir; a tela normal não muda) ===== */
+#print-area{display:none}
+@media print{
+  body.printing{background:#fff!important}
+  body.printing>*:not(#print-area){display:none!important}
+  body.printing #print-area{display:block;color:#000;font:8pt/1.35 "Montserrat","Segoe UI",Arial,sans-serif}
+  #print-area .ph{display:flex;align-items:center;gap:14pt;padding-bottom:6pt;border-bottom:2pt solid #0060B0}
+  #print-area .ph img{height:38pt;width:auto}
+  #print-area .pht{flex:1}
+  #print-area .pht h1{margin:0;font:700 15pt/1.15 "Montserrat","Segoe UI",Arial,sans-serif;color:#0060B0}
+  #print-area .pht p{margin:2pt 0 0;font-size:8.5pt;color:#444}
+  #print-area .phd{text-align:right;font-size:8pt;color:#333}
+  #print-area .pm{display:grid;gap:3pt;margin:7pt 0;font-size:8.5pt}
+  #print-area .pf{display:inline-block;margin:0 4pt 2pt 0;padding:0 6pt;border:.5pt solid #0060B0;border-radius:8pt;color:#0060B0}
+  #print-area .pf-0{color:#555}
+  #print-area .pw{font-weight:600;color:#7A4B00}
+  #print-area table.pt{width:100%;border-collapse:collapse;font-size:7pt}
+  #print-area .pt th{background:#E4EFFA!important;-webkit-print-color-adjust:exact;print-color-adjust:exact;text-align:left;font-weight:700}
+  #print-area .pt th,#print-area .pt td{border:.4pt solid #8A99A8;padding:2pt 3pt;vertical-align:top;overflow-wrap:break-word;word-break:normal;hyphens:manual}
+  #print-area .pt thead{display:table-header-group}
+  #print-area .pt tr{break-inside:avoid}
+  #print-area .pt td.nw{white-space:nowrap}
+  #print-area .pt td.r{text-align:right;white-space:nowrap}
+  #print-area .pt td.nv{font-weight:700}
+  #print-area .pt .pn{width:1%;text-align:center;color:#555;white-space:nowrap}
+  #print-area .pfoot{margin-top:8pt;padding-top:4pt;border-top:.5pt solid #999;font-size:7pt;color:#444;text-align:center}
+}
+
+/* acertos finos */
+.stamp .resp #resp-c{margin-left:.3em}
+.fprint{position:sticky;bottom:0;z-index:2;margin:0 -16px -16px;padding:12px 16px;background:var(--surface);border-radius:0 0 10px 10px;box-shadow:0 -6px 10px -8px rgba(11,34,54,.25)}
+@media (max-width:700px){
+  .right{position:relative}
+  .right .btn-lock{position:absolute;top:0;right:0}
+  .right .stamp{padding-right:44px}
+  .fprint{margin:0 -12px -12px;padding:10px 12px;bottom:env(safe-area-inset-bottom,0px)}
+}
+
+.btn-print .bp-t{text-align:left}
+@media (max-width:700px){
+  .fprint small{display:none}
+  .btn-print{font-size:13px;padding:0 12px}
+  .btn-print .bp-t{text-align:center}
 }
