@@ -6,20 +6,20 @@
 <title>Line-up Porto do Recife</title>
 <link rel="icon" href="assets/logo/logo.png">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap">
-<link rel="stylesheet" href="css/style.css?v=20261020a">
-<link rel="stylesheet" href="css/edit.css?v=20261020a">
+<link rel="stylesheet" href="css/style.css?v=20261020b">
+<link rel="stylesheet" href="css/edit.css?v=20261020b">
 </head>
 <body>
 
 <header class="top">
   <div class="wrap">
     <div class="brand">
-      <a class="logo" href="https://www.portodorecife.pe.gov.br/" aria-label="Porto do Recife S.A. — site oficial"><img src="assets/logo/logo.png" alt="Porto do Recife S.A."></a>
+      <a class="logo" href="https://www.portodorecife.pe.gov.br/" target="_blank" rel="noopener noreferrer" title="Site do Porto do Recife (abre em nova guia)" aria-label="Porto do Recife S.A. — site oficial (abre em nova guia)"><img src="assets/logo/logo.png" alt="Porto do Recife S.A."></a>
       <div class="titles"><h1>LINE-UP DE EMBARCAÇÕES</h1><p>MEP - Movimentação de embarcações no Porto do Recife</p></div>
     </div>
     <div class="right">
-      <div class="stamp">Atualizado em<b id="stamp">—</b><span class="resp" id="resp" hidden>Responsável pelo preenchimento: <strong id="resp-n"></strong><span id="resp-c"></span></span></div>
-      <button class="btn ghost" id="btn-login" type="button" hidden>🔒 Entrar para editar</button>
+      <div class="stamp">Atualizado em<b id="stamp">—</b><span class="resp" id="resp" hidden>Responsável pelo preenchimento: <strong id="resp-n"></strong><span id="resp-c"></span><span class="resp-ct" id="resp-ct" hidden></span></span></div>
+      <button class="btn-lock" id="btn-login" type="button" title="Entrar para editar" aria-label="Entrar para editar" hidden><svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="4.5" y="10.5" width="15" height="10" rx="2.2"/><path d="M8 10.5V7.5a4 4 0 0 1 8 0v3"/><circle cx="12" cy="15.5" r="1.1" fill="currentColor" stroke="none"/></svg></button>
     </div>
   </div>
 </header>
@@ -27,7 +27,7 @@
 <div class="warn" id="warn" hidden><div class="wrap" id="warn-t"></div></div>
 
 <main class="wrap">
-  <div class="editbar" id="editbar" hidden><span id="who"></span><button class="btn pri" id="btn-new" type="button">+ Nova embarcação</button><button class="btn" id="btn-aviso" type="button">Aviso no topo</button><button class="btn" id="btn-pw" type="button">Minha senha</button><button class="btn" id="btn-out" type="button">Sair</button></div>
+  <div class="editbar" id="editbar" hidden><span id="who"></span><button class="btn pri" id="btn-new" type="button">+ Nova embarcação</button><button class="btn" id="btn-aviso" type="button">Aviso no topo</button><button class="btn" id="btn-usu" type="button" hidden>Usuários</button><button class="btn" id="btn-pw" type="button">Minha senha</button><button class="btn" id="btn-out" type="button">Sair</button></div>
   <div class="avisos" id="notice" hidden></div>
   <div class="tabs" role="tablist" aria-label="Situação das embarcações" id="tabs"></div>
 
@@ -41,7 +41,7 @@
       </label>
       <button class="btn-f" id="btn-filtros" type="button" aria-expanded="false" aria-controls="fpanel">
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M3 6h18M6 12h12M10 18h4"/></svg>
-        Filtros <span class="badge" id="f-badge" hidden>0</span>
+        Filtrar/Imprimir <span class="badge" id="f-badge" hidden>0</span>
       </button>
       <div class="seg viewsw" id="viewsw" role="group" aria-label="Modo de exibição">
         <button type="button" data-v="cartoes" aria-pressed="true">Cartões</button>
@@ -63,7 +63,7 @@
     <h2 class="sec-t">Mapa dos berços</h2>
     <div class="mapa-wrap">
       <div class="mapa" id="mapa">
-        <img src="assets/mapa/mapa-cais-desenho.png?v=20261020a" alt="Ilustração do Porto do Recife com os berços numerados de 00-TA a 09" width="1050" height="390">
+        <img src="assets/mapa/mapa-cais-desenho.png?v=20261020b" alt="Ilustração do Porto do Recife com os berços numerados de 00-TA a 09" width="1050" height="390">
         <svg class="bercos" id="bercos" viewBox="0 0 1050 390" preserveAspectRatio="none" aria-hidden="true"></svg>
         <div class="dots" id="dots"></div>
       </div>
@@ -73,15 +73,19 @@
   </section>
 
   <footer>
-    <span><b>Telefones</b> <span id="f-tel"></span></span>
-    <span><b>E-mail</b> <span id="f-mail"></span></span>
+    <span id="f-end"></span>
+    <span><b>Telefone:</b> <span id="f-tel"></span></span>
+    <span id="f-setor"></span>
+    <span id="f-mail-box" hidden><b>E-mail:</b> <span id="f-mail"></span></span>
   </footer>
 </main>
 
-<script src="js/edit.js?v=20261020a"></script>
-<script src="js/tabela.js?v=20261020a"></script>
-<script src="js/filtros.js?v=20261020a"></script>
-<script src="js/mapa.js?v=20261020a"></script>
-<script src="js/app.js?v=20261020a"></script>
+<div id="print-area" aria-hidden="true"></div>
+
+<script src="js/edit.js?v=20261020b"></script>
+<script src="js/tabela.js?v=20261020b"></script>
+<script src="js/filtros.js?v=20261020b"></script>
+<script src="js/mapa.js?v=20261020b"></script>
+<script src="js/app.js?v=20261020b"></script>
 </body>
 </html>
