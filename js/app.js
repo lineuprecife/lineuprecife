@@ -45,6 +45,7 @@ var LAYOUTS = {
 
 /* ===== LEITURA DA PLANILHA ===== */
 var TABS = [
+  {id:"rascunhos",label:"Rascunhos"},   /* só aparece para quem é da previsão (acostagem) e entrou com login */
   {id:"previstos",label:"Previstos"},
   {id:"fundeados",label:"Fundeados"},
   {id:"atracados",label:"Atracados"},
@@ -279,17 +280,19 @@ function refreshBanco(){
     lastOk = p2(d.getHours())+":"+p2(d.getMinutes()); lastErr = "";
   }).catch(function(e){ lastErr = String((e && e.message) || ""); TABS.forEach(function(t){ errors[t.id] = true; }); }).then(renderAll);
 }
-function nomeAba(id){ return (CONFIG.banco && !CONFIG.api) ? CONFIG.banco.sheet : CONFIG.tabs[id].sheet; }
+function nomeAba(id){ return (CONFIG.banco && !CONFIG.api) ? CONFIG.banco.sheet : ((CONFIG.tabs[id] || {}).sheet || "BANCO"); }
 
 /* === INTERFACE === */
 var MES = ["jan","fev","mar","abr","mai","jun","jul","ago","set","out","nov","dez"];
 var HEADS = {
+  rascunhos:["Berço","Embarcação","Carga","Agência / Operador","Datas","Tonelagem prevista"],
   atracados:["Berço","Embarcação","Carga","Agência / Operador","Datas","Carga movimentada"],
   previstos:["Berço","Embarcação","Carga","Agência / Operador","Datas","Tonelagem prevista"],
   fundeados:["Berço","Embarcação","Carga","Agência / Operador","Datas","Carga prevista"],
   desatracados:["Berço","Embarcação","Carga","Agência / Operador","Datas","Carga movimentada"]
 };
 var EMPTY = {
+  rascunhos:"Nenhum rascunho. Use \"+ Nova embarcação\" para começar uma previsão; ela só vai para o público quando você publicar no MEP.",
   atracados:"Nenhuma embarcação atracada no momento.",
   previstos:"Nenhuma embarcação prevista no momento.",
   fundeados:"Nenhuma embarcação fundeada no momento.",
@@ -331,7 +334,7 @@ function listOf(id){ return (data[id] && data[id].items) || []; }
 
 function dt(v){ return '<span class="dt">'+esc(fmt(v))+'</span>'; }   /* data inteira numa linha só: quem quebra é o rótulo, não a data */
 function rowBase(s,lista){
-  var prevList = lista==="previstos" || lista==="fundeados", special = !!s.tipo;
+  var prevList = lista==="rascunhos" || lista==="previstos" || lista==="fundeados", special = !!s.tipo;
   var pct = s.prev>0 ? Math.min(100,Math.round((s.mov||0)/s.prev*100)) : 0;
   var meta = [];   /* dados do navio, um embaixo do outro: nunca quebram no meio */
   function sp(r, v, mono){ return '<div><span>'+r+'</span> <b'+(mono?' class="mono"':'')+'>'+esc(v)+'</b></div>'; }
@@ -369,8 +372,10 @@ function rowBase(s,lista){
     '</div></div>';
 }
 /* matches() e fsort() ficam em js/filtros.js */
+function tabVisivel(t){ return t.id !== "rascunhos" || (typeof verRascunhos === "function" && verRascunhos()); }
 function renderTabs(){
-  $("tabs").innerHTML = TABS.map(function(t){
+  var vis = TABS.filter(tabVisivel); $("tabs").className = "tabs" + (vis.length > 4 ? " t5" : "");
+  $("tabs").innerHTML = vis.map(function(t){
     var sel = t.id===state.tab;
     var n = data[t.id] ? data[t.id].items.length : "—";
     return '<button class="tab" role="tab" type="button" data-t="'+t.id+'" aria-selected="'+sel+'"><span class="n">'+n+'</span><span class="l">'+t.label+'</span></button>';
@@ -399,7 +404,7 @@ function renderPanel(){
   var id = state.tab, el = $("panel");
   el.classList.remove("wide");   /* só a tabela completa usa a largura quase total da tela */
   var ms = document.getElementById("mapa-sec"); if(ms) ms.hidden = id !== "atracados";
-  var bs = document.getElementById("berths-sec"); if(bs) bs.hidden = id === "previstos" || id === "desatracados";   /* ocupação dos cais: fora das abas Previstos e Desatracados */   /* mapa só faz sentido para quem está atracado */
+  var bs = document.getElementById("berths-sec"); if(bs) bs.hidden = id === "rascunhos" || id === "previstos" || id === "desatracados";   /* ocupação dos cais: fora das abas Previstos e Desatracados */   /* mapa só faz sentido para quem está atracado */
   if(typeof syncView === "function") syncView();
   if(!data[id]){
     state.n = null; renderFsum();
@@ -438,7 +443,7 @@ function renderHead(){
     $("resp-n").innerHTML = rp.email ? '<a href="mailto:'+esc(rp.email)+'" title="'+esc(rp.email)+'">'+esc(rp.nome)+'</a>' : esc(rp.nome);
     $("resp-c").textContent = rp.cargo ? " · "+rp.cargo : "";
   }
-  var bad = TABS.filter(function(t){return errors[t.id]}).map(function(t){return nomeAba(t.id)}).filter(function(n,i,a){return a.indexOf(n)===i});
+  var bad = TABS.filter(function(t){return errors[t.id] && tabVisivel(t)}).map(function(t){return nomeAba(t.id)}).filter(function(n,i,a){return a.indexOf(n)===i});
   var w = $("warn");
   if(bad.length){
     w.hidden = false;
@@ -471,7 +476,7 @@ $("f-tel").textContent = CONFIG.telefones;
 $("f-mail").textContent = CONFIG.emails;
 state.tab = TELA_INICIAL;
 var h0 = (location.hash||"").replace("#","");
-if(TABS.some(function(t){return t.id===h0})) state.tab = h0;
+if(h0 !== "rascunhos" && TABS.some(function(t){return t.id===h0})) state.tab = h0;
 renderAll();
 refresh();
 setInterval(refresh, Math.max(15, CONFIG.refreshSeconds)*1000);

@@ -1,66 +1,24 @@
-/* Modo edição do Line-up: cada pessoa entra com o seu login e senha e só mexe nas etapas pelas quais é responsável.
-   Etapas: previsão (agendamento), ao largo, atracação, movimentação e desatracação. O servidor (Apps Script) confere tudo de novo.
-   Este arquivo carrega ANTES do app.js; tudo aqui só roda depois que a página abre. */
+/* Modo edição do Line-up. Cada pessoa entra com o seu login e senha e só mexe nas etapas pelas quais é responsável.
+   CICLO DA EMBARCAÇÃO:  Rascunho (só a acostagem vê)  >  Previsto (publicado no MEP)  >  Fundeado  >  Atracado  >  Desatracado
+   Cada etapa tem a sua janelinha, só com o que aquela etapa precisa. O botão azul do cartão é sempre "o próximo passo".
+   O servidor (Apps Script) confere tudo de novo. Este arquivo carrega ANTES do app.js; tudo aqui só roda depois que a página abre. */
 var EDIT = {on:false, token:"", usuario:"", nome:"", cargo:"", etapas:[], admin:false}, AVISO = "";
-var SITS = [["previstos","Previsto","Previsto (ainda não chegou)"],["fundeados","Fundeado","Fundeado (esperando no mar)"],["atracados","Atracado","Atracado (no berço)"],["desatracados","Desatracado","Desatracado (já saiu)"]];
-var SIT_ETAPA = {previstos:"previsao", fundeados:"fundeio", atracados:"atracacao", desatracados:"desatracacao"};
+var SITS = [["rascunhos","Rascunho","Rascunho (ainda não publicado)"],["previstos","Previsto","Previsto (publicado no MEP)"],["fundeados","Fundeado","Fundeado (esperando no mar)"],["atracados","Atracado","Atracado (no berço)"],["desatracados","Desatracado","Desatracado (já saiu)"]];
+var SIT_ETAPA = {rascunhos:"previsao", previstos:"previsao", fundeados:"fundeio", atracados:"atracacao", desatracados:"desatracacao"};
+var ORDEM = {rascunhos:0, previstos:1, fundeados:2, atracados:3, desatracados:4};
+var PASSOS = [["rascunhos","Rascunho"],["previstos","Previsto"],["fundeados","Fundeado"],["atracados","Atracado"],["desatracados","Desatrac."]];
 var ETAPA_NOME = {previsao:"Previsão", fundeio:"Ao largo", atracacao:"Atracação", movimentacao:"Movimentação", desatracacao:"Desatracação"};
 /* Quais campos cada etapa pode alterar (igual ao que o servidor aplica) */
-var G_IDENT = ["navio","nacionalidade","imo","cbo","comprimento","calado","agencia","operador","carga","operacao","origem_destino","porto_anterior","proximo_porto","ton_prevista","nr_livro","observacoes"];
+var G_IDENT = ["navio","nacionalidade","imo","comprimento","calado","agencia","operador","carga","operacao","origem_destino","porto_anterior","proximo_porto","ton_prevista","observacoes"];
+var G_REGISTRO = ["cbo","nr_livro"];
 var G_DATAS = ["chegada","previsao_atracacao","saida","cais"];
 var G_MANOBRA = ["hora_pratico","hora_amarracao","inicio_manobra","termino_manobra","bordo","calado_proa","calado_popa","cabecos","pratico","rebocadores"];
-var CAMPOS_ETAPA = {previsao:G_IDENT.concat(G_DATAS), fundeio:G_IDENT.concat(G_DATAS), atracacao:G_IDENT.concat(G_DATAS, G_MANOBRA, ["ton_movimentada"]), movimentacao:["ton_movimentada","observacoes"], desatracacao:["saida","ton_movimentada","observacoes"]};
-/* Formulário em blocos, na ordem dos formulários de papel (previsão, livro de registro, manobra de acostagem) */
-var SECOES = [
-  ["Embarcação", [{k:"navio",l:"Nome da embarcação",w:1},{k:"nacionalidade",l:"Bandeira / porto de matrícula"},{k:"nr_livro",l:"Nº no livro de registro"},{k:"cbo",l:"CBO"},{k:"imo",l:"IMO"},{k:"comprimento",l:"Comprimento (em metros)",t:"dec"},{k:"calado",l:"Calado máximo (em metros)",t:"dec"}]],
-  ["Carga e operação", [{k:"operacao",l:"Operação / modalidade",t:"op"},{k:"carga",l:"Carga (ou serviço)"},{k:"origem_destino",l:"Origem / destino da carga"},{k:"agencia",l:"Agência"},{k:"operador",l:"Operador"},{k:"porto_anterior",l:"Porto anterior"},{k:"proximo_porto",l:"Próximo porto"},{k:"ton_prevista",l:"Toneladas previstas",t:"num"}]],
-  ["Datas e berço", [{k:"chegada",l:"Chegada",t:"dt"},{k:"previsao_atracacao",l:"Previsão de atracação (POB)",t:"dt"},{k:"saida",l:"Saída",t:"dt"},{k:"cais",l:"Berço",t:"cais"}]],
-  ["Manobra de atracação (coordenadores de operação)", [{k:"hora_pratico",l:"Hora do Prático (POB)",t:"hm"},{k:"hora_amarracao",l:"Hora da Amarração (ATB)",t:"hm"},{k:"inicio_manobra",l:"Hora de Início da manobra (BOSP)",t:"hm"},{k:"termino_manobra",l:"Hora do Término da manobra (ATB)",t:"hm"},{k:"bordo",l:"Bordo de atracação",t:"bordo"},{k:"pratico",l:"Prático (nome)"},{k:"calado_proa",l:"Calado proa (em metros)",t:"dec"},{k:"calado_popa",l:"Calado popa (em metros)",t:"dec"},{k:"cabecos",l:"Cabeços de amarração (ex.: 47, 50, 53, 57)",w:1},{k:"rebocadores",l:"Rebocadores",w:1}]],
-  ["Movimentação", [{k:"ton_movimentada",l:"Toneladas já movimentadas",t:"num"}]],
-  ["Observações", [{k:"observacoes",l:"Observações",t:"ta",w:1}]]
-];
-var FIELDS = []; SECOES.forEach(function(s){ s[1].forEach(function(f){ FIELDS.push(f); }); });
-/* Alguns campos mudam de nome conforme a situação escolhida */
-function rotulo(k, sit, padrao){
-  if(k === "chegada") return {previstos:"Previsão de chegada (ETA)", fundeados:"Chegada confirmada (fundeio)", atracados:"Data e hora da atracação", desatracados:"Data e hora da atracação"}[sit] || padrao;
-  if(k === "saida") return sit === "desatracados" ? "Data e hora da saída (desatracação)" : "Previsão de saída (ETD)";
-  if(k === "cais") return (sit === "previstos" || sit === "fundeados") ? "Berço previsto (ETB)" : sit === "atracados" ? "Berço atracado" : "Berço";
-  if(k === "ton_movimentada") return sit === "desatracados" ? "Tonelagem final (t)" : "Toneladas já movimentadas";
-  return padrao;
-}
+var G_DMANOBRA = ["d_hora_pratico","d_hora_amarracao","d_inicio_manobra","d_termino_manobra","d_bordo","d_calado_proa","d_calado_popa","d_cabecos","d_pratico","d_rebocadores"];
+var CAMPOS_ETAPA = {previsao:G_IDENT.concat(G_DATAS), fundeio:G_IDENT.concat(G_DATAS), atracacao:G_IDENT.concat(G_REGISTRO, G_DATAS, G_MANOBRA, G_DMANOBRA, ["ton_movimentada"]), movimentacao:["ton_movimentada","observacoes"], desatracacao:["saida","ton_movimentada","observacoes"].concat(G_DMANOBRA)};
+var OPS_SERV = ["DRAGAGEM","ABASTECIMENTO","OP. MILITAR","PESQUISA","REPARO"];
+var SUG_CAMPOS = ["navio","nacionalidade","agencia","operador","carga","origem_destino","porto_anterior","proximo_porto","pratico","rebocadores"], SUG_CACHE = null;
 
 function E(id){ return document.getElementById(id); }
-/* ---- Sugestões: todo campo de texto sugere o que já existe no banco (aparece ao digitar) ---- */
-var OPS_PADRAO = ["IMPORTAÇÃO","EXPORTAÇÃO","DRAGAGEM","ABASTECIMENTO","OP. MILITAR","PESQUISA","REPARO"];
-var SUG_CAMPOS = FIELDS.filter(function(f){ return !f.t || f.t === "op"; }).map(function(f){ return f.k; }), SUG_CACHE = null;
-function montarSug(regs){
-  var m = {};
-  SUG_CAMPOS.forEach(function(k){ m[k] = {}; });
-  regs.forEach(function(r){ SUG_CAMPOS.forEach(function(k){
-    var v = String(r[k] == null ? "" : r[k]).trim(); if(!v) return;
-    var c = v.toLowerCase(), o = m[k][c] || (m[k][c] = {v:v, n:0}); o.n++;
-  }); });
-  return m;
-}
-function pintarSug(m){
-  SUG_CAMPOS.forEach(function(k){
-    var dl = E("dl_"+k); if(!dl) return;
-    var arr = Object.keys(m[k]).map(function(c){ return m[k][c]; });
-    if(k === "operacao") OPS_PADRAO.forEach(function(x){ if(!m[k][x.toLowerCase()]) arr.push({v:x, n:0}); });
-    arr.sort(function(a, b){ return b.n - a.n || a.v.localeCompare(b.v, "pt-BR"); });
-    dl.innerHTML = arr.slice(0, 400).map(function(o){ return '<option value="'+esc(o.v)+'">'; }).join("");
-  });
-}
-function carregarSug(){
-  var locais = []; TABS.forEach(function(t){ listOf(t.id).forEach(function(s){ locais.push(s.rec); }); });
-  pintarSug(montarSug(SUG_CACHE || locais));          /* já mostra o que a página tem na tela */
-  if(SUG_CACHE) return;
-  post({acao:"lista", dias:3650}).then(function(j){     /* depois completa com o banco inteiro, inclusive o histórico antigo */
-    SUG_CACHE = j.navios || []; pintarSug(montarSug(SUG_CACHE));
-    setTimeout(function(){ SUG_CACHE = null; }, 120000);
-  }, function(){});
-}
-
 function toast(t, bad){
   var el = E("toast");
   if(!el){ el = document.createElement("div"); el.id = "toast"; el.setAttribute("role","status"); document.body.appendChild(el); }
@@ -82,6 +40,9 @@ function post(b){
 }
 function dtIn(s){ var m = /^(\d\d)\/(\d\d)\/(\d{4})(?: (\d\d):(\d\d))?/.exec(s||""); return m ? m[3]+"-"+m[2]+"-"+m[1]+"T"+(m[4]||"00")+":"+(m[5]||"00") : ""; }
 function dtOut(v){ var m = /^(\d{4})-(\d\d)-(\d\d)T(\d\d):(\d\d)/.exec(v||""); return m ? m[3]+"/"+m[2]+"/"+m[1]+" "+m[4]+":"+m[5] : ""; }
+function agoraDt(){ var d = new Date(); return d.getFullYear()+"-"+p2(d.getMonth()+1)+"-"+p2(d.getDate())+"T"+p2(d.getHours())+":"+p2(d.getMinutes()); }
+function agoraHm(){ var d = new Date(); return p2(d.getHours())+":"+p2(d.getMinutes()); }
+function hmMin(v){ var m = /^(\d\d):(\d\d)$/.exec(v||""); return m ? (+m[1])*60 + (+m[2]) : null; }
 function dlg(html, larga){
   var d = document.createElement("dialog");
   if(larga) d.className = "wide";
@@ -99,18 +60,107 @@ function permCampos(atual, nova){   /* null = não pode */
   var set = {}, add = function(e){ CAMPOS_ETAPA[e].forEach(function(k){ set[k] = 1; }); }, eN = SIT_ETAPA[nova];
   if(!atual || atual !== nova){
     if(!tem(eN)) return null;
+    if(atual && ORDEM[nova] < ORDEM[atual] && !(atual === "previstos" && nova === "rascunhos")) return null;   /* voltar de etapa: só administrador (ou despublicar um previsto) */
     add(eN); if(atual && tem(SIT_ETAPA[atual])) add(SIT_ETAPA[atual]);
   } else {
     if(tem(eN)) add(eN);
     if(nova === "atracados" && tem("movimentacao")) add("movimentacao");
+    if(nova === "desatracados" && tem("atracacao")) add("atracacao");
     if(!Object.keys(set).length) return null;
   }
   return {set:set};
 }
+function pode(atual, nova, campo){ var p = permCampos(atual, nova); return !!p && (p.todos || !!p.set[campo]); }
 function podeEditar(s){ return !!permCampos(sitKey(s), sitKey(s)); }
-function podeExcluir(){ return EDIT.admin; }
-function sitsCriar(){ return SITS.filter(function(x){ return EDIT.admin || tem(SIT_ETAPA[x[0]]); }); }
+function podeExcluir(s){ return EDIT.admin || (sitKey(s) === "rascunhos" && tem("previsao")); }
+function podeCriar(sit){ return EDIT.admin || tem(SIT_ETAPA[sit]); }
 function podeAviso(){ return EDIT.admin || tem("previsao") || tem("atracacao"); }
+function verRascunhos(){ return EDIT.on && (EDIT.admin || tem("previsao")); }
+
+/* ---- Regras de negócio usadas para ajudar e evitar erro ---- */
+function comCarga(op){ var t = normH(op); return t === "importacao" || t === "exportacao"; }
+function ehServico(op){ return !!String(op||"").trim() && !comCarga(op); }
+function faltaPublicar(r){
+  var f = [];
+  if(!r.navio) f.push("nome"); if(!r.agencia) f.push("agência"); if(!r.operacao) f.push("operação");
+  if(!r.chegada) f.push("chegada (ETA)"); if(!r.cais) f.push("berço");
+  if(comCarga(r.operacao)){ if(!r.carga) f.push("carga"); if(!(+r.ton_prevista)) f.push("toneladas"); }
+  return f;
+}
+function faltaManobra(r, p){
+  var f = [];
+  if(!r[p+"bordo"]) f.push("bordo"); if(!r[p+"hora_pratico"]) f.push("hora do prático"); if(!r[p+"hora_amarracao"]) f.push(p ? "largada do último cabo" : "amarração");
+  return f;
+}
+function todosRegistros(){
+  if(SUG_CACHE) return SUG_CACHE;
+  var o = []; TABS.forEach(function(t){ listOf(t.id).forEach(function(s){ o.push(s.rec); }); }); return o;
+}
+function proximoCbo(){
+  var yy = new Date().getFullYear() % 100, max = 0;
+  todosRegistros().forEach(function(r){ var m = /^(\d{4})\/(\d{2})$/.exec(String(r.cbo||"").trim()); if(m && +m[2] === yy && +m[1] > max) max = +m[1]; });
+  return ("000" + (max + 1)).slice(-4) + "/" + p2(yy);
+}
+function achaNavio(nome, imo){   /* a escala mais recente desse navio no banco (para preencher os dados fixos dele) */
+  var n = normH(nome), best = null, bd = -1;
+  todosRegistros().forEach(function(r){
+    if(!((n && normH(r.navio) === n) || (imo && String(r.imo||"") === imo))) return;
+    var d = parseDate(r.saida || r.chegada), t = d ? +d : 0;
+    if(!best || t >= bd){ best = r; bd = t; }
+  });
+  return best;
+}
+function emAndamento(nome, imo, idSelf){   /* mesma embarcação já ativa em outro registro */
+  var n = normH(nome), hit = null;
+  TABS.forEach(function(t){ if(t.id === "desatracados") return; listOf(t.id).forEach(function(s){
+    if(s.id === idSelf || hit) return;
+    if((n && normH(s.navio) === n) || (imo && String(s.imo||"") === imo)) hit = s;
+  }); });
+  return hit;
+}
+function ocupacao(idSelf){
+  var m = {}; listOf("atracados").forEach(function(s){ if(s.id === idSelf) return; caisKeys(s.cais).forEach(function(k){ (m[k] = m[k] || []).push(s.navio); }); });
+  return m;
+}
+function imoOk(v){ if(!/^\d{7}$/.test(v)) return true; var s = 0; for(var i = 0; i < 6; i++) s += (+v[i]) * (7 - i); return s % 10 === +v[6]; }
+function ordemHoras(vals){   /* cada passo da manobra deve vir pouco depois do anterior (a manobra pode virar a meia-noite) */
+  var prev = null, ok = true;
+  vals.forEach(function(v){ var m = hmMin(v); if(m == null) return; if(prev != null && (m - prev + 1440) % 1440 > 360) ok = false; prev = m; });
+  return ok;
+}
+
+/* ---- Sugestões: todo campo de texto sugere o que já existe no banco (aparece ao digitar) ---- */
+function montarSug(regs){
+  var m = {};
+  SUG_CAMPOS.forEach(function(k){ m[k] = {}; });
+  regs.forEach(function(r){ SUG_CAMPOS.forEach(function(k){
+    var v = String(r[k] == null ? "" : r[k]).trim(); if(!v) return;
+    var c = v.toLowerCase(), o = m[k][c] || (m[k][c] = {v:v, n:0}); o.n++;
+  }); });
+  return m;
+}
+function pintarSug(m){
+  SUG_CAMPOS.forEach(function(k){
+    var dl = E("dl_"+k); if(!dl) return;
+    var arr = Object.keys(m[k]).map(function(c){ return m[k][c]; });
+    arr.sort(function(a, b){ return b.n - a.n || a.v.localeCompare(b.v, "pt-BR"); });
+    dl.innerHTML = arr.slice(0, 400).map(function(o){ return '<option value="'+esc(o.v)+'">'; }).join("");
+  });
+  var ds = E("dl_servico");
+  if(ds){
+    var ex = {}; OPS_SERV.forEach(function(x){ ex[x] = 1; });
+    todosRegistros().forEach(function(r){ var o = String(r.operacao||"").trim().toUpperCase(); if(o && !comCarga(o)) ex[o] = 1; });
+    ds.innerHTML = Object.keys(ex).sort().map(function(x){ return '<option value="'+esc(x)+'">'; }).join("");
+  }
+}
+function carregarSug(){
+  pintarSug(montarSug(todosRegistros()));          /* já mostra o que a página tem na tela */
+  if(SUG_CACHE) return;
+  post({acao:"lista", dias:3650}).then(function(j){     /* depois completa com o banco inteiro, inclusive o histórico antigo */
+    SUG_CACHE = j.navios || []; pintarSug(montarSug(SUG_CACHE));
+    setTimeout(function(){ SUG_CACHE = null; }, 120000);
+  }, function(){});
+}
 
 /* ---- Leitura: uma requisição traz todos os navios; a situação decide em qual lista cada um aparece ---- */
 function toItem(r){
@@ -134,11 +184,11 @@ function lerPublico(){
   return fetch(CONFIG.api + (CONFIG.api.indexOf("?") < 0 ? "?" : "&") + "dias=" + (CONFIG.diasDesatracados || 7), {cache:"no-store"}).then(function(r){ return r.json(); }).then(function(j){ if(j.ok === false) throw new Error(j.erro); return j; });
 }
 function refreshApi(){
-  /* quem está logado recebe também os campos internos (observações, prático, rebocadores...); o público recebe só o essencial */
+  /* quem está logado recebe também os campos internos (observações, prático, rebocadores...) e os rascunhos; o público recebe só o essencial */
   var ler = EDIT.on ? post({acao:"lista", dias:CONFIG.diasDesatracados || 7}).catch(function(e){ if(!EDIT.on) return lerPublico(); throw e; }) : lerPublico();
   return ler.then(function(j){
     AVISO = j.aviso || ""; RESP = j.responsavel && j.responsavel.nome ? j.responsavel : null;
-    var by = {previstos:[], fundeados:[], atracados:[], desatracados:[]}, lim = Date.now() - (CONFIG.diasDesatracados || 7) * 864e5;
+    var by = {rascunhos:[], previstos:[], fundeados:[], atracados:[], desatracados:[]}, lim = Date.now() - (CONFIG.diasDesatracados || 7) * 864e5;
     (j.navios || []).forEach(function(r){
       var sit = SITS.filter(function(x){ return x[1] === r.situacao; })[0]; if(!sit) return;
       var s = toItem(r), d = parseDate(s.saida || s.chegada);
@@ -156,25 +206,44 @@ function findItem(id){
   for(var i = 0; i < TABS.length; i++){ var s = listOf(TABS[i].id).filter(function(x){ return x.id === id; })[0]; if(s) return s; }
 }
 
-/* ---- Botões nas linhas quando o modo edição está ligado (só aparecem os que a pessoa pode usar) ---- */
+/* ---- Botões nos cartões: o azul é sempre o PRÓXIMO PASSO daquela embarcação (só aparece o que a pessoa pode fazer) ---- */
 function botoes(s){
-  var h = "";
-  if(podeEditar(s)) h += '<button class="btn" type="button" data-ed="'+esc(s.id)+'">✏️ Editar</button>';
-  if(podeExcluir()) h += '<button class="btn dng" type="button" data-del="'+esc(s.id)+'">Excluir</button>';
+  var k = sitKey(s), h = "";
+  function b(act, rot, cls){ return '<button class="btn'+(cls ? " "+cls : "")+'" type="button" data-act="'+act+'" data-id="'+esc(s.id)+'">'+rot+'</button>'; }
+  var mover = function(dest){ return !!permCampos(k, dest); };
+  if(k === "rascunhos" && mover("previstos")) h += b("editar", "Revisar e publicar", "pri");
+  if(k === "previstos"){ if(mover("fundeados")) h += b("fundear", "Confirmar chegada", "pri"); if(mover("atracados")) h += b("atracar", "Já atracou"); }
+  if(k === "fundeados" && mover("atracados")) h += b("atracar", "Registrar atracação", "pri");
+  if(k === "atracados"){ if(pode(k, k, "ton_movimentada")) h += b("operacao", "Atualizar operação"); if(mover("desatracados")) h += b("desatracar", "Registrar desatracação", "pri"); }
+  if(k !== "rascunhos" && podeEditar(s)) h += b("editar", "✏️ Editar");
+  if(podeExcluir(s)) h += b("excluir", k === "rascunhos" ? "Descartar" : "Excluir", "dng");
+  return h;
+}
+function chipsDe(s){   /* avisos curtos para quem edita: o que ainda falta */
+  var k = sitKey(s), r = s.rec, h = "";
+  if(k === "rascunhos"){
+    var f = faltaPublicar(r);
+    h = f.length ? '<span class="chip warn">Rascunho · falta: '+esc(f.join(", "))+'</span>' : '<span class="chip ok">Rascunho · pronto para publicar</span>';
+  } else if(k === "atracados" && permCampos(k, k)){
+    var m = faltaManobra(r, ""); if(m.length) h = '<span class="chip warn">Manobra de atracação incompleta: '+esc(m.join(", "))+'</span>';
+  } else if(k === "desatracados" && permCampos(k, k)){
+    var d = parseDate(r.saida); if(d && Date.now() - +d < 48 * 36e5){ var m2 = faltaManobra(r, "d_"); if(m2.length) h = '<span class="chip warn">Manobra de desatracação incompleta: '+esc(m2.join(", "))+'</span>'; }
+  }
   return h;
 }
 function row(s, lista){
   var h = rowBase(s, lista);
   if(!EDIT.on) return h;
-  var b = botoes(s); if(!b) return h;
-  return h.replace(/<\/div>$/, '<div class="acts">'+b+'</div></div>');
+  var b = botoes(s), c = chipsDe(s); if(!b && !c) return h;
+  return h.replace(/<\/div>$/, '<div class="acts">'+c+b+'</div></div>');
 }
 function setMode(){
   E("editbar").hidden = !EDIT.on; E("btn-login").hidden = EDIT.on;
   var et = EDIT.admin ? "Administrador" : EDIT.etapas.map(function(e){ return ETAPA_NOME[e]; }).join(", ");
   E("who").textContent = EDIT.on ? EDIT.nome + (EDIT.cargo ? " · " + EDIT.cargo : "") + " — " + (et || "sem etapa") : "";
-  E("btn-new").hidden = !sitsCriar().length; E("btn-aviso").hidden = !podeAviso();
-  renderPanel();
+  E("btn-new").hidden = !opcoesNovo().length; E("btn-aviso").hidden = !podeAviso();
+  if(!verRascunhos() && state.tab === "rascunhos") state.tab = TELA_INICIAL;
+  renderAll();
 }
 function entrou(j){
   EDIT.on = true; EDIT.token = j.token || EDIT.token; EDIT.usuario = j.usuario; EDIT.nome = j.nome; EDIT.cargo = j.cargo || ""; EDIT.etapas = j.etapas || []; EDIT.admin = !!j.admin;
@@ -210,66 +279,404 @@ function openSenha(){
   };
 }
 
-function campoHtml(f, v, rec){
-  var c;
-  if(f.t === "dec") v = v.replace(".", ",");
-  if(f.t === "dt") c = '<input type="datetime-local" id="f_'+f.k+'" value="'+dtIn(v)+'">';
-  else if(f.t === "hm") c = '<input type="time" id="f_'+f.k+'" value="'+esc(v)+'">';
-  else if(f.t === "ta") c = '<textarea id="f_'+f.k+'" rows="3">'+esc(v)+'</textarea>';
-  else if(f.t === "bordo"){
-    var ob = [["", "—"], ["Boreste", "Boreste (lado direito da embarcação)"], ["Bombordo", "Bombordo (lado esquerdo da embarcação)"]];
-    if(v && !ob.some(function(x){ return x[0] === v; })) ob.push([v, v]);
-    c = '<select id="f_bordo">'+ob.map(function(x){ return '<option value="'+esc(x[0])+'"'+(x[0]===v?" selected":"")+'>'+esc(x[1])+'</option>'; }).join("")+'</select>';
-  } else if(f.t === "cais"){
-    var o = ["", "00-TA"]; for(var i=1;i<=9;i++) o.push(String(i)); o.push("MARINA"); if(v && o.indexOf(v)<0) o.push(v);
-    c = '<select id="f_cais">'+o.map(function(x){ return '<option value="'+esc(x)+'"'+(x===v?" selected":"")+'>'+(x ? ((isNaN(x) && x !== "00-TA") ? esc(x) : "Berço "+esc(x)) : "Sem berço")+'</option>'; }).join("")+'</select>';
-  } else if(f.t === "op"){
-    c = '<input id="f_operacao" list="dl_operacao" autocomplete="off" placeholder="escolha ou digite" value="'+esc(v)+'"><datalist id="dl_operacao"></datalist>';
-  } else if(!f.t){
-    c = '<input id="f_'+f.k+'" list="dl_'+f.k+'" autocomplete="off" value="'+esc(v)+'"><datalist id="dl_'+f.k+'"></datalist>';
-  } else c = '<input id="f_'+f.k+'"'+(f.t==="num"?' inputmode="numeric"':f.t==="dec"?' inputmode="decimal"':"")+' value="'+esc(v)+'">';
-  return '<label'+(f.w?' class="w"':"")+'><span id="l_'+f.k+'">'+f.l+'</span>'+c+'</label>';
+/* =====================================================================================
+   FORMULÁRIOS POR ETAPA
+   Cada etapa é um "bloco" com poucos campos. Campos: [chave, rótulo, opções].
+   opções: req (sempre obrigatório) · pub (obrigatório para publicar no MEP) · pubc (idem, só se tiver carga)
+           t (tipo) · w (linha inteira) · agora (botão "Agora") · def:"now" (já vem com a hora de agora ao avançar de etapa)
+   ===================================================================================== */
+function manobraCampos(p){
+  var d = p === "d_";
+  return [
+    [p+"hora_pratico", "Prático a bordo (POB)", {t:"hm", agora:1}],
+    [p+"inicio_manobra", "Início da manobra (BOSP)", {t:"hm", agora:1}],
+    [p+"hora_amarracao", d ? "Largada do último cabo" : "Amarração do último cabo (ATB)", {t:"hm", agora:1}],
+    [p+"termino_manobra", d ? "Término da manobra" : "Término da manobra (ATB)", {t:"hm", agora:1}],
+    [p+"bordo", d ? "Bordo de desatracação" : "Bordo de atracação", {t:"bordo"}],
+    [p+"pratico", "Prático (nome)", {}],
+    [p+"calado_proa", d ? "Calado proa na saída (m)" : "Calado proa (m)", {t:"dec"}],
+    [p+"calado_popa", d ? "Calado popa na saída (m)" : "Calado popa (m)", {t:"dec"}],
+    [p+"cabecos", "Cabeços de amarração (ex.: 47, 50, 53, 57)", {w:1}],
+    [p+"rebocadores", "Rebocadores", {w:1}]
+  ];
 }
-function openForm(s){
-  var rec = s ? s.rec : {}, atual = s ? sitKey(s) : "", opcoes = sitsCriar();
-  if(s && !opcoes.some(function(x){ return x[0] === atual; })) opcoes = SITS.filter(function(x){ return x[0] === atual; }).concat(opcoes);
-  var ini = s ? atual : (opcoes.some(function(x){ return x[0] === state.tab; }) ? state.tab : opcoes[0][0]);
-  var html = '<h2>'+(s ? "Editar embarcação" : "Nova embarcação")+'</h2><div class="fg"><label class="w"><span>Situação (para mover a embarcação de lista, mude aqui)</span><select id="f_sit"'+(opcoes.length < 2 ? " disabled" : "")+'>'+
-    opcoes.map(function(x){ return '<option value="'+x[0]+'"'+(x[0]===ini?" selected":"")+'>'+x[2]+'</option>'; }).join("")+'</select></label></div><p class="nota" id="nota"></p>';
-  SECOES.forEach(function(sec){
-    html += '<fieldset class="sec"><legend>'+sec[0]+'</legend><div class="fg">'+sec[1].map(function(f){ return campoHtml(f, rec[f.k] == null ? "" : String(rec[f.k]), rec); }).join("")+'</div></fieldset>';
-  });
-  html += '<div class="msg" id="fmsg"></div><div class="btns">'+(s ? '<button class="btn ghost" id="fhist" type="button">Histórico</button><span class="sp"></span>' : "")+'<button class="btn" data-x type="button">Cancelar</button><button class="btn pri" id="fgo" type="button">Salvar</button></div>';
-  var d = dlg(html, true);
-  carregarSug();
-  function aplicar(){   /* nomes dos campos e quais ficam liberados para esta pessoa, conforme a situação escolhida */
-    var nova = E("f_sit").value, perm = permCampos(atual, nova), bloq = 0;
-    FIELDS.forEach(function(f){
-      E("l_"+f.k).textContent = rotulo(f.k, nova, f.l);
-      var off = !perm || (!perm.todos && !perm.set[f.k]); E("f_"+f.k).disabled = off; if(off) bloq++;
-    });
-    E("nota").textContent = bloq ? "Campos em cinza pertencem a outra etapa e não podem ser alterados por você." : "";
-    E("fgo").disabled = !perm;
+function bloco(id, sit){
+  var pre = sit === "rascunhos" || sit === "previstos";
+  if(id === "dados"){
+    var c = [["navio","Nome da embarcação",{w:1,req:1}], ["imo","IMO",{t:"imo"}], ["agencia","Agência de navegação",{pub:1}], ["operador","Operador portuário",{}],
+             ["operacao","Operação",{t:"op",w:1,pub:1}], ["carga","Carga",{pubc:1}], ["ton_prevista","Toneladas previstas",{t:"num",pubc:1}]];
+    if(pre) c.push(["chegada","Previsão de chegada (ETA)",{t:"dt",pub:1}], ["cais","Berço previsto",{t:"cais",pub:1}]);
+    var mais = [["nacionalidade","Bandeira",{}], ["comprimento","Comprimento (m)",{t:"dec"}], ["calado","Calado máximo (m)",{t:"dec"}], ["origem_destino","Origem / destino da carga",{}], ["porto_anterior","Porto anterior",{}], ["proximo_porto","Próximo porto",{}]];
+    if(pre) mais.push(["previsao_atracacao","Previsão de atracação (POB)",{t:"dt"}], ["saida","Previsão de saída (ETD)",{t:"dt"}], ["observacoes","Observações",{t:"ta",w:1}]);
+    return {id:"dados", t:"Embarcação e carga", secs:[{c:c}], mais:mais};
   }
-  E("f_sit").onchange = aplicar; aplicar();
-  if(s) E("fhist").onclick = function(){ openHist(s); };
-  E("fgo").onclick = function(){
-    var sit = SITS.filter(function(x){ return x[0] === E("f_sit").value; })[0], reg = {id:s ? s.id : "", situacao:sit[1], versao:s ? rec.atualizado_em : undefined}, bad = "";
-    FIELDS.forEach(function(f){
-      var el = E("f_"+f.k); if(el.disabled) return;   /* só envia o que a pessoa pode alterar */
-      var x = el.value.trim();
-      reg[f.k] = f.t === "dt" ? dtOut(x) : f.t === "num" ? x.replace(/\D/g, "") : x;
+  if(id === "fundeio") return {id:"fundeio", t:"Chegada", secs:[{c:[["chegada","Chegada confirmada (fundeio)",{t:"dt",req:1,agora:1,def:"now"}], ["cais","Berço previsto",{t:"cais"}], ["previsao_atracacao","Previsão de atracação (POB)",{t:"dt"}], ["saida","Previsão de saída (ETD)",{t:"dt"}], ["observacoes","Observações",{t:"ta",w:1}]]}]};
+  if(id === "atracacao"){
+    var m = manobraCampos("");
+    return {id:"atracacao", t:"Atracação", secs:[
+      {c:[["chegada","Data e hora da atracação",{t:"dt",req:1,agora:1,def:"now"}], ["cais","Berço atracado",{t:"cais",req:1}], ["cbo","CBO (registro da atracação)",{t:"cbo"}], ["nr_livro","Nº no livro de registro",{}]]},
+      {t:"Manobra de atracação", c:m}]};
+  }
+  if(id === "operacao") return {id:"operacao", t:"Operação", secs:[{c:[["ton_movimentada","Toneladas movimentadas até agora",{t:"num"}], ["saida","Previsão de saída (ETD)",{t:"dt"}], ["observacoes","Observações",{t:"ta",w:1}]]}]};
+  if(id === "desatracacao") return {id:"desatracacao", t:"Desatracação", secs:[
+    {c:[["saida","Data e hora da saída (desatracação)",{t:"dt",req:1,agora:1,def:"now"}], ["ton_movimentada","Tonelagem final (t)",{t:"num"}]]},
+    {t:"Manobra de desatracação", c:manobraCampos("d_")},
+    {c:[["observacoes","Observações",{t:"ta",w:1}]]}]};
+}
+function todosCampos(b){ var o = []; b.secs.forEach(function(s){ s.c.forEach(function(f){ o.push(f); }); }); (b.mais || []).forEach(function(f){ o.push(f); }); return o; }
+
+function opcoesNovo(){
+  var o = [
+    ["rascunhos", "Nova previsão", "O agente de navegação informou o navio. Fica em rascunho, só aqui dentro, até você publicar no MEP."],
+    ["fundeados", "Embarcação que já chegou", "Já está fundeada, esperando para atracar."],
+    ["atracados", "Embarcação que já atracou", "Registre a atracação e a manobra."],
+    ["desatracados", "Embarcação que já saiu", "Para completar o histórico."]
+  ];
+  return o.filter(function(x){ return podeCriar(x[0]); });
+}
+
+function passosHtml(para){
+  return '<ol class="steps" aria-label="Etapas">' + PASSOS.map(function(p){
+    var c = ORDEM[p[0]] < ORDEM[para] ? "ok" : p[0] === para ? "cur" : "";
+    return '<li class="'+c+'"'+(c === "cur" ? ' aria-current="step"' : "")+'>'+p[1]+'</li>';
+  }).join("") + '</ol>';
+}
+function valorIni(f, rec, ctx){
+  var k = f[0], o = f[2] || {}, v = rec[k] == null ? "" : String(rec[k]);
+  if(o.def === "now" && ctx.avanco) return agoraDt();
+  if(o.t === "dt") return dtIn(v);
+  if(o.t === "dec") return v.replace(".", ",");
+  return v;
+}
+function campoHtml(f, rec, ctx){
+  var k = f[0], lab = f[1], o = f[2] || {}, t = o.t || "", v = valorIni(f, rec, ctx), id = "f_"+k, base = k.replace(/^d_/, ""), c;
+  var list = SUG_CAMPOS.indexOf(base) >= 0 ? ' list="dl_'+base+'" autocomplete="off"' : "";
+  var agora = o.agora ? '<button type="button" class="agora" data-agora="'+k+'">Agora</button>' : "";
+  if(t === "dt") c = '<div class="inl"><input type="datetime-local" id="'+id+'" value="'+esc(v)+'">'+agora+'</div>';
+  else if(t === "hm") c = '<div class="inl"><input type="time" id="'+id+'" value="'+esc(v)+'">'+agora+'</div>';
+  else if(t === "ta") c = '<textarea id="'+id+'" rows="3">'+esc(v)+'</textarea>';
+  else if(t === "bordo"){
+    var ob = [["", "—"], ["Boreste", "Boreste (lado direito)"], ["Bombordo", "Bombordo (lado esquerdo)"]];
+    if(v && !ob.some(function(x){ return x[0] === v; })) ob.push([v, v]);
+    c = '<select id="'+id+'">'+ob.map(function(x){ return '<option value="'+esc(x[0])+'"'+(x[0] === v ? " selected" : "")+'>'+esc(x[1])+'</option>'; }).join("")+'</select>';
+  } else if(t === "cais"){
+    var oc = ocupacao(ctx.id), op = ["", "00-TA"]; for(var i = 1; i <= 9; i++) op.push(String(i)); op.push("MARINA"); if(v && op.indexOf(v) < 0) op.push(v);
+    c = '<select id="'+id+'">'+op.map(function(x){
+      var nome = x ? ((isNaN(x) && x !== "00-TA") ? x : "Berço " + x) : "Sem berço", kk = caisKeys(x)[0], oc2 = (ctx.ocupados && kk && oc[kk]) ? " · ocupado: " + oc[kk][0] : "";
+      return '<option value="'+esc(x)+'"'+(x === v ? " selected" : "")+'>'+esc(nome + oc2)+'</option>'; }).join("")+'</select>';
+  } else if(t === "op"){
+    c = '<div class="seg2" id="opseg" role="group" aria-label="Operação"><button type="button" data-op="IMPORTAÇÃO">Importação</button><button type="button" data-op="EXPORTAÇÃO">Exportação</button><button type="button" data-op="SERV">Serviço (sem carga)</button></div>' +
+        '<input id="f_servico" list="dl_servico" autocomplete="off" placeholder="Qual serviço? Ex.: Dragagem" hidden><input type="hidden" id="f_operacao" value="'+esc(v)+'">';
+  } else if(t === "cbo"){
+    c = '<input id="'+id+'" inputmode="numeric" maxlength="7" placeholder="0000/26" autocomplete="off" value="'+esc(v)+'"><div class="chips" id="sug_cbo"></div>';
+  } else if(t === "imo"){
+    c = '<input id="'+id+'" inputmode="numeric" maxlength="9" placeholder="Só números" autocomplete="off" value="'+esc(v)+'">';
+  } else c = '<input id="'+id+'"'+list+(t === "num" ? ' inputmode="numeric"' : t === "dec" ? ' inputmode="decimal"' : "")+' value="'+esc(v)+'">';
+  return '<label'+(o.w ? ' class="w"' : "")+' data-k="'+k+'"><span id="l_'+k+'">'+esc(lab)+'<i class="rq" hidden> *</i></span>'+c+'<small class="fh" id="h_'+k+'"></small><small class="fe" id="e_'+k+'"></small></label>';
+}
+function paneHtml(b, rec, ctx){
+  var h = b.info ? '<p class="info">'+b.info+'</p>' : "";
+  b.secs.forEach(function(s){ h += (s.t ? '<h3 class="st">'+esc(s.t)+'</h3>' : "") + '<div class="fg">'+s.c.map(function(f){ return campoHtml(f, rec, ctx); }).join("")+'</div>'; });
+  if(b.mais && b.mais.length){
+    var tem2 = b.mais.some(function(f){ return String(rec[f[0]] == null ? "" : rec[f[0]]).trim() !== ""; });
+    h += '<details class="mais"'+(tem2 ? " open" : "")+'><summary>Mais detalhes (opcional)</summary><div class="fg">'+b.mais.map(function(f){ return campoHtml(f, rec, ctx); }).join("")+'</div></details>';
+  }
+  return h;
+}
+
+/* Abre a janela de uma etapa. cfg: {s, titulo, sub, para, blocos, acoes:[{rot,sit,toast,pri,id}], avanco, preValidar, rodape} */
+function abrirForm(cfg){
+  var s = cfg.s, rec = s ? s.rec : {}, atual = s ? sitKey(s) : "", destPerm = permCampos(atual, cfg.acoes[0].sit);
+  if(!destPerm){ toast("Você não é responsável por esta etapa.", true); return; }
+  var ctx = {id:s ? s.id : "", avanco:!!cfg.avanco, ocupados:cfg.acoes[0].sit === "atracados"};
+  var blocos = cfg.blocos.map(function(b){
+    var ok = function(f){ return destPerm.todos || destPerm.set[f[0]]; };
+    b.secs = b.secs.map(function(sc){ return {t:sc.t, c:sc.c.filter(ok)}; }).filter(function(sc){ return sc.c.length; });
+    if(b.mais) b.mais = b.mais.filter(ok);
+    return b;
+  }).filter(function(b){ return b.secs.length || (b.mais && b.mais.length); });
+  if(!blocos.length){ toast("Não há nada para você preencher nesta etapa.", true); return; }
+  cfg.blocos = blocos;
+  var html = '<div class="dh"><h2>'+esc(cfg.titulo)+'</h2>'+(cfg.sub ? '<p class="dsub">'+cfg.sub+'</p>' : "")+passosHtml(cfg.para)+(cfg.acoes.some(function(a){ return a.sit === "previstos"; }) ? '<p class="nota">Campos com * são obrigatórios para publicar.</p>' : "")+'</div>';
+  if(blocos.length > 1) html += '<div class="tabs2" role="tablist">'+blocos.map(function(b, i){ return '<button type="button" role="tab" class="t2" data-tab="'+b.id+'" aria-selected="'+(i === 0)+'">'+esc(b.t)+'<i class="dot" hidden></i></button>'; }).join("")+'</div>';
+  blocos.forEach(function(b, i){ html += '<div class="tp" data-pane="'+b.id+'"'+(i ? " hidden" : "")+'>'+paneHtml(b, rec, ctx)+'</div>'; });
+  html += SUG_CAMPOS.map(function(k){ return '<datalist id="dl_'+k+'"></datalist>'; }).join("") + '<datalist id="dl_servico"></datalist>';
+  html += '<div class="avs" id="avs" aria-live="polite"></div><div class="btns">'+(cfg.rodape || "")+'<button class="btn" data-cx type="button">Cancelar</button>'+
+    cfg.acoes.map(function(a, i){ return '<button class="btn'+(a.pri ? " pri" : "")+'" data-go="'+i+'" type="button">'+esc(a.rot)+'</button>'; }).join("")+'</div>';
+  var d = dlg(html, true), sujo = false, ack = "";
+  carregarSug();
+  var q = function(sel){ return d.querySelector(sel); }, F = function(k){ return d.querySelector("#f_"+k); };
+  var campos = []; blocos.forEach(function(b){ todosCampos(b).forEach(function(f){ campos.push({k:f[0], l:f[1], o:f[2] || {}, b:b.id}); }); });
+
+  /* --- fechar sem perder o que foi digitado por engano --- */
+  function fechar(){ if(sujo && !confirm("Descartar o que você preencheu?")) return; d.close(); }
+  d.addEventListener("cancel", function(e){ if(sujo && !confirm("Descartar o que você preencheu?")) e.preventDefault(); });
+  q("[data-cx]").onclick = fechar;
+  d.addEventListener("input", function(){ sujo = true; ack = ""; limparAvisos(); });
+  d.addEventListener("change", function(){ sujo = true; });
+
+  /* --- abas --- */
+  function aba(id){
+    Array.prototype.forEach.call(d.querySelectorAll(".tp"), function(p){ p.hidden = p.getAttribute("data-pane") !== id; });
+    Array.prototype.forEach.call(d.querySelectorAll(".t2"), function(t){ t.setAttribute("aria-selected", String(t.getAttribute("data-tab") === id)); });
+  }
+  Array.prototype.forEach.call(d.querySelectorAll(".t2"), function(t){ t.onclick = function(){ aba(t.getAttribute("data-tab")); }; });
+
+  /* --- botão "Agora" --- */
+  d.addEventListener("click", function(e){
+    var b = e.target.closest("[data-agora]"); if(!b) return;
+    var k = b.getAttribute("data-agora"), el = F(k); if(!el) return;
+    el.value = el.type === "time" ? agoraHm() : agoraDt(); sujo = true; ack = ""; limparAvisos(); el.dispatchEvent(new Event("input", {bubbles:true}));
+  });
+
+  /* --- operação: importação / exportação / serviço (esconde o que não se aplica) --- */
+  var seg = q("#opseg"), modo = "";
+  function aplicarOp(){
+    if(!seg) return;
+    var v = F("operacao").value;
+    modo = v === "IMPORTAÇÃO" || v === "EXPORTAÇÃO" ? v : (v || modo === "SERV") ? "SERV" : "";
+    Array.prototype.forEach.call(seg.querySelectorAll("button"), function(b){ b.setAttribute("aria-pressed", String(b.getAttribute("data-op") === modo)); });
+    var sv = F("servico"); sv.hidden = modo !== "SERV";
+    ["carga","ton_prevista"].forEach(function(k){ var el = F(k); if(el) el.closest("label").hidden = modo === "SERV"; });
+    var od = d.querySelector('[data-k="origem_destino"]'); if(od){ od.hidden = modo === "SERV"; var sp = q("#l_origem_destino"); if(sp) sp.firstChild.nodeValue = modo === "IMPORTAÇÃO" ? "Origem da carga" : modo === "EXPORTAÇÃO" ? "Destino da carga" : "Origem / destino da carga"; }
+  }
+  if(seg){
+    var v0 = F("operacao").value; if(v0 && !comCarga(v0)){ F("servico").value = v0; }
+    seg.addEventListener("click", function(e){
+      var b = e.target.closest("[data-op]"); if(!b) return;
+      var op = b.getAttribute("data-op"); modo = op;
+      F("operacao").value = op === "SERV" ? (F("servico").value.trim().toUpperCase()) : op;
+      aplicarOp(); sujo = true; ack = ""; limparAvisos(); if(op === "SERV") F("servico").focus();
     });
-    var val = function(k){ return Object.prototype.hasOwnProperty.call(reg, k) ? reg[k] : (rec[k] == null ? "" : String(rec[k])); };
-    if(!s || sit[0] !== atual){
-      if(!val("navio")) bad = "Escreva o nome da embarcação.";
-      else if(!val("chegada") && !(sit[0] === "desatracados" && val("saida"))) bad = "Informe a data e a hora (previsão de chegada, chegada ou atracação).";
-      else if(sit[0] === "atracados" && !val("cais")) bad = "Escolha o berço onde a embarcação está atracada.";
-    } else if(E("f_navio") && !E("f_navio").disabled && !reg.navio) bad = "Escreva o nome da embarcação.";
-    if(bad){ say("fmsg", bad, true); return; }
-    E("fgo").disabled = true; say("fmsg", "Salvando…");
-    post({acao:"salvar", registro:reg}).then(function(){ d.close(); state.tab = sit[0]; toast("Salvo."); refresh(); },
-      function(e){ E("fgo").disabled = false; say("fmsg", e.message, true); });
+    F("servico").addEventListener("input", function(){ F("operacao").value = F("servico").value.trim().toUpperCase(); });
+    aplicarOp();
+  }
+
+  /* --- IMO e CBO: formatam sozinhos --- */
+  if(F("imo")) F("imo").addEventListener("input", function(){ this.value = this.value.replace(/\D/g, "").slice(0, 7); });
+  if(F("cbo")){
+    var cb = F("cbo");
+    cb.addEventListener("input", function(){
+      var n = this.value.replace(/[^\d]/g, "").slice(0, 6); this.value = n.length > 4 ? n.slice(0, 4) + "/" + n.slice(4) : n;
+    });
+    cb.addEventListener("blur", function(){ var m = /^(\d{1,4})$/.exec(this.value); if(m) this.value = ("000" + m[1]).slice(-4) + "/" + p2(new Date().getFullYear() % 100); });
+    var sg = q("#sug_cbo");
+    function pintarCbo(){ if(cb.value) { sg.innerHTML = ""; return; } var p = proximoCbo(); sg.innerHTML = '<button type="button" class="chip pick" data-cbo="'+p+'">Usar '+p+' (próximo da sequência)</button>'; }
+    sg.addEventListener("click", function(e){ var b = e.target.closest("[data-cbo]"); if(!b) return; cb.value = b.getAttribute("data-cbo"); sg.innerHTML = ""; sujo = true; });
+    pintarCbo(); setTimeout(pintarCbo, 1500); cb.addEventListener("input", function(){ if(cb.value) sg.innerHTML = ""; });
+  }
+
+  /* --- nome conhecido: preenche os dados fixos do navio e avisa se já está em andamento --- */
+  function conhecer(){
+    var nm = F("navio") ? F("navio").value.trim() : "", im = F("imo") ? F("imo").value.trim() : "";
+    var hn = q("#h_navio"), en = q("#e_navio"); if(!hn) return;
+    hn.textContent = ""; en.innerHTML = ""; if(F("navio")) F("navio").closest("label").classList.remove("err");
+    if(!nm && !im) return;
+    var dup = (cfg.acoes[0].sit !== "desatracados") ? emAndamento(nm, im, ctx.id) : null;
+    if(dup){
+      F("navio").closest("label").classList.add("err");
+      en.innerHTML = esc(dup.navio)+' já está em andamento ('+esc(dup.rec.situacao)+'). <button type="button" class="lk" data-abrir="'+esc(dup.id)+'">Abrir esse registro</button>';
+      return;
+    }
+    if(s) return;   /* só preenche automaticamente em cadastro novo */
+    var r = achaNavio(nm, im); if(!r) return;
+    var cp = {nacionalidade:r.nacionalidade, imo:r.imo, comprimento:r.comprimento, calado:r.calado, agencia:r.agencia, operador:r.operador}, pre = [];
+    Object.keys(cp).forEach(function(k){ var el = F(k), val = cp[k] == null ? "" : String(cp[k]); if(el && !el.value && val){ el.value = String(val).replace(".", ","); pre.push(k); } });
+    if(!F("navio").value && r.navio) F("navio").value = r.navio;
+    if(!F("operacao") || !F("operacao").value){ if(r.operacao && F("operacao")){ F("operacao").value = r.operacao; if(F("servico") && !comCarga(r.operacao)) F("servico").value = r.operacao; aplicarOp(); pre.push("operacao"); } }
+    if(F("carga") && !F("carga").value && r.carga && comCarga(r.operacao)){ F("carga").value = r.carga; pre.push("carga"); }
+    var dd = parseDate(r.saida || r.chegada);
+    hn.textContent = "Já esteve no porto" + (dd ? " em " + fmt(r.saida || r.chegada).split(" · ")[0] : "") + (pre.length ? ". Preenchemos os dados dele — confira." : ".");
+  }
+  if(F("navio")){ F("navio").addEventListener("change", conhecer); F("navio").addEventListener("blur", conhecer); if(F("imo")) F("imo").addEventListener("change", conhecer); }
+  d.addEventListener("click", function(e){
+    var b = e.target.closest("[data-abrir]"); if(!b) return;
+    var it = findItem(b.getAttribute("data-abrir")); sujo = false; d.close(); if(it) editar(it);
+  });
+
+  /* --- leitura e conferência --- */
+  function ler(){
+    var v = {};
+    campos.forEach(function(c){
+      var el = F(c.k), o = c.o; if(!el) return;
+      var lb = el.closest("label"); if(lb && lb.hidden) return;
+      var x = el.value.trim(), t = o.t;
+      v[c.k] = t === "dt" ? dtOut(x) : t === "num" ? x.replace(/\D/g, "") : t === "imo" ? x.replace(/\D/g, "") : t === "cbo" ? x.toUpperCase() : x;
+    });
+    if(F("operacao")){ if(modo === "SERV") v.operacao = F("servico").value.trim().toUpperCase(); else v.operacao = F("operacao").value; }
+    return v;
+  }
+  function limparAvisos(){ var a = q("#avs"); if(a && !a.getAttribute("data-fixo")) { a.innerHTML = ""; } }
+  function limparErros(){
+    Array.prototype.forEach.call(d.querySelectorAll("label.err"), function(l){ l.classList.remove("err"); });
+    Array.prototype.forEach.call(d.querySelectorAll(".fe"), function(x){ if(!x.querySelector("[data-abrir]")) x.textContent = ""; });
+    Array.prototype.forEach.call(d.querySelectorAll(".dot"), function(x){ x.hidden = true; });
+    var a = q("#avs"); a.innerHTML = ""; a.removeAttribute("data-fixo");
+  }
+  function marcar(k, msg, erros){ erros.push([k, msg]); }
+  function checar(acao, v){
+    var erros = [], avs = [], dest = acao.sit, val = function(k){ return Object.prototype.hasOwnProperty.call(v, k) ? v[k] : (rec[k] == null ? "" : String(rec[k])); };
+    var serv = modo === "SERV";
+    /* obrigatórios */
+    campos.forEach(function(c){
+      if(!Object.prototype.hasOwnProperty.call(v, c.k)) return;
+      var o = c.o, obrig = !!o.req;
+      if(dest === "previstos"){ if(o.pub) obrig = true; if(o.pubc) obrig = modo === "IMPORTAÇÃO" || modo === "EXPORTAÇÃO"; }   /* carga e toneladas só se for importação/exportação */
+      if(obrig && !v[c.k]) marcar(c.k, o.req ? "Obrigatório." : "Obrigatório para publicar no MEP.", erros);
+    });
+    if(serv && F("operacao") && !v.operacao) marcar("operacao", "Diga qual é o serviço.", erros);
+    /* formatos */
+    if(v.imo){ if(!/^\d{6,7}$/.test(v.imo)) marcar("imo", "O IMO tem 6 ou 7 números.", erros); else if(!imoOk(v.imo)) avs.push("O IMO " + v.imo + " não passa na conferência do dígito final. Confira com o agente."); }
+    if(v.cbo){
+      if(!/^\d{4}\/\d{2}$/.test(v.cbo)) marcar("cbo", "Use o formato 0000/26.", erros);
+      else { var outro = todosRegistros().filter(function(r){ return r.id !== ctx.id && String(r.cbo||"").trim() === v.cbo; })[0]; if(outro) marcar("cbo", "O CBO " + v.cbo + " já é de " + outro.navio + ".", erros); }
+    }
+    var faixa = {comprimento:[5,450], calado:[0.5,25], calado_proa:[0.5,25], calado_popa:[0.5,25], d_calado_proa:[0.5,25], d_calado_popa:[0.5,25], ton_prevista:[0,500000], ton_movimentada:[0,500000]};
+    Object.keys(faixa).forEach(function(k){
+      if(!v[k]) return; var n = parseFloat(String(v[k]).replace(/\./g, "").replace(",", "."));
+      if(isNaN(n) || n < faixa[k][0] || n > faixa[k][1]) marcar(k, "Valor fora do normal. Confira o número e a vírgula.", erros);
+    });
+    /* duplicidade */
+    if(dest !== "desatracados" && v.navio !== undefined){
+      var dup = emAndamento(v.navio, v.imo || "", ctx.id); if(dup) marcar("navio", dup.navio + " já está em andamento (" + dup.rec.situacao + ").", erros);
+    }
+    /* datas */
+    var t = function(k){ var x = parseDate(val(k)); return x ? +x : null; }, agora = Date.now();
+    if(dest === "previstos" || dest === "rascunhos"){
+      if(t("chegada") && t("saida") && t("saida") < t("chegada")) marcar("saida", "A saída não pode ser antes da chegada.", erros);
+      if(dest === "previstos" && v.chegada && t("chegada") < agora - 864e5 && (!s || sitKey(s) === "rascunhos" || cfg.avanco)) avs.push("A previsão de chegada já passou. Confirme a data, ou use \"Confirmar chegada\" se o navio já chegou.");
+    }
+    if(dest === "atracados"){
+      var at = t("chegada");
+      if(at && Object.prototype.hasOwnProperty.call(v, "chegada") && at > agora + 2 * 36e5) avs.push("A data e hora da atracação está no futuro.");
+      if(v.saida && at && t("saida") < at) marcar("saida", "A previsão de saída não pode ser antes da atracação.", erros);
+      if(v.cais){ var oc = ocupacao(ctx.id), ks = caisKeys(v.cais), b = ks.filter(function(k){ return oc[k]; })[0]; if(b && Object.prototype.hasOwnProperty.call(v, "chegada")) avs.push("O berço " + b + " está ocupado por " + oc[b][0] + ". Se ele já saiu, registre primeiro a desatracação dele."); }
+      if(cfg.avanco || Object.prototype.hasOwnProperty.call(v, "hora_pratico")){
+        if(!ordemHoras([v.hora_pratico, v.inicio_manobra, v.hora_amarracao, v.termino_manobra])) avs.push("Confira os horários da manobra: estão fora de ordem ou passam de 6 horas.");
+        if(cfg.avanco){ var fm = []; if(!v.bordo) fm.push("bordo"); if(!v.hora_pratico) fm.push("hora do prático"); if(!v.hora_amarracao) fm.push("amarração"); if(fm.length) avs.push("Faltam dados da manobra: " + fm.join(", ") + ". Você pode completar depois em Editar."); }
+      }
+    }
+    if(dest === "desatracados"){
+      var ch = t("chegada"), sd = v.saida ? parseDate(v.saida) : null;
+      if(sd && ch && +sd < ch) marcar("saida", "A saída não pode ser antes da atracação" + (rec.chegada ? " (" + fmt(rec.chegada) + ")" : "") + ".", erros);
+      if(sd && +sd > agora + 2 * 36e5) avs.push("A data e hora da saída está no futuro.");
+      if(cfg.avanco || Object.prototype.hasOwnProperty.call(v, "d_hora_pratico")){
+        if(!ordemHoras([v.d_hora_pratico, v.d_inicio_manobra, v.d_hora_amarracao, v.d_termino_manobra])) avs.push("Confira os horários da manobra: estão fora de ordem ou passam de 6 horas.");
+        if(cfg.avanco){ var fd = []; if(!v.d_bordo) fd.push("bordo"); if(!v.d_hora_pratico) fd.push("hora do prático"); if(!v.d_hora_amarracao) fd.push("largada do último cabo"); if(fd.length) avs.push("Faltam dados da manobra: " + fd.join(", ") + ". Você pode completar depois em Editar."); }
+      }
+    }
+    if(Object.prototype.hasOwnProperty.call(v, "ton_movimentada") && v.ton_movimentada !== ""){
+      var mv = +v.ton_movimentada, pv = +(val("ton_prevista") || rec.ton_prevista || 0), antes = +(rec.ton_movimentada || 0);
+      if(pv > 0 && mv > pv * 1.1) avs.push("As toneladas movimentadas (" + num(mv) + ") passam 10% da prevista (" + num(pv) + "). Confira.");
+      if(s && sitKey(s) === "atracados" && antes > 0 && mv < antes) avs.push("O valor é menor que o último registrado (" + num(antes) + " t). Confira.");
+    }
+    return {erros:erros, avs:avs};
+  }
+  function mostrar(res){
+    limparErros();
+    var porAba = {}, primeiro = null;
+    res.erros.forEach(function(e){
+      var el = F(e[0]), lb = el && el.closest("label"); if(!lb) return;
+      lb.classList.add("err"); var fe = q("#e_"+e[0]); if(fe && !(e[0] === "navio" && fe.querySelector("[data-abrir]"))) fe.textContent = e[1];
+      var cm = campos.filter(function(c){ return c.k === e[0]; })[0]; if(cm){ porAba[cm.b] = 1; }
+      if(!primeiro) primeiro = el;
+    });
+    Array.prototype.forEach.call(d.querySelectorAll(".t2"), function(t){ var dot = t.querySelector(".dot"); if(dot) dot.hidden = !porAba[t.getAttribute("data-tab")]; });
+    var a = q("#avs");
+    if(res.erros.length) a.innerHTML = '<div class="bad">Falta acertar '+(res.erros.length === 1 ? "1 campo" : res.erros.length + " campos")+' (marcados em vermelho).</div>';
+    else if(res.avs.length) a.innerHTML = '<div class="warn">'+res.avs.map(function(x){ return "<p>"+esc(x)+"</p>"; }).join("")+'</div>';
+    if(primeiro){ var pane = primeiro.closest(".tp"); if(pane) aba(pane.getAttribute("data-pane")); var dt = primeiro.closest("details"); if(dt) dt.open = true; primeiro.scrollIntoView({block:"center", behavior:"smooth"}); try{ primeiro.focus({preventScroll:true}); }catch(x){} }
+  }
+  function enviar(acao, btn){
+    var v = ler(), res = checar(acao, v);
+    mostrar(res);
+    if(res.erros.length) return;
+    var sig = res.avs.join("|");
+    if(res.avs.length && ack !== sig){ ack = sig; btn.setAttribute("data-rot", btn.textContent); btn.textContent = "Salvar mesmo assim"; return; }
+    var reg = {id:s ? s.id : "", situacao:SITS.filter(function(x){ return x[0] === acao.sit; })[0][1], versao:s ? rec.atualizado_em : undefined};
+    Object.keys(v).forEach(function(k){ reg[k] = v[k]; });
+    Array.prototype.forEach.call(d.querySelectorAll("[data-go],[data-cx]"), function(b){ b.disabled = true; });
+    var a = q("#avs"); a.innerHTML = '<div class="msg">Salvando…</div>'; a.setAttribute("data-fixo", "1");
+    post({acao:"salvar", registro:reg}).then(function(){ sujo = false; d.close(); state.tab = acao.sit; toast(acao.toast || "Salvo."); SUG_CACHE = null; refresh(); },
+      function(e){ Array.prototype.forEach.call(d.querySelectorAll("[data-go],[data-cx]"), function(b){ b.disabled = false; }); a.removeAttribute("data-fixo"); a.innerHTML = '<div class="bad">'+esc(e.message)+'</div>'; });
+  }
+  Array.prototype.forEach.call(d.querySelectorAll("[data-go]"), function(b){ b.onclick = function(){ enviar(cfg.acoes[+b.getAttribute("data-go")], b); }; });
+  d.addEventListener("input", function(){ Array.prototype.forEach.call(d.querySelectorAll("[data-go]"), function(b){ if(b.getAttribute("data-rot")){ b.textContent = b.getAttribute("data-rot"); b.removeAttribute("data-rot"); } }); });
+  Array.prototype.forEach.call(d.querySelectorAll("[data-k]"), function(lb){ var k = lb.getAttribute("data-k"); var c = campos.filter(function(x){ return x.k === k; })[0]; if(!c) return; var o = c.o; var rq = lb.querySelector(".rq"); if(rq && (o.req || o.pub || o.pubc)) rq.hidden = !(o.req || cfg.acoes.some(function(a){ return a.sit === "previstos"; })); });
+  if(cfg.preValidar){ var a0 = cfg.acoes.filter(function(a){ return a.sit === cfg.preValidar; })[0]; if(a0) mostrar(checar(a0, ler())); }
+  if(cfg.aposAbrir) cfg.aposAbrir(d, F);
+  var primeiroCampo = d.querySelector(".tp:not([hidden]) input:not([type=hidden]):not([hidden]),.tp:not([hidden]) select"); if(primeiroCampo && !cfg.preValidar && window.matchMedia("(min-width:701px)").matches) primeiroCampo.focus();
+  return d;
+}
+
+/* ---- Os caminhos: cada um monta a janelinha da sua etapa ---- */
+function nomeNegrito(s){ return '<b>'+esc(s.navio)+'</b>'; }
+function novo(sit){
+  var ids = sit === "rascunhos" ? ["dados"] : sit === "fundeados" ? ["dados","fundeio"] : sit === "atracados" ? ["dados","atracacao"] : ["dados","atracacao","desatracacao"];
+  var acoes = {
+    rascunhos:[{rot:"Salvar rascunho", sit:"rascunhos", toast:"Rascunho salvo."}, {rot:"Publicar no MEP", sit:"previstos", pri:1, toast:"Publicado no MEP."}],
+    fundeados:[{rot:"Confirmar chegada", sit:"fundeados", pri:1, toast:"Chegada confirmada."}],
+    atracados:[{rot:"Registrar atracação", sit:"atracados", pri:1, toast:"Atracação registrada."}],
+    desatracados:[{rot:"Registrar desatracação", sit:"desatracados", pri:1, toast:"Desatracação registrada."}]
+  }[sit];
+  abrirForm({s:null, titulo:sit === "rascunhos" ? "Nova previsão" : "Nova embarcação", sub:sit === "rascunhos" ? "Preencha o que já sabe. Só o nome é obrigatório para guardar o rascunho; ele só aparece para o público depois de publicado." : "", para:sit, blocos:ids.map(function(i){ return bloco(i, sit); }), acoes:acoes, avanco:sit !== "rascunhos"});
+}
+function abrirNovo(){
+  var op = opcoesNovo(); if(!op.length) return;
+  if(op.length === 1){ novo(op[0][0]); return; }
+  var d = dlg('<h2>Nova embarcação</h2><p>Em que ponto ela está?</p><div class="escolha">'+op.map(function(x){ return '<button type="button" class="btn esc" data-novo="'+x[0]+'"><b>'+esc(x[1])+'</b><span>'+esc(x[2])+'</span></button>'; }).join("")+'</div><div class="btns"><button class="btn" data-x type="button">Cancelar</button></div>');
+  d.addEventListener("click", function(e){ var b = e.target.closest("[data-novo]"); if(!b) return; d.close(); novo(b.getAttribute("data-novo")); });
+}
+function editar(s, opts){
+  opts = opts || {};
+  var k = sitKey(s), ids = k === "rascunhos" || k === "previstos" ? ["dados"] : k === "fundeados" ? ["dados","fundeio"] : k === "atracados" ? ["dados","atracacao","operacao"] : ["dados","atracacao","desatracacao"];
+  var blocos = ids.map(function(i){ return bloco(i, k); });
+  if(k === "atracados" && s.rec.operacao && ehServico(s.rec.operacao)) blocos.forEach(function(b){ if(b.id === "operacao") b.secs[0].c = b.secs[0].c.filter(function(f){ return f[0] !== "ton_movimentada"; }); });
+  if(k === "atracados"){ var ob = blocos[2]; var pv = +s.rec.ton_prevista || 0, mv = +s.rec.ton_movimentada || 0; if(pv > 0 && !ehServico(s.rec.operacao)) ob.info = "Previsto <b>"+num(pv)+" t</b> · movimentado <b>"+num(mv)+" t</b> · saldo <b>"+num(pv - mv)+" t</b> ("+Math.min(100, Math.round(mv / pv * 100))+"%)."; }
+  var acoes = k === "rascunhos"
+    ? [{rot:"Salvar rascunho", sit:"rascunhos", toast:"Rascunho salvo."}, {rot:"Publicar no MEP", sit:"previstos", pri:1, toast:"Publicado no MEP."}]
+    : [{rot:"Salvar alterações", sit:k, pri:1, toast:"Alterações salvas."}];
+  var rod = "";
+  if(s.rec.id){ rod += '<button class="btn ghost" id="fhist" type="button">Histórico</button>'; }
+  var back = destinosVoltar(s); if(back.length) rod += '<button class="btn ghost" id="fvolta" type="button">'+(k === "previstos" && !EDIT.admin ? "Voltar para rascunho" : "Voltar etapa…")+'</button>';
+  rod += '<span class="sp"></span>';
+  var d = abrirForm({s:s, titulo:k === "rascunhos" ? "Rascunho" : "Editar embarcação", sub:nomeNegrito(s) + " · " + esc(s.rec.situacao), para:k, blocos:blocos, acoes:acoes, rodape:rod, preValidar:opts.preValidar || (k === "rascunhos" ? "previstos" : "")});
+  if(d){ var h = d.querySelector("#fhist"); if(h) h.onclick = function(){ openHist(s); }; var v = d.querySelector("#fvolta"); if(v) v.onclick = function(){ d.close(); voltar(s); }; }
+}
+function avancar(s, tipo){
+  var k = sitKey(s), cfg = {s:s, avanco:true, sub:nomeNegrito(s) + (s.cais ? " · berço " + esc(s.cais) : "")};
+  if(tipo === "fundear"){ cfg.titulo = "Confirmar chegada"; cfg.para = "fundeados"; cfg.blocos = [bloco("fundeio", "fundeados")]; cfg.acoes = [{rot:"Confirmar chegada", sit:"fundeados", pri:1, toast:"Chegada confirmada."}]; }
+  else if(tipo === "atracar"){ cfg.titulo = "Registrar atracação"; cfg.para = "atracados"; cfg.blocos = [bloco("atracacao", "atracados")]; cfg.acoes = [{rot:"Registrar atracação", sit:"atracados", pri:1, toast:"Atracação registrada."}]; }
+  else if(tipo === "desatracar"){
+    cfg.titulo = "Registrar desatracação"; cfg.para = "desatracados"; var b = bloco("desatracacao", "desatracados");
+    if(ehServico(s.rec.operacao)) b.secs[0].c = b.secs[0].c.filter(function(f){ return f[0] !== "ton_movimentada"; });
+    cfg.blocos = [b]; cfg.acoes = [{rot:"Registrar desatracação", sit:"desatracados", pri:1, toast:"Desatracação registrada."}];
+  }
+  else if(tipo === "operacao"){
+    cfg.titulo = "Atualizar operação"; cfg.para = "atracados"; cfg.avanco = false; var b2 = bloco("operacao", "atracados");
+    var pv = +s.rec.ton_prevista || 0, mv = +s.rec.ton_movimentada || 0;
+    if(ehServico(s.rec.operacao)) b2.secs[0].c = b2.secs[0].c.filter(function(f){ return f[0] !== "ton_movimentada"; });
+    else if(pv > 0) b2.info = "Previsto <b>"+num(pv)+" t</b> · movimentado <b>"+num(mv)+" t</b> · saldo <b>"+num(pv - mv)+" t</b> ("+Math.min(100, Math.round(mv / pv * 100))+"%).";
+    cfg.blocos = [b2]; cfg.acoes = [{rot:"Salvar operação", sit:"atracados", pri:1, toast:"Operação atualizada."}];
+  }
+  abrirForm(cfg);
+}
+function destinosVoltar(s){
+  var k = sitKey(s);
+  if(EDIT.admin) return SITS.filter(function(x){ return ORDEM[x[0]] < ORDEM[k]; });
+  if(k === "previstos" && tem("previsao")) return SITS.filter(function(x){ return x[0] === "rascunhos"; });
+  return [];
+}
+function voltar(s){
+  var op = destinosVoltar(s); if(!op.length) return;
+  var d = dlg('<h2>Voltar etapa</h2><p>'+nomeNegrito(s)+' está em <b>'+esc(s.rec.situacao)+'</b>. Os dados já preenchidos ficam guardados.</p><div class="fg one"><label class="w"><span>Voltar para</span><select id="vsel">'+op.map(function(x){ return '<option value="'+x[0]+'">'+esc(x[2])+'</option>'; }).join("")+'</select></label></div><p class="nota" id="vnota"></p><div class="msg" id="vmsg"></div><div class="btns"><button class="btn" data-x type="button">Cancelar</button><button class="btn pri" id="vgo" type="button">Voltar etapa</button></div>');
+  function nota(){ var v = E("vsel").value; E("vnota").textContent = v === "rascunhos" ? "Deixa de aparecer para o público no MEP." : ""; }
+  E("vsel").onchange = nota; nota();
+  E("vgo").onclick = function(){
+    var sit = SITS.filter(function(x){ return x[0] === E("vsel").value; })[0];
+    E("vgo").disabled = true; say("vmsg", "Salvando…");
+    post({acao:"salvar", registro:{id:s.id, situacao:sit[1], versao:s.rec.atualizado_em}}).then(function(){ d.close(); state.tab = sit[0]; toast("Voltou para " + sit[1] + "."); refresh(); },
+      function(e){ E("vgo").disabled = false; say("vmsg", e.message, true); });
   };
 }
 function openHist(s){
@@ -278,16 +685,15 @@ function openHist(s){
     E("hl").innerHTML = j.itens.length ? j.itens.map(function(i){ return '<div class="hi"><b>'+esc(i.em)+'</b> · '+esc(i.usuario)+' · '+esc(i.acao)+(i.resumo ? '<br><span>'+esc(i.resumo)+'</span>' : "")+'</div>'; }).join("") : "Nenhum registro ainda.";
   }, function(e){ E("hl").textContent = e.message; });
 }
-
 function askDel(s){
-  var d = dlg('<h2>Excluir embarcação?</h2><p><b>'+esc(s.navio)+'</b> será removida do banco. Não dá para desfazer. (Para só tirar da lista, mude a situação para "Desatracado".)</p><div class="msg" id="dmsg"></div><div class="btns"><button class="btn" data-x type="button">Cancelar</button><button class="btn dng" id="dgo" type="button">Excluir</button></div>');
+  var rasc = sitKey(s) === "rascunhos";
+  var d = dlg('<h2>'+(rasc ? "Descartar rascunho?" : "Excluir embarcação?")+'</h2><p><b>'+esc(s.navio)+'</b> será removida do banco. Não dá para desfazer.'+(rasc ? "" : ' (Para só encerrar, registre a desatracação.)')+'</p><div class="msg" id="dmsg"></div><div class="btns"><button class="btn" data-x type="button">Cancelar</button><button class="btn dng" id="dgo" type="button">'+(rasc ? "Descartar" : "Excluir")+'</button></div>');
   E("dgo").onclick = function(){
     E("dgo").disabled = true; say("dmsg", "Excluindo…");
     post({acao:"excluir", id:s.id, versao:s.rec.atualizado_em, navio:s.navio})
-      .then(function(){ d.close(); toast("Embarcação excluída."); refresh(); }, function(e){ E("dgo").disabled = false; say("dmsg", e.message, true); });
+      .then(function(){ d.close(); toast(rasc ? "Rascunho descartado." : "Embarcação excluída."); refresh(); }, function(e){ E("dgo").disabled = false; say("dmsg", e.message, true); });
   };
 }
-
 function openAviso(){
   var d = dlg('<h2>Aviso no topo da página</h2><p>Aparece em faixa amarela para quem abrir a página. Deixe vazio para tirar.</p><textarea id="atx" aria-label="Aviso">'+esc(AVISO)+'</textarea><div class="msg" id="amsg"></div><div class="btns"><button class="btn" data-x type="button">Cancelar</button><button class="btn pri" id="ago" type="button">Salvar aviso</button></div>');
   E("ago").onclick = function(){
@@ -301,14 +707,17 @@ window.addEventListener("load", function(){
   if(!CONFIG.api) return;
   E("btn-login").hidden = false;
   E("btn-login").onclick = openLogin;
-  E("btn-new").onclick = function(){ openForm(); };
+  E("btn-new").onclick = abrirNovo;
   E("btn-aviso").onclick = openAviso;
   E("btn-pw").onclick = openSenha;
   E("btn-out").onclick = function(){ sair(); };
   E("panel").addEventListener("click", function(e){
-    var b = e.target.closest("[data-ed],[data-del]"); if(!b) return;
-    var s = findItem(b.getAttribute("data-ed") || b.getAttribute("data-del")); if(!s) return;
-    if(b.hasAttribute("data-ed")) openForm(s); else askDel(s);
+    var b = e.target.closest("[data-act]"); if(!b) return;
+    var s = findItem(b.getAttribute("data-id")); if(!s) return;
+    var a = b.getAttribute("data-act");
+    if(a === "editar") editar(s, {preValidar:sitKey(s) === "rascunhos" ? "previstos" : ""});
+    else if(a === "excluir") askDel(s);
+    else avancar(s, a);
   });
   var tk; try{ tk = sessionStorage.getItem("lu_t"); }catch(x){}
   if(tk){ EDIT.token = tk; post({acao:"sessao"}).then(function(j){ entrou(j); }, function(){ EDIT.token = ""; try{ sessionStorage.removeItem("lu_t"); }catch(x){} }); }

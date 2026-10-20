@@ -13,14 +13,15 @@ var FMS = [
   {k:"proximo",  label:"Próximo porto"}
 ];
 var FMODS  = [["","Todos"],["IMPORTAÇÃO","Importação"],["EXPORTAÇÃO","Exportação"],["_SEM","Sem carga"]];
-var FDATE  = {atracados:"chegada", previstos:"chegada", fundeados:"chegada", desatracados:"saida"};
-var FDLAB  = {atracados:"Atracação", previstos:"Previsão de chegada (ETA)", fundeados:"Chegada confirmada", desatracados:"Saída"};
+var FDATE  = {rascunhos:"chegada", atracados:"chegada", previstos:"chegada", fundeados:"chegada", desatracados:"saida"};
+var FDLAB  = {rascunhos:"Previsão de chegada (ETA)", atracados:"Atracação", previstos:"Previsão de chegada (ETA)", fundeados:"Chegada confirmada", desatracados:"Saída"};
 /* atalhos de período: [rótulo, dias a partir de hoje (início), dias a partir de hoje (fim)] — "mes" = mês atual */
 var FPRE = {
   desatracados:[["Últimos 7 dias",-7,0],["Últimos 30 dias",-30,0],["Últimos 90 dias",-90,0],["Este mês","mes"]],
   atracados:   [["Hoje",0,0],["Últimos 7 dias",-7,0],["Últimos 30 dias",-30,0]],
   previstos:   [["Hoje",0,0],["Próx. 48 horas",0,2],["Próx. 7 dias",0,7],["Próx. 30 dias",0,30]],
-  fundeados:   [["Hoje",0,0],["Últimos 7 dias",-7,0]]
+  fundeados:   [["Hoje",0,0],["Últimos 7 dias",-7,0]],
+  rascunhos:   [["Hoje",0,0],["Próx. 48 horas",0,2],["Próx. 7 dias",0,7],["Próx. 30 dias",0,30]]
 };
 var FSORT = [["","Padrão"],["data-desc","Data: mais recente"],["data-asc","Data: mais antiga"],["navio","Embarcação (A–Z)"],["cais","Berço"],["ton","Maior tonelagem"]];
 

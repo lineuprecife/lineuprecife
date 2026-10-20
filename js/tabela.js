@@ -6,6 +6,7 @@ var COLS_TAB = {
   atracados: [["chegada","Atracação (data/hora)","d"],["saida","Previsão de saída (ETD)","d"],["cais",_D[1]],["navio",_D[2]],["cbo",_D[3]],["comp",_D[4]],["calado",_D[5]],["agencia",_D[6]],["operador",_D[7]],["carga",_D[8]],["modRaw",_D[9]],["origem",_D[10]],["anterior",_D[11]],["proximo",_D[12]],["prev","Tonelagem prevista","n"],["mov","Tonelagem movimentada","n"],["saldo","Saldo","n"]],
   previstos: [["chegada","Previsão de chegada (ETA)","d"],["atracacao","Previsão de atracação (POB)","d"],["saida","Previsão de saída (ETD)","d"],["cais","Berço previsto (ETB)"],["navio",_D[2]],["imo","IMO"],["comp",_D[4]],["calado",_D[5]],["agencia",_D[6]],["operador",_D[7]],["carga",_D[8]],["modRaw",_D[9]],["origem",_D[10]],["anterior",_D[11]],["proximo",_D[12]],["prev","Tonelagem prevista","n"]]
 };
+COLS_TAB.rascunhos = COLS_TAB.previstos;
 COLS_TAB.fundeados = COLS_TAB.previstos.map(function(c, i){ return i === 0 ? ["chegada","Chegada confirmada","d"] : c; });
 
 function viewOf(id){ return (state.views && state.views[id]) || (id === "desatracados" ? "tabela" : "cartoes"); }
