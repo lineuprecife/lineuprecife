@@ -6,6 +6,7 @@
      Mais de uma pessoa pode ter a mesma etapa.
    - Quem não tem a etapa não consegue criar nem alterar aquela parte (o servidor confere, não só a tela).
    - Toda alteração fica registrada na aba LOG (quem, quando, o que mudou).
+   - O administrador cadastra e gerencia os usuários direto no site (botão Usuários); o menu Line-up da planilha continua funcionando.
    - A página pública só recebe os dados públicos; observações, prático, rebocadores etc. só aparecem para quem entrou.
    Instalação: veja o passo a passo enviado junto (Extensões > Apps Script > colar este arquivo).
    ===================================================================== */
@@ -223,7 +224,14 @@ function lista_(publico, dias, u) {
     Object.keys(a).forEach(function (k) { if (a[k] === '' || a[k] == null) delete a[k]; });   /* menos dados trafegando */
     navios.push(a);
   });
-  return {ok: true, aviso: d.aviso.texto, atualizado: ult.em ? fmtData(new Date(ult.em)) : '', responsavel: ult.nome ? {nome: ult.nome, cargo: ult.cargo || ''} : null, navios: navios};
+  return {ok: true, aviso: d.aviso.texto, atualizado: ult.em ? fmtData(new Date(ult.em)) : '', responsavel: responsavel_(ult), navios: navios};
+}
+/* Responsável pelo preenchimento (cabeçalho da página): o último usuário que mexeu no sistema, com os contatos atuais da aba USUARIOS. */
+function responsavel_(ult) {
+  if (!ult || !ult.nome) return null;
+  var all = usuarios_(), u = ult.login ? all[ult.login] : null;
+  if (!u) Object.keys(all).forEach(function (k) { if (!u && all[k].nome === ult.nome) u = all[k]; });   /* registros antigos, sem login guardado */
+  return {nome: ult.nome, cargo: (u && u.cargo) || ult.cargo || '', email: (u && u.email) || '', telefone: (u && u.telefone) || ''};
 }
 /* cache em pedaços (cada item do cache aceita ~100 KB) */
 function cachePut_(chave, txt, seg) {
@@ -267,11 +275,11 @@ function usuarios_() {
   for (var r = 1; r < v.length; r++) {
     var lg = norm(v[r][0]); if (!lg) continue;
     out[lg] = {login: lg, nome: String(v[r][1] || lg).trim(), cargo: String(v[r][2] || '').trim(), email: String(v[r][3] || '').trim(), etapas: etapasDe_(v[r][4]),
-      admin: /^s/.test(norm(v[r][5])), ativo: !/^n/.test(norm(v[r][6])), hash: String(v[r][7] || ''), r: r + 1};
+      admin: /^s/.test(norm(v[r][5])), ativo: !/^n/.test(norm(v[r][6])), hash: String(v[r][7] || ''), telefone: String(v[r][8] || '').trim(), r: r + 1};
   }
   return out;
 }
-function perfil_(u) { return {usuario: u.login, nome: u.nome, cargo: u.cargo, etapas: u.etapas, admin: u.admin}; }
+function perfil_(u) { return {usuario: u.login, nome: u.nome, cargo: u.cargo, email: u.email, telefone: u.telefone, etapas: u.etapas, admin: u.admin}; }
 function login_(b) {
   var cache = CacheService.getScriptCache(), lg = norm(b.usuario), fk = 'f:' + lg;
   if (+cache.get(fk) >= 5) throw erro('Muitas tentativas. Aguarde 10 minutos e tente de novo.');
@@ -428,7 +436,7 @@ function salvar_(u, reg) {
       s.getRange(nr, I.saldo + 1).setFormula('=IF(AND(ISNUMBER(' + cL('ton_prev') + nr + '),ISNUMBER(' + cL('ton_mov') + nr + ')),' + cL('ton_prev') + nr + '-' + cL('ton_mov') + nr + ',"")');
       mexidos.forEach(function (k) { var ck = colDe_(k, sitNova); if (DATAS.indexOf(ck) >= 0) s.getRange(nr, I[ck] + 1).setNumberFormat('dd/MM/yyyy HH:mm'); });
     }
-    PropertiesService.getScriptProperties().setProperty('ultimo', JSON.stringify({em: agora, nome: u.nome, cargo: u.cargo}));
+    PropertiesService.getScriptProperties().setProperty('ultimo', JSON.stringify({em: agora, login: u.login, nome: u.nome, cargo: u.cargo}));
     cacheLimpa_();
     log_(u, o ? 'alterou' : 'cadastrou', id, f('navio'), SIT[sitNova], trocas.join(' | '));
     return {ok: true, id: id};
@@ -442,7 +450,7 @@ function excluir_(u, b) {
   var lock = LockService.getScriptLock(); lock.waitLock(20000);
   try {
     d.sheet.deleteRow(o.r);
-    PropertiesService.getScriptProperties().setProperty('ultimo', JSON.stringify({em: agora_(), nome: u.nome, cargo: u.cargo}));
+    PropertiesService.getScriptProperties().setProperty('ultimo', JSON.stringify({em: agora_(), login: u.login, nome: u.nome, cargo: u.cargo}));
     cacheLimpa_();
     log_(u, 'excluiu', o.id, String(o.navio), SIT[o.sit], '');
   } finally { lock.releaseLock(); }
@@ -471,6 +479,93 @@ function log_(u, acao, id, navio, sit, resumo) {
   s.getRange(s.getLastRow(), 1).setNumberFormat('dd/MM/yyyy HH:mm:ss');
 }
 
+/* ---------- gestão de usuários pelo site (somente administrador) ---------- */
+var ETAPAS_TODAS = ['previsao', 'fundeio', 'atracacao', 'movimentacao', 'desatracacao'];
+function soAdmin_(u) { if (!u.admin) throw erro('Só o administrador pode gerenciar usuários.'); }
+function abaUsu_() {
+  var s = ss_().getSheetByName(ABA_USU); if (!s) throw erro('A aba USUARIOS não existe. Rode antes: Line-up > 1. Preparar a planilha.');
+  if (!String(s.getRange(1, 9).getValue() || '').trim()) s.getRange(1, 9).setValue('Telefone');   /* planilhas antigas ganham a coluna Telefone */
+  return s;
+}
+function paraUsuarioApi_(u) { return {login: u.login, nome: u.nome, cargo: u.cargo, email: u.email, telefone: u.telefone, etapas: u.etapas, admin: u.admin, ativo: u.ativo}; }
+function listarUsuarios_(u) {
+  soAdmin_(u);
+  var all = usuarios_(), out = Object.keys(all).map(function (k) { return paraUsuarioApi_(all[k]); });
+  out.sort(function (a, b) { return a.nome.localeCompare(b.nome, 'pt-BR'); });
+  return {ok: true, usuarios: out};
+}
+function etapasTxt_(arr) {
+  var e = ETAPAS_TODAS.filter(function (k) { return (arr || []).indexOf(k) >= 0; });
+  if (e.length === ETAPAS_TODAS.length) return 'todas';
+  return e.map(function (k) { return ETAPA_NOME[k].toLowerCase(); }).join(', ');
+}
+function gravarUsuario_(s, r, o) {
+  var linha = [o.login, o.nome, o.cargo, o.email, etapasTxt_(o.etapas), o.admin ? 'sim' : 'não', o.ativo ? 'sim' : 'não', o.hash, o.telefone];
+  var rg = r ? s.getRange(r, 1, 1, 9) : s.getRange(s.getLastRow() + 1, 1, 1, 9);
+  rg.setNumberFormat('@');   /* texto puro: um telefone começando com "+" não vira fórmula */
+  rg.setValues([linha]);
+}
+function admsAtivos_(all, trocaLogin, troca) {   /* quantos administradores ativos restariam depois da mudança */
+  var n = 0; Object.keys(all).forEach(function (k) {
+    var x = all[k]; if (k === trocaLogin) x = troca;
+    if (x && x.admin && x.ativo) n++;
+  });
+  return n;
+}
+function salvarUsuario_(u, b) {
+  soAdmin_(u);
+  var lg = norm(b.login).replace(/\s+/g, '');
+  if (!/^[a-z0-9._-]{3,30}$/.test(lg)) throw erro('O login precisa ter de 3 a 30 letras minúsculas, números, ponto, hífen ou sublinhado (sem espaços nem acentos). Exemplo: maria.souza');
+  var nome = String(b.nome || '').trim().slice(0, 80); if (!nome) throw erro('Escreva o nome da pessoa.');
+  var cargo = String(b.cargo || '').trim().slice(0, 80);
+  var email = String(b.email || '').trim().slice(0, 120); if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) throw erro('O e-mail não parece correto.');
+  var tel = String(b.telefone || '').trim().slice(0, 30); if (tel && !/^[\d\s()+.\-]{8,30}$/.test(tel)) throw erro('O telefone deve ter só números, espaços, parênteses e traço. Exemplo: (81) 99999-9999');
+  var etapas = (b.etapas || []).filter(function (k) { return ETAPAS_TODAS.indexOf(k) >= 0; });
+  var adm = !!b.admin; if (!adm && !etapas.length) throw erro('Marque pelo menos uma etapa ou marque Administrador.');
+  var lock = LockService.getScriptLock(); lock.waitLock(20000);
+  try {
+    var s = abaUsu_(), all = usuarios_(), ex = all[lg];
+    if (b.novo && ex) throw erro('Já existe um usuário com o login "' + lg + '". Use Editar na lista.');
+    if (!b.novo && !ex) throw erro('Usuário não encontrado.');
+    var senha = String(b.senha || '');
+    if (b.novo) { if (senha.length < 6) throw erro('A senha provisória precisa ter pelo menos 6 caracteres.'); }
+    var novo = {login: lg, nome: nome, cargo: cargo, email: email, telefone: tel, etapas: etapas, admin: adm, ativo: ex ? ex.ativo : true, hash: ex ? ex.hash : novoHash_(senha)};
+    if (ex && lg === u.login && !adm) throw erro('Você não pode tirar o seu próprio acesso de administrador. Peça a outro administrador.');
+    if (!admsAtivos_(all, lg, novo)) throw erro('O sistema precisa ter pelo menos um administrador ativo.');
+    gravarUsuario_(s, ex ? ex.r : 0, novo);
+    cacheLimpa_();
+    log_(u, b.novo ? 'cadastrou usuário' : 'alterou usuário', '', '', '', lg + ' · ' + nome + ' · etapas: ' + etapasTxt_(etapas) + (adm ? ' · administrador' : ''));
+  } finally { lock.releaseLock(); }
+  return listarUsuarios_(u);
+}
+function senhaUsuario_(u, b) {
+  soAdmin_(u);
+  var lg = norm(b.login), senha = String(b.senha || '');
+  if (senha.length < 6) throw erro('A senha provisória precisa ter pelo menos 6 caracteres.');
+  var lock = LockService.getScriptLock(); lock.waitLock(20000);
+  try {
+    var s = abaUsu_(), x = usuarios_()[lg]; if (!x) throw erro('Usuário não encontrado.');
+    s.getRange(x.r, 8).setNumberFormat('@').setValue(novoHash_(senha));
+    log_(u, 'redefiniu a senha de', '', '', '', lg);
+  } finally { lock.releaseLock(); }
+  return {ok: true};
+}
+function ativoUsuario_(u, b) {
+  soAdmin_(u);
+  var lg = norm(b.login), ativo = !!b.ativo;
+  var lock = LockService.getScriptLock(); lock.waitLock(20000);
+  try {
+    var s = abaUsu_(), all = usuarios_(), x = all[lg]; if (!x) throw erro('Usuário não encontrado.');
+    if (!ativo && lg === u.login) throw erro('Você não pode desativar o seu próprio usuário.');
+    var troca = {admin: x.admin, ativo: ativo};
+    if (!admsAtivos_(all, lg, troca)) throw erro('O sistema precisa ter pelo menos um administrador ativo.');
+    s.getRange(x.r, 7).setNumberFormat('@').setValue(ativo ? 'sim' : 'não');
+    cacheLimpa_();
+    log_(u, ativo ? 'ativou usuário' : 'desativou usuário', '', '', '', lg);
+  } finally { lock.releaseLock(); }
+  return listarUsuarios_(u);
+}
+
 /* ---------- endereços da página (web app) ---------- */
 function doGet(e) {
   try {
@@ -493,6 +588,10 @@ function doPost(e) {
       case 'excluir': return json(excluir_(u, b));
       case 'aviso': return json(salvarAviso_(u, b));
       case 'senha': return json(alterarSenha_(u, b));
+      case 'usuarios': return json(listarUsuarios_(u));
+      case 'usuario_salvar': return json(salvarUsuario_(u, b));
+      case 'usuario_senha': return json(senhaUsuario_(u, b));
+      case 'usuario_ativo': return json(ativoUsuario_(u, b));
       case 'historico': return json(historico_(b));
       case 'sair': CacheService.getScriptCache().remove('tk:' + b.token); return json({ok: true});
     }
@@ -511,7 +610,7 @@ function onOpen() {
 }
 function preparar() {
   var ss = ss_(), ui = SpreadsheetApp.getUi();
-  if (!ss.getSheetByName(ABA_USU)) { var u = ss.insertSheet(ABA_USU); u.appendRow(['Usuário', 'Nome', 'Cargo', 'E-mail', 'Etapas', 'Administrador', 'Ativo', 'Senha (criptografada)']); u.setFrozenRows(1); }
+  if (!ss.getSheetByName(ABA_USU)) { var u = ss.insertSheet(ABA_USU); u.appendRow(['Usuário', 'Nome', 'Cargo', 'E-mail', 'Etapas', 'Administrador', 'Ativo', 'Senha (criptografada)', 'Telefone']); u.setFrozenRows(1); }
   if (!ss.getSheetByName(ABA_LOG)) { var l = ss.insertSheet(ABA_LOG); l.appendRow(['Data/hora', 'Usuário', 'Ação', 'ID', 'Embarcação', 'Situação', 'O que mudou']); l.setFrozenRows(1); }
   var d = ler_();
   var n = Object.keys(usuarios_()).length;
@@ -536,8 +635,8 @@ function cadastrarUsuario(primeiro) {
     if (senha.length < 6) { ui.alert('A senha precisa ter pelo menos 6 caracteres.'); return; }
     hash = novoHash_(senha);
   }
-  var linha = [norm(lg), nome, cargo, ex ? ex.email : '', etapas, adm, ex ? (ex.ativo ? 'sim' : 'não') : 'sim', hash];
-  if (ex) s.getRange(ex.r, 1, 1, 8).setValues([linha]); else s.appendRow(linha);
+  var linha = [norm(lg), nome, cargo, ex ? ex.email : '', etapas, adm, ex ? (ex.ativo ? 'sim' : 'não') : 'sim', hash, ex ? ex.telefone : ''];
+  if (ex) s.getRange(ex.r, 1, 1, 9).setValues([linha]); else s.appendRow(linha);
   ui.alert('Usuário salvo: ' + norm(lg) + '\nEtapas: ' + etapasDe_(etapas).map(function (e) { return ETAPA_NOME[e]; }).join(', '));
 }
 function redefinirSenha() {
