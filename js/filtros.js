@@ -209,7 +209,7 @@ function imprimirRelacao(){
   var ord = FSORT.filter(function(o){ return o[0] && o[0] === f.sort; })[0];
   var filtros = chips.length ? chips.map(function(c){ return '<span class="pf">' + esc(c) + '</span>'; }).join("") : '<span class="pf-0">nenhum — lista completa</span>';
   var atual = (document.getElementById("stamp") || {}).textContent;
-  var h = '<div class="ph"><img src="assets/logo/logo.png" alt="Porto do Recife"><div class="pht"><h1>Line-up de embarcações — ' + esc(rotuloAba(id)) + '</h1>' +
+  var h = '<div class="ph"><div class="phl"><img src="assets/logo/logo.png" alt="Porto do Recife"><span>PORTO do RECIFE S.A.</span></div><div class="pht"><h1>Line-up de embarcações — ' + esc(rotuloAba(id)) + '</h1>' +
     '<p>MEP — Movimentação de embarcações no Porto do Recife</p></div>' +
     '<div class="phd">Impresso em <b>' + agoraBR() + '</b>' + (atual && atual !== "—" ? '<br>Dados atualizados em <b>' + esc(atual) + '</b>' : '') + '</div></div>' +
     '<div class="pm"><div><b>Relação impressa:</b> ' + items.length + (items.length !== all.length ? ' de ' + all.length : '') + ' embarcaç' + (items.length === 1 ? 'ão' : 'ões') + ' · aba ' + esc(rotuloAba(id)) + (ord ? ' · ordenação: ' + esc(ord[1]) : '') + '</div>' +
