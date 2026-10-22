@@ -494,3 +494,6 @@ if(h0 !== "rascunhos" && TABS.some(function(t){return t.id===h0})) state.tab = h
 renderAll();
 refresh();
 setInterval(refresh, Math.max(15, CONFIG.refreshSeconds)*1000);
+
+/* Girar o aparelho ou redimensionar a janela cruzando os 700px troca o layout (cartões do celular x tabela do computador) */
+if(window.matchMedia){ var _mq = window.matchMedia("(max-width:700px)"); (_mq.addEventListener ? _mq.addEventListener("change", function(){ renderAll(); }) : _mq.addListener(function(){ renderAll(); })); }

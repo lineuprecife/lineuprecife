@@ -388,8 +388,8 @@ function manobraCampos(p){
     [p+"termino_manobra", d ? "Término da manobra" : "Término da manobra (ATB)", {t:"hm", agora:1}],
     [p+"bordo", d ? "Bordo de desatracação" : "Bordo de atracação", {t:"bordo"}],
     [p+"pratico", "Prático (nome)", {}],
-    [p+"calado_proa", d ? "Calado proa na saída (m)" : "Calado proa (m)", {t:"dec"}],
-    [p+"calado_popa", d ? "Calado popa na saída (m)" : "Calado popa (m)", {t:"dec"}],
+    [p+"calado_proa", d ? "Calado proa na saída (m)" : "Calado proa (m)", {t:"dec",h:1}],
+    [p+"calado_popa", d ? "Calado popa na saída (m)" : "Calado popa (m)", {t:"dec",h:1}],
     [p+"cabecos", "Cabeços de amarração (ex.: 47, 50, 53, 57)", {w:1}],
     [p+"rebocadores", "Rebocadores", {w:1}]
   ];
@@ -397,18 +397,18 @@ function manobraCampos(p){
 function bloco(id, sit){
   var pre = sit === "rascunhos" || sit === "previstos";
   if(id === "dados"){
-    var c = [["navio","Nome da embarcação",{w:1,req:1}], ["imo","IMO",{t:"imo"}], ["agencia","Agência de navegação",{pub:1}], ["operador","Operador portuário",{}],
-             ["operacao","Operação",{t:"op",w:1,pub:1}], ["carga","Carga",{pubc:1}], ["ton_prevista","Toneladas previstas",{t:"num",pubc:1}]];
+    var c = [["navio","Nome da embarcação",{req:1}], ["imo","IMO",{t:"imo"}], ["agencia","Agência de navegação",{pub:1,h:1}], ["operador","Operador portuário",{h:1}],
+             ["operacao","Operação",{t:"op",w:1,pub:1}], ["carga","Carga",{pubc:1,h:1}], ["ton_prevista","Toneladas previstas",{t:"num",pubc:1,h:1}]];
     if(pre) c.push(["chegada","Previsão de chegada (ETA)",{t:"dt",pub:1}], ["cais","Berço previsto",{t:"cais",pub:1}]);
-    var mais = [["nacionalidade","Bandeira",{}], ["comprimento","Comprimento (m)",{t:"dec"}], ["calado","Calado máximo (m)",{t:"dec"}], ["origem_destino","Origem / destino da carga",{}], ["porto_anterior","Porto anterior",{}], ["proximo_porto","Próximo porto",{}]];
+    var mais = [["nacionalidade","Bandeira",{}], ["comprimento","Comprimento (m)",{t:"dec",h:1}], ["calado","Calado máximo (m)",{t:"dec",h:1}], ["origem_destino","Origem / destino da carga",{}], ["porto_anterior","Porto anterior",{}], ["proximo_porto","Próximo porto",{}]];
     if(pre) mais.push(["previsao_atracacao","Previsão de atracação (POB)",{t:"dt"}], ["saida","Previsão de saída (ETD)",{t:"dt"}], ["observacoes","Observações",{t:"ta",w:1}]);
-    return {id:"dados", t:"Embarcação e carga", secs:[{c:c}], mais:mais};
+    return {id:"dados", t:"Embarcação", secs:[{c:c}], mais:mais};
   }
   if(id === "fundeio") return {id:"fundeio", t:"Chegada", secs:[{c:[["chegada","Chegada confirmada (fundeio)",{t:"dt",req:1,agora:1,def:"now"}], ["cais","Berço previsto",{t:"cais"}], ["previsao_atracacao","Previsão de atracação (POB)",{t:"dt"}], ["saida","Previsão de saída (ETD)",{t:"dt"}], ["observacoes","Observações",{t:"ta",w:1}]]}]};
   if(id === "atracacao"){
     var m = manobraCampos("");
     return {id:"atracacao", t:"Atracação", secs:[
-      {c:[["chegada","Data e hora da atracação",{t:"dt",req:1,agora:1,def:"now"}], ["cais","Berço atracado",{t:"cais",req:1}], ["cbo","CBO (registro da atracação)",{t:"cbo"}], ["nr_livro","Nº no livro de registro",{}]]},
+      {c:[["chegada","Data e hora da atracação",{t:"dt",req:1,agora:1,def:"now"}], ["cais","Berço atracado",{t:"cais",req:1}], ["cbo","CBO",{t:"cbo",h:1}], ["nr_livro","Nº no livro de registro",{h:1}]]},
       {t:"Manobra de atracação", c:m}]};
   }
   if(id === "operacao") return {id:"operacao", t:"Operação", secs:[{c:[["ton_movimentada","Toneladas movimentadas até agora",{t:"num"}], ["saida","Previsão de saída (ETD)",{t:"dt"}], ["observacoes","Observações",{t:"ta",w:1}]]}]};
@@ -430,7 +430,8 @@ function opcoesNovo(){
 }
 
 function passosHtml(para){
-  return '<ol class="steps" aria-label="Etapas">' + PASSOS.map(function(p){
+  var nome = PASSOS.filter(function(p){ return p[0] === para; })[0][1];
+  return '<p class="etapa-m">Etapa <b>'+(ORDEM[para] + 1)+' de '+PASSOS.length+'</b> · '+nome+'</p><ol class="steps" aria-label="Etapas">' + PASSOS.map(function(p){
     var c = ORDEM[p[0]] < ORDEM[para] ? "ok" : p[0] === para ? "cur" : "";
     return '<li class="'+c+'"'+(c === "cur" ? ' aria-current="step"' : "")+'>'+p[1]+'</li>';
   }).join("") + '</ol>';
@@ -466,7 +467,8 @@ function campoHtml(f, rec, ctx){
   } else if(t === "imo"){
     c = '<input id="'+id+'" inputmode="numeric" maxlength="9" placeholder="Só números" autocomplete="off" value="'+esc(v)+'">';
   } else c = '<input id="'+id+'"'+list+(t === "num" ? ' inputmode="numeric"' : t === "dec" ? ' inputmode="decimal"' : "")+' value="'+esc(v)+'">';
-  return '<label'+(o.w ? ' class="w"' : "")+' data-k="'+k+'"><span id="l_'+k+'">'+esc(lab)+'<i class="rq" hidden> *</i></span>'+c+'<small class="fh" id="h_'+k+'"></small><small class="fe" id="e_'+k+'"></small></label>';
+  var cl = (o.w ? "w" : "") + ((o.h || t === "hm") ? " h" : "");
+  return '<label'+(cl ? ' class="'+cl+'"' : "")+' data-k="'+k+'"><span id="l_'+k+'">'+esc(lab)+'<i class="rq" hidden> *</i></span>'+c+'<small class="fh" id="h_'+k+'"></small><small class="fe" id="e_'+k+'"></small></label>';
 }
 function paneHtml(b, rec, ctx){
   var h = b.info ? '<p class="info">'+b.info+'</p>' : "";
@@ -491,11 +493,12 @@ function abrirForm(cfg){
   }).filter(function(b){ return b.secs.length || (b.mais && b.mais.length); });
   if(!blocos.length){ toast("Não há nada para você preencher nesta etapa.", true); return; }
   cfg.blocos = blocos;
-  var html = '<div class="dh"><h2>'+esc(cfg.titulo)+'</h2>'+(cfg.sub ? '<p class="dsub">'+cfg.sub+'</p>' : "")+passosHtml(cfg.para)+(cfg.acoes.some(function(a){ return a.sit === "previstos"; }) ? '<p class="nota">Campos com * são obrigatórios para publicar.</p>' : "")+'</div>';
+  var html = '<div class="dh"><button type="button" class="dx" data-cx tabindex="-1" aria-label="Fechar">✕</button><h2>'+esc(cfg.titulo)+'</h2>'+(cfg.sub ? '<p class="dsub">'+cfg.sub+'</p>' : "")+passosHtml(cfg.para)+(cfg.acoes.some(function(a){ return a.sit === "previstos"; }) ? '<p class="nota">Campos com * são obrigatórios para publicar.</p>' : "")+'</div>';
   if(blocos.length > 1) html += '<div class="tabs2" role="tablist">'+blocos.map(function(b, i){ return '<button type="button" role="tab" class="t2" data-tab="'+b.id+'" aria-selected="'+(i === 0)+'">'+esc(b.t)+'<i class="dot" hidden></i></button>'; }).join("")+'</div>';
+  html += '<div class="scroller">';
   blocos.forEach(function(b, i){ html += '<div class="tp" data-pane="'+b.id+'"'+(i ? " hidden" : "")+'>'+paneHtml(b, rec, ctx)+'</div>'; });
   html += SUG_CAMPOS.map(function(k){ return '<datalist id="dl_'+k+'"></datalist>'; }).join("") + '<datalist id="dl_servico"></datalist>';
-  html += '<div class="avs" id="avs" aria-live="polite"></div><div class="btns">'+(cfg.rodape || "")+'<button class="btn" data-cx type="button">Cancelar</button>'+
+  html += '<div class="avs" id="avs" aria-live="polite"></div></div><div class="btns">'+(cfg.rodape ? '<span class="rod">'+cfg.rodape+'</span>' : "")+'<button class="btn" data-cx type="button">Cancelar</button>'+
     cfg.acoes.map(function(a, i){ return '<button class="btn'+(a.pri ? " pri" : "")+'" data-go="'+i+'" type="button">'+esc(a.rot)+'</button>'; }).join("")+'</div>';
   var d = dlg(html, true), sujo = false, ack = "";
   carregarSug();
@@ -505,7 +508,7 @@ function abrirForm(cfg){
   /* --- fechar sem perder o que foi digitado por engano --- */
   function fechar(){ if(sujo && !confirm("Descartar o que você preencheu?")) return; d.close(); }
   d.addEventListener("cancel", function(e){ if(sujo && !confirm("Descartar o que você preencheu?")) e.preventDefault(); });
-  q("[data-cx]").onclick = fechar;
+  Array.prototype.forEach.call(d.querySelectorAll("[data-cx]"), function(b){ b.onclick = fechar; });
   d.addEventListener("input", function(){ sujo = true; ack = ""; limparAvisos(); });
   d.addEventListener("change", function(){ sujo = true; });
 

@@ -9,7 +9,7 @@ var COLS_TAB = {
 COLS_TAB.rascunhos = COLS_TAB.previstos;
 COLS_TAB.fundeados = COLS_TAB.previstos.map(function(c, i){ return i === 0 ? ["chegada","Chegada confirmada","d"] : c; });
 
-function viewOf(id){ return (state.views && state.views[id]) || (id === "desatracados" ? "tabela" : "cartoes"); }
+function viewOf(id){ if(window.matchMedia && window.matchMedia("(max-width:700px)").matches) return "cartoes"; return (state.views && state.views[id]) || (id === "desatracados" ? "tabela" : "cartoes"); }
 
 function tabelaHtml(id, items){
   var cols = COLS_TAB[id], ed = typeof EDIT !== "undefined" && EDIT.on;
