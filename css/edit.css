@@ -205,3 +205,7 @@ dialog label.chk:has(input:disabled){opacity:.55;cursor:default}
 .cg-q label{display:block;font-size:12px;font-weight:600;color:var(--muted)}
 .cg-q label span{display:block;margin-bottom:3px}
 .cg-q small{font-weight:500}
+
+/* contra bordo: de qual embarcação */
+.cbde{display:block;margin-top:6px}
+.cbde input{width:100%}

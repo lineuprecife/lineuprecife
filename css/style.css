@@ -263,7 +263,7 @@ footer b{color:var(--ink);font-weight:600}
 
 /* ===== Navios desenhados no mapa (viram para a esquerda) ===== */
 .navmap{position:absolute;transform:translate(-50%,-50%);padding:0;border:0;background:none;cursor:pointer;line-height:0;filter:drop-shadow(0 1px 2px rgba(11,34,54,.4))}
-.navmap svg{display:block;width:100%;height:auto;overflow:visible;transform:rotate(var(--giro,0deg));transform-origin:50% 50%}   /* gira só o desenho, pelo centro; o nome continua reto */
+.navmap svg{display:block;width:100%;height:auto;overflow:visible;transform:rotate(var(--giro,0deg)) scaleX(var(--esp,1));transform-origin:50% 50%}   /* gira só o desenho, pelo centro; o nome continua reto */
 .navmap .h{stroke:#fff;stroke-width:1.6;vector-effect:non-scaling-stroke}
 .navmap.imp .h{fill:var(--blue)}
 .navmap.exp .h{fill:var(--sun)}
