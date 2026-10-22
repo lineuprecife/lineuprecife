@@ -11,7 +11,7 @@ var ETAPA_NOME = {previsao:"Previsão", fundeio:"Ao largo", atracacao:"Atracaç�
 /* Quais campos cada etapa pode alterar (igual ao que o servidor aplica) */
 var G_IDENT = ["navio","nacionalidade","imo","comprimento","calado","agencia","operador","carga","operacao","origem_destino","porto_anterior","proximo_porto","ton_prevista","observacoes"];
 var G_REGISTRO = ["cbo","nr_livro"];
-var G_DATAS = ["chegada","previsao_atracacao","saida","cais"];
+var G_DATAS = ["chegada","previsao_atracacao","saida","cais","contra_bordo_de"];
 var G_MANOBRA = ["hora_pratico","hora_amarracao","inicio_manobra","termino_manobra","bordo","calado_proa","calado_popa","cabecos","pratico","rebocadores"];
 var G_DMANOBRA = ["d_hora_pratico","d_hora_amarracao","d_inicio_manobra","d_termino_manobra","d_bordo","d_calado_proa","d_calado_popa","d_cabecos","d_pratico","d_rebocadores"];
 var CAMPOS_ETAPA = {previsao:G_IDENT.concat(G_DATAS), fundeio:G_IDENT.concat(G_DATAS), atracacao:G_IDENT.concat(G_REGISTRO, G_DATAS, G_MANOBRA, G_DMANOBRA, ["ton_movimentada"]), movimentacao:["ton_movimentada","observacoes"], desatracacao:["saida","ton_movimentada","observacoes"].concat(G_DMANOBRA)};
@@ -168,7 +168,7 @@ function carregarSug(){
 function toItem(r){
   var n = function(x){ return x === "" || x == null ? 0 : Number(x) || 0; };
   var m = function(x){ return x === "" || x == null ? "" : Number(x).toFixed(2).replace(".", ",") + " m"; };
-  var s = {id:r.id, rec:r, chegada:r.chegada||"", saida:r.saida||"", atracacao:r.previsao_atracacao||"", cais:(r.cais === "" || r.cais == null) ? "" : String(r.cais), navio:String(r.navio||""), nacionalidade:String(r.nacionalidade||""), navegacao:(navegacaoDe(r.nacionalidade)||{}).sigla||"",
+  var s = {id:r.id, rec:r, chegada:r.chegada||"", saida:r.saida||"", atracacao:r.previsao_atracacao||"", cais:(r.cais === "" || r.cais == null) ? "" : String(r.cais), navio:String(r.navio||""), nacionalidade:String(r.nacionalidade||""), navegacao:(navegacaoDe(r.nacionalidade)||{}).sigla||"", bordo:r.bordo||"", cbDe:r.contra_bordo_de||"",
     cbo:r.cbo||"", imo:r.imo||"", comp:m(r.comprimento), calado:m(r.calado), agencia:r.agencia||"", operador:r.operador||"",
     carga:r.carga||"", mod:String(r.operacao||"").toUpperCase(), origem:r.origem_destino||"", anterior:r.porto_anterior||"", proximo:r.proximo_porto||"",
     prev:n(r.ton_prevista), mov:n(r.ton_movimentada), tipo:""};
@@ -457,11 +457,13 @@ function campoHtml(f, rec, ctx){
     if(v && !ob.some(function(x){ return x[0] === v; })) ob.push([v, v]);
     c = '<select id="'+id+'">'+ob.map(function(x){ return '<option value="'+esc(x[0])+'"'+(x[0] === v ? " selected" : "")+'>'+esc(x[1])+'</option>'; }).join("")+'</select>';
   } else if(t === "cais"){
-    var cbOn = ehCB(v), vb = caisBase(v), oc = ocupacao(ctx.id), op = ["", "00-TA"]; for(var i = 1; i <= 9; i++) op.push(String(i)); op.push("MARINA"); if(vb && op.indexOf(vb) < 0) op.push(vb);
+    var outros = listOf("atracados").filter(function(x){ return x.id !== ctx.id && !ehCB(x.cais); }), cbOn = ehCB(v), vb = caisBase(v), kb = caisKeys(vb)[0],
+      mesmo = outros.filter(function(x){ return kb && caisKeys(x.cais).indexOf(kb) >= 0; }), cbv = rec.contra_bordo_de || (cbOn && mesmo.length === 1 ? mesmo[0].navio : ""), oc = ocupacao(ctx.id), op = ["", "00-TA"]; for(var i = 1; i <= 9; i++) op.push(String(i)); op.push("MARINA"); if(vb && op.indexOf(vb) < 0) op.push(vb);
     c = '<select id="'+id+'">'+op.map(function(x){
       var nome = x ? ((isNaN(x) && x !== "00-TA") ? x : "Berço " + x) : "Sem berço", kk = caisKeys(x)[0], oc2 = (ctx.ocupados && kk && oc[kk]) ? " · ocupado: " + oc[kk][0] : "";
       return '<option value="'+esc(x)+'"'+(x === vb ? " selected" : "")+'>'+esc(nome + oc2)+'</option>'; }).join("")+'</select>' +
-      '<span class="cbk"><input type="checkbox" id="'+id+'_cb"'+(cbOn ? " checked" : "")+'> <em>A contra bordo de outro navio (/CB)</em></span>';
+      '<span class="cbk"><input type="checkbox" id="'+id+'_cb"'+(cbOn ? " checked" : "")+' onchange="var w=document.getElementById(\''+id+'_cbde_w\');if(w){w.hidden=!this.checked;var i=document.getElementById(\''+id+'_cbde\');if(this.checked&&i)i.focus();}"> <em>A contra bordo de outro navio (/CB)</em></span>' +
+      '<span class="cbde" id="'+id+'_cbde_w"'+(cbOn ? "" : " hidden")+'><input id="'+id+'_cbde" list="dl_cbde" autocomplete="off" maxlength="60" placeholder="De qual embarcação? (nome do navio)" value="'+esc(cbv)+'"></span><datalist id="dl_cbde">'+outros.map(function(x){ return '<option value="'+esc(x.navio)+'">'; }).join("")+'</datalist>';
   } else if(t === "carga"){
     c = '<input type="hidden" id="'+id+'" value="'+esc(v)+'"><div class="cg" id="cg"></div><button type="button" class="cg-add" id="cg_add">+ Adicionar outro produto</button>';
   } else if(t === "op"){
@@ -659,6 +661,7 @@ function abrirForm(cfg){
       var x = el.value.trim(), t = o.t;
       if(t === "cais"){ var cbx = F("cais_cb"); if(x && cbx && cbx.checked) x += " / CB"; }
       v[c.k] = t === "dt" ? dtOut(x) : t === "num" ? x.replace(/\D/g, "") : t === "imo" ? x.replace(/\D/g, "") : t === "cbo" ? x.toUpperCase() : x;
+      if(t === "cais"){ var cbx2 = F("cais_cb"), hx = F("cais_cbde"); v.contra_bordo_de = (x && cbx2 && cbx2.checked && hx) ? hx.value.trim().toUpperCase() : ""; }   /* de qual embarcação */
     });
     if(F("operacao")){ if(modo === "SERV") v.operacao = F("servico").value.trim().toUpperCase(); else v.operacao = F("operacao").value; }
     return v;
@@ -699,6 +702,7 @@ function abrirForm(cfg){
     }
     /* datas */
     var t = function(k){ var x = parseDate(val(k)); return x ? +x : null; }, agora = Date.now();
+    if(v.cais && ehCB(v.cais) && !v.contra_bordo_de) marcar("cais", "Informe de qual embarcação ela está a contra bordo.", erros);
     if(dest === "previstos" || dest === "rascunhos"){
       if(t("chegada") && t("saida") && t("saida") < t("chegada")) marcar("saida", "A saída não pode ser antes da chegada.", erros);
       if(dest === "previstos" && v.chegada && t("chegada") < agora - 864e5 && (!s || sitKey(s) === "rascunhos" || cfg.avanco)) avs.push("A previsão de chegada já passou. Confirme a data, ou use \"Confirmar chegada\" se o navio já chegou.");

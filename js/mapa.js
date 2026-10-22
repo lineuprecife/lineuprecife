@@ -27,6 +27,17 @@ function mapaFrame(p0, p1){   /* direção do cais entre dois pontos: ang = giro
   var dx = p1.x - p0.x, dy = p1.y - p0.y, n = Math.sqrt(dx*dx + dy*dy) || 1, ux = dx/n, uy = dy/n;
   return {ux:ux, uy:uy, nx:uy, ny:-ux, ang:Math.atan2(-uy, -ux)*180/Math.PI, len:n};
 }
+function cbHost(s){   /* navio a contra bordo: de qual embarcação? Usa o que foi informado; senão, o único navio encostado no cais naquele berço */
+  if(!ehCB(s.cais)) return "";
+  if(s.cbDe) return s.cbDe;
+  var k = caisKeys(s.cais)[0]; if(!k) return "";
+  var m = listOf("atracados").filter(function(x){ return x !== s && !ehCB(x.cais) && caisKeys(x.cais).indexOf(k) >= 0; });
+  return m.length === 1 ? m[0].navio : "";
+}
+function mapaBordo(s){   /* bordo de atracação: "BE" (boreste, lado direito) ou "BB" (bombordo, lado esquerdo); "" se não registrado */
+  var b = String(s.bordo || (s.rec && s.rec.bordo) || "").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").trim();
+  return /^bombordo|^bb\b/.test(b) ? "BB" : /^boreste|^be\b/.test(b) ? "BE" : "";
+}
 function compM(s){ var n = parseFloat(String(s.comp||"").replace(",", ".")); return n > 0 ? n : 90; }
 function mapaTipo(m){ return m < 60 ? "boat" : m <= 150 ? "mid" : "big"; }
 var ASPECTO = {boat:0.38, mid:0.22, big:0.22};   /* altura / largura do desenho */
@@ -89,8 +100,12 @@ function renderMapa(){
   mapaBercos();
   box.innerHTML = mapaPos(listOf("atracados")).map(function(d){
     var s = d.s, cls = s.mod === "IMPORTAÇÃO" ? "imp" : s.mod === "EXPORTAÇÃO" ? "exp" : "out", fx = d.x / MAPA.W;
+    /* O desenho vem com a proa para o oeste (sentido do cais). Boreste atracado: a proa fica nesse sentido. Bombordo atracado: espelha, proa para o leste. */
+    var bd = mapaBordo(s), cb = cbHost(s), cbTxt = ehCB(s.cais) ? "a contra bordo" + (cb ? " de " + cb : " de outra embarcação") : "";
+    var bdTxt = bd === "BE" ? "Boreste" : bd === "BB" ? "Bombordo" : "";
+    var info = "Berço " + s.cais + (bdTxt ? " · " + bdTxt : "");
     return '<button type="button" class="navmap ' + cls + (fx > 0.85 ? " r" : fx < 0.12 ? " l" : "") + '" style="left:' + (fx*100).toFixed(2) + '%;top:' + (d.y/MAPA.H*100).toFixed(2) + '%;width:' + (d.w/MAPA.W*100).toFixed(2) +
-      '%' + (d.rot ? ';--giro:' + d.rot + 'deg' : '') + '" aria-label="' + esc(s.navio + ", berço " + s.cais) + '">' + mapaSvg(d.kind) + '<span>' + esc(s.navio) + '<small>Berço ' + esc(s.cais) + '</small></span></button>';
+      '%' + (d.rot ? ';--giro:' + d.rot + 'deg' : '') + (bd === "BB" ? ';--esp:-1' : '') + '" aria-label="' + esc(s.navio + ", " + info + (cbTxt ? ", " + cbTxt : "")) + '">' + mapaSvg(d.kind) + '<span>' + esc(s.navio) + '<small>' + esc(info) + '</small>' + (cbTxt ? '<small>' + esc(cbTxt) + '</small>' : '') + '</span></button>';
   }).join("");
 }
 window.addEventListener("load", function(){

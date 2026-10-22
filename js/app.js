@@ -389,6 +389,7 @@ function rowBase(s,lista){
   if(s.imo) meta.push(sp("IMO", s.imo, 1));
   if(s.comp) meta.push(sp("Compr.", s.comp));
   if(s.calado) meta.push(sp("Calado", s.calado));
+  if(ehCB(s.cais) && typeof cbHost === "function"){ var hcb = cbHost(s); if(hcb) meta.push(sp("C/B de", hcb)); }
   var nv = navegacaoItem(s);
   if(nv) meta.push('<div><span>Navegação</span> <b title="'+nv.nome+'">'+nv.nome+'</b></div>');
   var cargo = special
@@ -441,21 +442,12 @@ function caisKeys(c){   /* "2" -> ["2"]; "0 E 1" -> ["00-TA","1"]; "7 / CB" -> [
   });
   return out;
 }
-function renderBerths(){
-  var map = {};
-  listOf("atracados").forEach(function(s){ caisKeys(s.cais).forEach(function(k){ (map[k] = map[k] || []).push(ehCB(s.cais) ? s.navio + " (C/B)" : s.navio); }); });
-  $("berths").innerHTML = BERCOS.map(function(k){
-    var sh = map[k], vis = sh ? (sh.length > 3 ? sh.slice(0, 2) : sh) : [];
-    var lines = vis.map(function(n){ return "<span>" + esc(n) + "</span>"; }).join("") + (sh && sh.length > 3 ? '<span class="mais">+' + (sh.length - 2) + " embarcações</span>" : "");
-    return '<div class="berth ' + (sh ? "busy" : "free") + '"' + (sh ? ' title="' + esc(sh.join(", ")) + '"' : "") + '><div class="c">BERÇO ' + k + '</div><div class="s">' + (sh ? lines : "Livre") + "</div></div>";
-  }).join("");
-  if(typeof renderMapa === "function") renderMapa();
-}
+function renderBerths(){ if(typeof renderMapa === "function") renderMapa(); }   /* a antiga grade "Ocupação dos berços" saiu; o mapa é a ocupação */
 function renderPanel(){
   var id = state.tab, el = $("panel");
   el.classList.remove("wide");   /* só a tabela completa usa a largura quase total da tela */
   var ms = document.getElementById("mapa-sec"); if(ms) ms.hidden = id !== "atracados";
-  var bs = document.getElementById("berths-sec"); if(bs) bs.hidden = id === "rascunhos" || id === "previstos" || id === "desatracados";   /* ocupação dos cais: fora das abas Previstos e Desatracados */   /* mapa só faz sentido para quem está atracado */
+   /* mapa só faz sentido para quem está atracado */
   if(typeof syncView === "function") syncView();
   if(!data[id]){
     state.n = null; renderFsum();
