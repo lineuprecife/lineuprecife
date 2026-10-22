@@ -163,6 +163,9 @@ footer b{color:var(--ink);font-weight:600}
 .top .wrap{padding-block:14px;display:flex;flex-wrap:wrap;gap:10px 28px;align-items:center;justify-content:space-between}
 .logo{display:block;flex:none;border-radius:8px}
 .logo img{display:block;height:64px;width:auto;max-width:100%}
+/* Nome do porto embaixo do logotipo (negrito, azul-marinho, centralizado) */
+.logo{display:flex;flex-direction:column;align-items:center;gap:5px;text-decoration:none}
+.logo-nome{font:700 11px/1 Verdana,Tahoma,"DejaVu Sans",sans-serif;color:#1B3A6B;white-space:nowrap;text-align:center}
 .right{display:flex;flex-wrap:wrap;gap:10px 22px;align-items:center}
 .stamp{color:var(--muted)}
 .stamp b{color:var(--ink)}
@@ -410,6 +413,7 @@ footer b{color:var(--ink);font-weight:600}
   /* Cabeçalho: logo + título, data e responsável em poucas linhas */
   .top .wrap{padding-block:8px;gap:6px 10px}
   .logo img{height:38px}
+  .logo-nome{font-size:9px;gap:3px}
   .titles h1{font-size:17px;line-height:1.15}
   .titles p{font-size:clamp(9px,calc((100vw - 24px) / 32),12px)}
   .right{flex-direction:row;flex-wrap:wrap;align-items:center;gap:6px 10px;width:100%}
@@ -538,6 +542,8 @@ footer #f-mail-box[hidden]{display:none}
   body.printing #print-area{display:block;color:#000;font:8pt/1.35 "Montserrat","Segoe UI",Arial,sans-serif}
   #print-area .ph{display:flex;align-items:center;gap:14pt;padding-bottom:6pt;border-bottom:2pt solid #0060B0}
   #print-area .ph img{height:38pt;width:auto}
+  #print-area .phl{display:flex;flex-direction:column;align-items:center;gap:2pt}
+  #print-area .phl span{font:700 6.5pt/1 Verdana,Tahoma,sans-serif;color:#1B3A6B;white-space:nowrap}
   #print-area .pht{flex:1}
   #print-area .pht h1{margin:0;font:700 15pt/1.15 "Montserrat","Segoe UI",Arial,sans-serif;color:#0060B0}
   #print-area .pht p{margin:2pt 0 0;font-size:8.5pt;color:#444}
