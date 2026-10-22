@@ -201,3 +201,7 @@ dialog label.chk:has(input:disabled){opacity:.55;cursor:default}
 .cg-b[aria-pressed="true"] small{opacity:.85}
 .cg-x{appearance:none;border:1px solid var(--line);background:transparent;color:var(--muted);border-radius:8px;padding:0 10px;cursor:pointer;font-size:14px}
 .cg-add{appearance:none;margin-top:8px;border:1px dashed var(--blue);background:var(--blue-soft);color:var(--blue);border-radius:8px;padding:7px 12px;font:600 13px var(--f-body);cursor:pointer}
+.cg-q{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:8px}
+.cg-q label{display:block;font-size:12px;font-weight:600;color:var(--muted)}
+.cg-q label span{display:block;margin-bottom:3px}
+.cg-q small{font-weight:500}
