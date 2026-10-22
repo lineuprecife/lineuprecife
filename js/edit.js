@@ -135,7 +135,9 @@ function montarSug(regs){
   SUG_CAMPOS.forEach(function(k){ m[k] = {}; });
   regs.forEach(function(r){ SUG_CAMPOS.forEach(function(k){
     var v = String(r[k] == null ? "" : r[k]).trim(); if(!v) return;
-    var c = v.toLowerCase(), o = m[k][c] || (m[k][c] = {v:v, n:0}); o.n++;
+    (k === "carga" ? cargaParse(v).map(function(x){ return x.p; }) : [v]).forEach(function(v1){
+      var c = v1.toLowerCase(), o = m[k][c] || (m[k][c] = {v:v1, n:0}); o.n++;
+    });
   }); });
   return m;
 }
@@ -398,7 +400,7 @@ function bloco(id, sit){
   var pre = sit === "rascunhos" || sit === "previstos";
   if(id === "dados"){
     var c = [["navio","Nome da embarcação",{req:1}], ["imo","IMO",{t:"imo"}], ["agencia","Agência de navegação",{pub:1,h:1}], ["operador","Operador portuário",{h:1}],
-             ["operacao","Operação",{t:"op",w:1,pub:1}], ["carga","Carga",{pubc:1,h:1}], ["ton_prevista","Toneladas previstas",{t:"num",pubc:1,h:1}]];
+             ["operacao","Operação",{t:"op",w:1,pub:1}], ["carga","Carga",{t:"carga",pubc:1,h:1,w:1}], ["ton_prevista","Toneladas previstas",{t:"num",pubc:1,h:1}]];
     if(pre) c.push(["chegada","Previsão de chegada (ETA)",{t:"dt",pub:1}], ["cais","Berço previsto",{t:"cais",pub:1}]);
     var mais = [["nacionalidade","Bandeira (país)",{t:"pais"}], ["comprimento","Comprimento (m)",{t:"dec",h:1}], ["calado","Calado máximo (m)",{t:"dec",h:1}], ["origem_destino","Origem / destino da carga",{}], ["porto_anterior","Porto anterior",{}], ["proximo_porto","Próximo porto",{}]];
     if(pre) mais.push(["previsao_atracacao","Previsão de atracação (POB)",{t:"dt"}], ["saida","Previsão de saída (ETD)",{t:"dt"}], ["observacoes","Observações",{t:"ta",w:1}]);
@@ -460,6 +462,8 @@ function campoHtml(f, rec, ctx){
       var nome = x ? ((isNaN(x) && x !== "00-TA") ? x : "Berço " + x) : "Sem berço", kk = caisKeys(x)[0], oc2 = (ctx.ocupados && kk && oc[kk]) ? " · ocupado: " + oc[kk][0] : "";
       return '<option value="'+esc(x)+'"'+(x === vb ? " selected" : "")+'>'+esc(nome + oc2)+'</option>'; }).join("")+'</select>' +
       '<span class="cbk"><input type="checkbox" id="'+id+'_cb"'+(cbOn ? " checked" : "")+'> <em>A contra bordo de outro navio (/CB)</em></span>';
+  } else if(t === "carga"){
+    c = '<input type="hidden" id="'+id+'" value="'+esc(v)+'"><div class="cg" id="cg"></div><button type="button" class="cg-add" id="cg_add">+ Adicionar outro produto</button>';
   } else if(t === "op"){
     c = '<div class="seg2" id="opseg" role="group" aria-label="Operação"><button type="button" data-op="IMPORTAÇÃO">Importação</button><button type="button" data-op="EXPORTAÇÃO">Exportação</button><button type="button" data-op="SERV">Serviço (sem carga)</button></div>' +
         '<input id="f_servico" list="dl_servico" autocomplete="off" placeholder="Qual serviço? Ex.: Dragagem" hidden><input type="hidden" id="f_operacao" value="'+esc(v)+'">';
@@ -529,6 +533,31 @@ function abrirForm(cfg){
     el.value = el.type === "time" ? agoraHm() : agoraDt(); sujo = true; ack = ""; limparAvisos(); el.dispatchEvent(new Event("input", {bubbles:true}));
   });
 
+  /* --- carga: lista de produtos, cada um com suas embalagens --- */
+  var cgBox = q("#cg"), cgRows = [];
+  function cgDraw(foco){
+    if(!cgBox) return;
+    cgBox.innerHTML = cgRows.map(function(r, i){
+      return '<div class="cg-r"><div class="inl"><input class="cg-p" data-i="'+i+'" list="dl_carga" autocomplete="off" placeholder="Produto. Ex.: Barrilha" value="'+esc(r.p)+'">'+(cgRows.length > 1 ? '<button type="button" class="cg-x" data-x="'+i+'" aria-label="Remover este produto">✕</button>' : "")+'</div>' +
+        '<div class="cg-e" role="group" aria-label="Embalagem">'+EMBS.map(function(m, j){ return '<button type="button" class="cg-b" data-i="'+i+'" data-j="'+j+'" aria-pressed="'+(r.e.indexOf(j) >= 0)+'" title="'+esc(m[0])+'">'+esc(m[0])+' <small>'+m[1]+'</small></button>'; }).join("")+'</div></div>';
+    }).join("");
+    if(foco){ var ins = cgBox.querySelectorAll(".cg-p"); if(ins.length) ins[ins.length - 1].focus(); }
+  }
+  function cgSync(){ F("carga").value = cargaCompose(cgRows); }
+  function cgLer(){ cgRows = cargaParse(F("carga").value); if(!cgRows.length) cgRows = [{p:"", e:[]}]; cgDraw(); }
+  if(cgBox){
+    cgLer();
+    cgBox.addEventListener("input", function(e){ var i = e.target.getAttribute("data-i"); if(i == null || !e.target.classList.contains("cg-p")) return; cgRows[+i].p = e.target.value; cgSync(); });
+    cgBox.addEventListener("click", function(e){
+      var b = e.target.closest(".cg-b"), x = e.target.closest(".cg-x");
+      if(b){ var r = cgRows[+b.getAttribute("data-i")], j = +b.getAttribute("data-j"), p = r.e.indexOf(j); if(p >= 0) r.e.splice(p, 1); else { r.e.push(j); r.e.sort(function(a, c){ return a - c; }); } cgSync(); cgDraw(); }
+      else if(x){ cgRows.splice(+x.getAttribute("data-x"), 1); cgSync(); cgDraw(); }
+      else return;
+      sujo = true; ack = ""; limparAvisos();
+    });
+    q("#cg_add").addEventListener("click", function(){ cgRows.push({p:"", e:[]}); cgDraw(true); sujo = true; });
+  }
+
   /* --- operação: importação / exportação / serviço (esconde o que não se aplica) --- */
   var seg = q("#opseg"), modo = "";
   function aplicarOp(){
@@ -585,7 +614,7 @@ function abrirForm(cfg){
     if(F("nacionalidade") && F("nacionalidade").value) F("nacionalidade").dispatchEvent(new Event("input"));
     if(!F("navio").value && r.navio) F("navio").value = r.navio;
     if(!F("operacao") || !F("operacao").value){ if(r.operacao && F("operacao")){ F("operacao").value = r.operacao; if(F("servico") && !comCarga(r.operacao)) F("servico").value = r.operacao; aplicarOp(); pre.push("operacao"); } }
-    if(F("carga") && !F("carga").value && r.carga && comCarga(r.operacao)){ F("carga").value = r.carga; pre.push("carga"); }
+    if(F("carga") && !F("carga").value && r.carga && comCarga(r.operacao)){ F("carga").value = r.carga; cgLer(); pre.push("carga"); }
     var dd = parseDate(r.saida || r.chegada);
     hn.textContent = "Já esteve no porto" + (dd ? " em " + fmt(r.saida || r.chegada).split(" · ")[0] : "") + (pre.length ? ". Preenchemos os dados dele — confira." : ".");
   }

@@ -86,6 +86,37 @@ function toNum(v){
   var n = parseFloat(s); return isNaN(n)?0:n;
 }
 function cap(s){ return s ? s.charAt(0)+s.slice(1).toLowerCase() : s; }
+
+/* ---- Carga com vários produtos: "BOBINAS DE AÇO / BARRILHA (GRANEL + BIG BAG)" ----
+   Cada produto é separado por " / " e as embalagens ficam entre parênteses, ligadas por " + ".
+   Para mudar a lista ou as abreviações, edite só EMBS: [nome completo, abreviação]. */
+var EMBS = [["Big Bag","BB"],["Sacos","SC"],["Contêiner","CNT"],["Tanque","TQ"],["Granel","GR"],["Forro Interno para Contêiner","FIC"],["Caixa","CX"],["Tambor","TB"],["Bombona","BOM"],["Balde","BLD"],["Palete","PLT"]];
+function embNorm(s){ return String(s).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/\s+/g, " ").trim(); }
+function embStem(s){ return embNorm(s).replace(/(ES|S)$/, ""); }
+function embIdx(t){   /* "BIG BAGS" -> 0; "gr" -> 4; desconhecido -> -1 */
+  var n = embNorm(t), st = embStem(t);
+  for(var i = 0; i < EMBS.length; i++){ if(n === EMBS[i][1] || st === embStem(EMBS[i][0])) return i; }
+  return -1;
+}
+function cargaParse(txt){   /* texto -> [{p:produto, e:[índices das embalagens]}]; o que não for reconhecido fica como produto, sem perder nada */
+  return String(txt == null ? "" : txt).split(/\s+\/\s+/).map(function(part){
+    part = part.trim(); if(!part) return null;
+    var m = /^(.*?)\s*\(([^()]*)\)$/.exec(part);
+    if(m){
+      var idx = m[2].split(/\s*\+\s*/).map(embIdx);
+      if(m[1] && idx.length && idx.every(function(i){ return i >= 0; })) return {p:m[1].trim(), e:idx.filter(function(i, j){ return idx.indexOf(i) === j; }).sort(function(a, b){ return a - b; })};
+    }
+    return {p:part, e:[]};
+  }).filter(Boolean);
+}
+function cargaCompose(rows){
+  return rows.filter(function(r){ return r.p.trim(); }).map(function(r){
+    return r.p.trim().toUpperCase() + (r.e.length ? " (" + r.e.map(function(i){ return EMBS[i][0].toUpperCase(); }).join(" + ") + ")" : "");
+  }).join(" / ");
+}
+function cargaAbrev(txt){   /* para o cartão: embalagens abreviadas */
+  return cargaParse(txt).map(function(r){ return cap(r.p) + (r.e.length ? " (" + r.e.map(function(i){ return EMBS[i][1]; }).join(" + ") + ")" : ""); }).join(" / ");
+}
 var DATE_RE = /^\d\d\/\d\d\/\d{4}/;
 
 /* Lê as colunas pelo NOME do cabeçalho (cada aba pode ter colunas em posições diferentes). */
@@ -349,7 +380,7 @@ function rowBase(s,lista){
   if(nv) meta.push('<div><span>Navegação</span> <b title="'+nv.nome+'">'+nv.sigla+'</b></div>');
   var cargo = special
     ? '<div class="cargo">'+esc(s.tipo)+'</div><span class="pill neutral">Sem carga</span>'
-    : '<div class="cargo">'+esc(cap(s.carga)||"Não informada")+'</div>'+modPill(s.mod)+(s.origem?'<div class="meta">'+(s.mod==="IMPORTAÇÃO"?"Origem":s.mod==="EXPORTAÇÃO"?"Destino":"Origem/destino")+': '+esc(s.origem)+'</div>':'');
+    : '<div class="cargo" title="'+esc(cap(s.carga)||"")+'">'+esc(cargaAbrev(s.carga)||"Não informada")+'</div>'+modPill(s.mod)+(s.origem?'<div class="meta">'+(s.mod==="IMPORTAÇÃO"?"Origem":s.mod==="EXPORTAÇÃO"?"Destino":"Origem/destino")+': '+esc(s.origem)+'</div>':'');
   var when, prog;
   if(prevList){
     var chega = rel(s.chegada,"chega");

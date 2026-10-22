@@ -40,7 +40,11 @@ function fpre(p){   /* [de, ate] em AAAA-MM-DD */
 /* valores de um campo numa embarcação (sempre uma lista; o cais "0 E 1" vale para os dois cais) */
 function fvals(s, k){
   if(k === "cais"){ var ks = caisKeys(s.cais); return ks.length ? ks : (s.cais ? [s.cais] : []); }
-  if(k === "carga"){ var v = s.tipo || s.carga; return v ? [cap(String(v))] : []; }
+  if(k === "carga"){
+    if(s.tipo) return [cap(String(s.tipo))];
+    var ps = cargaParse(s.carga).map(function(r){ return cap(r.p); });
+    return ps.filter(function(p, i){ return ps.indexOf(p) === i; });
+  }
   return s[k] ? [s[k]] : [];
 }
 function caisN(l){ return l === "00-TA" ? 0 : (parseInt(l, 10) || 99); }
