@@ -387,6 +387,8 @@ function renderTabs(){
   }).join("");
 }
 var BERCOS = ["00-TA","1","2","3","4","5","6","7","8","9"];
+function ehCB(c){ return /\/\s*CB\s*$/i.test(String(c == null ? "" : c)); }                 /* "7 / CB": a contra bordo de outro navio, no berço 7 */
+function caisBase(c){ return String(c == null ? "" : c).replace(/\s*\/\s*CB\s*$/i, "").trim(); }
 function caisKeys(c){   /* "2" -> ["2"]; "0 E 1" -> ["00-TA","1"]; "7 / CB" -> ["7"]; "MARINA" -> [] */
   var out = [];
   (String(c == null ? "" : c).toUpperCase().match(/00-TA|TA|\d+/g) || []).forEach(function(t){
@@ -397,7 +399,7 @@ function caisKeys(c){   /* "2" -> ["2"]; "0 E 1" -> ["00-TA","1"]; "7 / CB" -> [
 }
 function renderBerths(){
   var map = {};
-  listOf("atracados").forEach(function(s){ caisKeys(s.cais).forEach(function(k){ (map[k] = map[k] || []).push(s.navio); }); });
+  listOf("atracados").forEach(function(s){ caisKeys(s.cais).forEach(function(k){ (map[k] = map[k] || []).push(ehCB(s.cais) ? s.navio + " (C/B)" : s.navio); }); });
   $("berths").innerHTML = BERCOS.map(function(k){
     var sh = map[k], vis = sh ? (sh.length > 3 ? sh.slice(0, 2) : sh) : [];
     var lines = vis.map(function(n){ return "<span>" + esc(n) + "</span>"; }).join("") + (sh && sh.length > 3 ? '<span class="mais">+' + (sh.length - 2) + " embarcações</span>" : "");

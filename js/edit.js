@@ -119,7 +119,7 @@ function emAndamento(nome, imo, idSelf){   /* mesma embarcação já ativa em ou
   return hit;
 }
 function ocupacao(idSelf){
-  var m = {}; listOf("atracados").forEach(function(s){ if(s.id === idSelf) return; caisKeys(s.cais).forEach(function(k){ (m[k] = m[k] || []).push(s.navio); }); });
+  var m = {}; listOf("atracados").forEach(function(s){ if(s.id === idSelf || ehCB(s.cais)) return; caisKeys(s.cais).forEach(function(k){ (m[k] = m[k] || []).push(s.navio); }); });
   return m;
 }
 function imoOk(v){ if(!/^\d{7}$/.test(v)) return true; var s = 0; for(var i = 0; i < 6; i++) s += (+v[i]) * (7 - i); return s % 10 === +v[6]; }
@@ -455,10 +455,11 @@ function campoHtml(f, rec, ctx){
     if(v && !ob.some(function(x){ return x[0] === v; })) ob.push([v, v]);
     c = '<select id="'+id+'">'+ob.map(function(x){ return '<option value="'+esc(x[0])+'"'+(x[0] === v ? " selected" : "")+'>'+esc(x[1])+'</option>'; }).join("")+'</select>';
   } else if(t === "cais"){
-    var oc = ocupacao(ctx.id), op = ["", "00-TA"]; for(var i = 1; i <= 9; i++) op.push(String(i)); op.push("MARINA"); if(v && op.indexOf(v) < 0) op.push(v);
+    var cbOn = ehCB(v), vb = caisBase(v), oc = ocupacao(ctx.id), op = ["", "00-TA"]; for(var i = 1; i <= 9; i++) op.push(String(i)); op.push("MARINA"); if(vb && op.indexOf(vb) < 0) op.push(vb);
     c = '<select id="'+id+'">'+op.map(function(x){
       var nome = x ? ((isNaN(x) && x !== "00-TA") ? x : "Berço " + x) : "Sem berço", kk = caisKeys(x)[0], oc2 = (ctx.ocupados && kk && oc[kk]) ? " · ocupado: " + oc[kk][0] : "";
-      return '<option value="'+esc(x)+'"'+(x === v ? " selected" : "")+'>'+esc(nome + oc2)+'</option>'; }).join("")+'</select>';
+      return '<option value="'+esc(x)+'"'+(x === vb ? " selected" : "")+'>'+esc(nome + oc2)+'</option>'; }).join("")+'</select>' +
+      '<span class="cbk"><input type="checkbox" id="'+id+'_cb"'+(cbOn ? " checked" : "")+'> <em>A contra bordo de outro navio (/CB)</em></span>';
   } else if(t === "op"){
     c = '<div class="seg2" id="opseg" role="group" aria-label="Operação"><button type="button" data-op="IMPORTAÇÃO">Importação</button><button type="button" data-op="EXPORTAÇÃO">Exportação</button><button type="button" data-op="SERV">Serviço (sem carga)</button></div>' +
         '<input id="f_servico" list="dl_servico" autocomplete="off" placeholder="Qual serviço? Ex.: Dragagem" hidden><input type="hidden" id="f_operacao" value="'+esc(v)+'">';
@@ -614,6 +615,7 @@ function abrirForm(cfg){
       var el = F(c.k), o = c.o; if(!el) return;
       var lb = el.closest("label"); if(lb && lb.hidden) return;
       var x = el.value.trim(), t = o.t;
+      if(t === "cais"){ var cbx = F("cais_cb"); if(x && cbx && cbx.checked) x += " / CB"; }
       v[c.k] = t === "dt" ? dtOut(x) : t === "num" ? x.replace(/\D/g, "") : t === "imo" ? x.replace(/\D/g, "") : t === "cbo" ? x.toUpperCase() : x;
     });
     if(F("operacao")){ if(modo === "SERV") v.operacao = F("servico").value.trim().toUpperCase(); else v.operacao = F("operacao").value; }
@@ -663,7 +665,7 @@ function abrirForm(cfg){
       var at = t("chegada");
       if(at && Object.prototype.hasOwnProperty.call(v, "chegada") && at > agora + 2 * 36e5) avs.push("A data e hora da atracação está no futuro.");
       if(v.saida && at && t("saida") < at) marcar("saida", "A previsão de saída não pode ser antes da atracação.", erros);
-      if(v.cais){ var oc = ocupacao(ctx.id), ks = caisKeys(v.cais), b = ks.filter(function(k){ return oc[k]; })[0]; if(b && Object.prototype.hasOwnProperty.call(v, "chegada")) avs.push("O berço " + b + " está ocupado por " + oc[b][0] + ". Se ele já saiu, registre primeiro a desatracação dele."); }
+      if(v.cais && !ehCB(v.cais)){ var oc = ocupacao(ctx.id), ks = caisKeys(v.cais), b = ks.filter(function(k){ return oc[k]; })[0]; if(b && Object.prototype.hasOwnProperty.call(v, "chegada")) avs.push("O berço " + b + " está ocupado por " + oc[b][0] + ". Se ele já saiu, registre primeiro a desatracação dele."); }
       if(cfg.avanco || Object.prototype.hasOwnProperty.call(v, "hora_pratico")){
         if(!ordemHoras([v.hora_pratico, v.inicio_manobra, v.hora_amarracao, v.termino_manobra])) avs.push("Confira os horários da manobra: estão fora de ordem ou passam de 6 horas.");
         if(cfg.avanco){ var fm = []; if(!v.bordo) fm.push("bordo"); if(!v.hora_pratico) fm.push("hora do prático"); if(!v.hora_amarracao) fm.push("amarração"); if(fm.length) avs.push("Faltam dados da manobra: " + fm.join(", ") + ". Você pode completar depois em Editar."); }

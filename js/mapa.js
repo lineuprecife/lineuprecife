@@ -42,17 +42,20 @@ function mapaPos(lista){
   });
   Object.keys(por).forEach(function(k){
     var G = GEO[k], Lb = G.L, sc = G.sc*MAPA.K, eixo = (G.b - G.a)*MAPA.K;   /* sc = px da tela por metro neste berço */
-    var ships = por[k].slice().sort(function(a, b){ var da = parseDate(a.chegada), db = parseDate(b.chegada); return (da?+da:0) - (db?+db:0); });
-    var c = ships.map(compM), gap = 10, total = c.reduce(function(a, b){ return a + b; }, 0) + gap*(c.length-1), f = total > Lb ? Lb/total : 1, cur = (Lb - total*f)/2;
-    ships.forEach(function(s, i){
-      var m = c[i], w = Math.min(Math.max(m*sc*f, 30), eixo), p0 = mapaPt(k, cur/Lb), p1 = mapaPt(k, (cur + m*f)/Lb);
-      cur += (m + gap)*f;
-      itens.push(mapaItem(s, p0, p1, w, mapaTipo(m), ships.length >= 4 && i % 2));
+    [false, true].forEach(function(cb){                                       /* primeiro os encostados no cais; depois os a contra bordo (/CB), na fileira de fora */
+      var ships = por[k].filter(function(s){ return ehCB(s.cais) === cb; }).sort(function(a, b){ var da = parseDate(a.chegada), db = parseDate(b.chegada); return (da?+da:0) - (db?+db:0); });
+      if(!ships.length) return;
+      var c = ships.map(compM), gap = 10, total = c.reduce(function(a, b){ return a + b; }, 0) + gap*(c.length-1), f = total > Lb ? Lb/total : 1, cur = (Lb - total*f)/2;
+      ships.forEach(function(s, i){
+        var m = c[i], w = Math.min(Math.max(m*sc*f, 30), eixo), p0 = mapaPt(k, cur/Lb), p1 = mapaPt(k, (cur + m*f)/Lb);
+        cur += (m + gap)*f;
+        itens.push(mapaItem(s, p0, p1, w, mapaTipo(m), cb || (ships.length >= 4 && i % 2)));
+      });
     });
   });
   multi.forEach(function(g){                                                    /* navio em dois ou mais berços: ocupa os dois */
     var ks = g.ks.slice().sort(function(a, b){ return GEO[a].a - GEO[b].a; }), p0 = mapaPt(ks[0], 0), p1 = mapaPt(ks[ks.length-1], 1), len = mapaFrame(p0, p1).len;
-    itens.push(mapaItem(g.s, p0, p1, Math.max(30, Math.min(len, compM(g.s)*GEO[ks[0]].sc*MAPA.K)), mapaTipo(compM(g.s)), 0));
+    itens.push(mapaItem(g.s, p0, p1, Math.max(30, Math.min(len, compM(g.s)*GEO[ks[0]].sc*MAPA.K)), mapaTipo(compM(g.s)), ehCB(g.s.cais) ? 1 : 0));
   });
   for(var it = 0; it < 40; it++){                                               /* se dois desenhos ainda se tocarem, afasta um do outro ao longo do cais */
     var moved = false;
