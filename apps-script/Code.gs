@@ -45,6 +45,7 @@ var COLS = [
   ['desatrac', 'Desatracação', /^desatracacao$|^saida$/],
   ['prev_cais', 'Previsão de Cais', /^previsao de cais/],
   ['cais', 'Cais Atracado', /^cais atracado|^cais$/],
+  ['cb_de', 'Contra Bordo de', /^contra bordo de/],
   ['ton_prev', 'Tonelagem Prevista', /^tonelagem prevista/],
   ['ton_mov', 'Tonelagem Movimentada', /^tonelagem movimentada/],
   ['saldo', 'Saldo', /^saldo$/],
@@ -80,7 +81,7 @@ var NUMS = ['comprimento', 'calado', 'calado_proa', 'calado_popa', 'd_calado_pro
 /* Campos como a página os conhece (iguais aos do formulário) e quem pode mexer em cada grupo. */
 var G_IDENT = ['navio', 'nacionalidade', 'imo', 'comprimento', 'calado', 'agencia', 'operador', 'carga', 'operacao', 'origem_destino', 'porto_anterior', 'proximo_porto', 'ton_prevista', 'observacoes'];
 var G_REGISTRO = ['cbo', 'nr_livro'];   /* o CBO só passa a existir na atracação */
-var G_DATAS = ['chegada', 'previsao_atracacao', 'saida', 'cais'];
+var G_DATAS = ['chegada', 'previsao_atracacao', 'saida', 'cais', 'contra_bordo_de'];
 var G_MANOBRA = ['hora_pratico', 'hora_amarracao', 'inicio_manobra', 'termino_manobra', 'bordo', 'calado_proa', 'calado_popa', 'cabecos', 'pratico', 'rebocadores'];
 var G_DMANOBRA = ['d_hora_pratico', 'd_hora_amarracao', 'd_inicio_manobra', 'd_termino_manobra', 'd_bordo', 'd_calado_proa', 'd_calado_popa', 'd_cabecos', 'd_pratico', 'd_rebocadores'];
 var G_MOV = ['ton_movimentada'];
@@ -92,8 +93,8 @@ var CAMPOS_ETAPA = {
   movimentacao: ['ton_movimentada', 'observacoes'],      /* só em embarcação atracada */
   desatracacao: ['saida', 'ton_movimentada', 'observacoes'].concat(G_DMANOBRA)
 };
-var INTERNOS = G_DMANOBRA.concat(['calado_proa', 'calado_popa', 'bordo', 'cabecos', 'pratico', 'rebocadores', 'observacoes', 'nr_livro', 'hora_pratico', 'hora_amarracao', 'inicio_manobra', 'termino_manobra']);
-var ROTULO = {navio: 'Nome da embarcação', nacionalidade: 'Bandeira / porto de matrícula', imo: 'IMO', cbo: 'CBO', comprimento: 'Comprimento', calado: 'Calado máximo', agencia: 'Agência', operador: 'Operador', carga: 'Carga', operacao: 'Operação', origem_destino: 'Origem / destino', porto_anterior: 'Porto anterior', proximo_porto: 'Próximo porto', ton_prevista: 'Toneladas previstas', nr_livro: 'Nº no livro', observacoes: 'Observações', chegada: 'Data de chegada / atracação', previsao_atracacao: 'Previsão de atracação (POB)', saida: 'Saída', cais: 'Berço', hora_pratico: 'Hora do prático', hora_amarracao: 'Hora da amarração', inicio_manobra: 'Início da manobra', termino_manobra: 'Término da manobra', bordo: 'Bordo de atracação', calado_proa: 'Calado proa', calado_popa: 'Calado popa', cabecos: 'Cabeços', pratico: 'Prático', rebocadores: 'Rebocadores', ton_movimentada: 'Toneladas movimentadas',
+var INTERNOS = G_DMANOBRA.concat(['calado_proa', 'calado_popa', 'cabecos', 'pratico', 'rebocadores', 'observacoes', 'nr_livro', 'hora_pratico', 'hora_amarracao', 'inicio_manobra', 'termino_manobra']);
+var ROTULO = {contra_bordo_de: 'Contra bordo de', navio: 'Nome da embarcação', nacionalidade: 'Bandeira / porto de matrícula', imo: 'IMO', cbo: 'CBO', comprimento: 'Comprimento', calado: 'Calado máximo', agencia: 'Agência', operador: 'Operador', carga: 'Carga', operacao: 'Operação', origem_destino: 'Origem / destino', porto_anterior: 'Porto anterior', proximo_porto: 'Próximo porto', ton_prevista: 'Toneladas previstas', nr_livro: 'Nº no livro', observacoes: 'Observações', chegada: 'Data de chegada / atracação', previsao_atracacao: 'Previsão de atracação (POB)', saida: 'Saída', cais: 'Berço', hora_pratico: 'Hora do prático', hora_amarracao: 'Hora da amarração', inicio_manobra: 'Início da manobra', termino_manobra: 'Término da manobra', bordo: 'Bordo de atracação', calado_proa: 'Calado proa', calado_popa: 'Calado popa', cabecos: 'Cabeços', pratico: 'Prático', rebocadores: 'Rebocadores', ton_movimentada: 'Toneladas movimentadas',
   d_hora_pratico: 'Desatracação · hora do prático', d_hora_amarracao: 'Desatracação · largada do último cabo', d_inicio_manobra: 'Desatracação · início da manobra', d_termino_manobra: 'Desatracação · término da manobra', d_bordo: 'Desatracação · bordo', d_calado_proa: 'Desatracação · calado proa', d_calado_popa: 'Desatracação · calado popa', d_cabecos: 'Desatracação · cabeços', d_pratico: 'Desatracação · prático', d_rebocadores: 'Desatracação · rebocadores'};
 
 /* ---------- utilidades ---------- */
@@ -190,6 +191,7 @@ function paraApi_(o) {
     chegada: prevL ? (d('chegada_conf') || d('prev_chegada') || d('atrac')) : (d('atrac') || d('chegada_conf') || d('prev_chegada')),
     previsao_atracacao: d('prev_atrac'),
     saida: desat ? (d('desatrac') || d('prev_saida')) : d('prev_saida'),
+    contra_bordo_de: String(o.cb_de || ''),
     cais: caisTxt_(prevL ? vazio_(o.prev_cais) ? o.cais : o.prev_cais : vazio_(o.cais) ? o.prev_cais : o.cais),
     ton_prevista: n('ton_prev'), ton_movimentada: desat ? (n('ton_final') !== '' ? n('ton_final') : n('ton_mov')) : n('ton_mov'),
     hora_pratico: fmtHora(o.hora_pratico), hora_amarracao: fmtHora(o.hora_amarracao), inicio_manobra: fmtHora(o.inicio_manobra), termino_manobra: fmtHora(o.termino_manobra),
@@ -208,6 +210,7 @@ function colDe_(k, sit) {   /* campo da página + situação -> coluna da planil
     case 'cais': return (sit === 'rascunhos' || sit === 'previstos' || sit === 'fundeados') ? 'prev_cais' : 'cais';
     case 'ton_movimentada': return sit === 'desatracados' ? 'ton_final' : 'ton_mov';
     case 'ton_prevista': return 'ton_prev';
+    case 'contra_bordo_de': return 'cb_de';
     case 'previsao_atracacao': return 'prev_atrac';
   }
   return k;
