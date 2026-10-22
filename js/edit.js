@@ -462,8 +462,8 @@ function campoHtml(f, rec, ctx){
     c = '<select id="'+id+'">'+op.map(function(x){
       var nome = x ? ((isNaN(x) && x !== "00-TA") ? x : "Berço " + x) : "Sem berço", kk = caisKeys(x)[0], oc2 = (ctx.ocupados && kk && oc[kk]) ? " · ocupado: " + oc[kk][0] : "";
       return '<option value="'+esc(x)+'"'+(x === vb ? " selected" : "")+'>'+esc(nome + oc2)+'</option>'; }).join("")+'</select>' +
-      '<span class="cbk"><input type="checkbox" id="'+id+'_cb"'+(cbOn ? " checked" : "")+' onchange="var w=document.getElementById(\''+id+'_cbde_w\');if(w){w.hidden=!this.checked;var i=document.getElementById(\''+id+'_cbde\');if(this.checked&&i)i.focus();}"> <em>A contra bordo de outro navio (/CB)</em></span>' +
-      '<span class="cbde" id="'+id+'_cbde_w"'+(cbOn ? "" : " hidden")+'><input id="'+id+'_cbde" list="dl_cbde" autocomplete="off" maxlength="60" placeholder="De qual embarcação? (nome do navio)" value="'+esc(cbv)+'"></span><datalist id="dl_cbde">'+outros.map(function(x){ return '<option value="'+esc(x.navio)+'">'; }).join("")+'</datalist>';
+      '<span class="cbk"><input type="checkbox" id="'+id+'_cb"'+(cbOn ? " checked" : "")+'> <em>A contra bordo de outro navio (/CB)</em></span>' +
+      '<span class="cbde" id="'+id+'_cbde_w"'+(cbOn ? "" : " hidden")+'><input id="'+id+'_cbde" list="dl_cbde" autocomplete="off" maxlength="60" placeholder="De qual embarcação? (nome do navio)" value="'+esc(cbv)+'"><small id="'+id+'_cbde_h"></small></span><datalist id="dl_cbde">'+mesmo.map(function(x){ return '<option value="'+esc(x.navio)+'">'; }).join("")+'</datalist>';
   } else if(t === "carga"){
     c = '<input type="hidden" id="'+id+'" value="'+esc(v)+'"><div class="cg" id="cg"></div><button type="button" class="cg-add" id="cg_add">+ Adicionar outro produto</button>';
   } else if(t === "op"){
@@ -572,6 +572,29 @@ function abrirForm(cfg){
     });
     q("#cg_add").addEventListener("click", function(){ cgRows.push({p:"", e:[], u:"", t:""}); cgDraw(true); sujo = true; });
   }
+
+  /* --- contra bordo: o campo só aparece ao marcar a opção, e só sugere as embarcações JÁ ATRACADAS no berço escolhido --- */
+  (function(){
+    var sel = F("cais"), cbx = F("cais_cb"), w = q("#f_cais_cbde_w"), inp = F("cais_cbde"), dl = q("#dl_cbde"), hint = q("#f_cais_cbde_h");
+    if(!sel || !cbx || !w || !inp || !dl) return;
+    function hosts(){
+      var kb = caisKeys(sel.value)[0]; if(!kb) return [];
+      return listOf("atracados").filter(function(x){ return x.id !== ctx.id && !ehCB(x.cais) && caisKeys(x.cais).indexOf(kb) >= 0; });
+    }
+    function sync(abriu){
+      w.hidden = !cbx.checked;
+      var hs = hosts();
+      dl.innerHTML = hs.map(function(x){ return '<option value="' + esc(x.navio) + '">'; }).join("");
+      if(hint) hint.textContent = !sel.value ? "Escolha primeiro o berço." : hs.length ? "Sugestões: embarcações atracadas no berço " + sel.value + "." : "Nenhuma embarcação atracada no berço " + sel.value + ".";
+      if(cbx.checked){
+        if(hs.length === 1 && !inp.value.trim()) inp.value = hs[0].navio;
+        if(abriu === true) inp.focus();
+      }
+    }
+    cbx.addEventListener("change", function(){ sync(true); });
+    sel.addEventListener("change", function(){ if(cbx.checked) inp.value = ""; sync(false); });
+    sync(false);
+  })();
 
   /* --- operação: importação / exportação / serviço (esconde o que não se aplica) --- */
   var seg = q("#opseg"), modo = "";
@@ -703,6 +726,7 @@ function abrirForm(cfg){
     /* datas */
     var t = function(k){ var x = parseDate(val(k)); return x ? +x : null; }, agora = Date.now();
     if(v.cais && ehCB(v.cais) && !v.contra_bordo_de) marcar("cais", "Informe de qual embarcação ela está a contra bordo.", erros);
+    else if(v.cais && ehCB(v.cais)){ var kcb = caisKeys(v.cais)[0], okcb = listOf("atracados").some(function(x){ return x.id !== ctx.id && !ehCB(x.cais) && caisKeys(x.cais).indexOf(kcb) >= 0 && normH(x.navio) === normH(v.contra_bordo_de); }); if(!okcb) marcar("cais", "Escolha uma embarcação que já esteja atracada no berço " + kcb + ".", erros); }
     if(dest === "previstos" || dest === "rascunhos"){
       if(t("chegada") && t("saida") && t("saida") < t("chegada")) marcar("saida", "A saída não pode ser antes da chegada.", erros);
       if(dest === "previstos" && v.chegada && t("chegada") < agora - 864e5 && (!s || sitKey(s) === "rascunhos" || cfg.avanco)) avs.push("A previsão de chegada já passou. Confirme a data, ou use \"Confirmar chegada\" se o navio já chegou.");

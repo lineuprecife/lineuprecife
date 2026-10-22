@@ -90,7 +90,7 @@ function cap(s){ return s ? s.charAt(0)+s.slice(1).toLowerCase() : s; }
 /* ---- Carga com vários produtos: "BOBINAS DE AÇO / BARRILHA (GRANEL + BIG BAG)" ----
    Cada produto é separado por " / " e as embalagens ficam entre parênteses, ligadas por " + ".
    Para mudar a lista ou as abreviações, edite só EMBS: [nome completo, abreviação]. */
-var EMBS = [["Big Bag","BB"],["Sacos","SC"],["Contêiner","CNT"],["Tanque","TQ"],["Granel","GR"],["Forro Interno para Contêiner","FIC"],["Caixa","CX"],["Tambor","TB"],["Bombona","BOM"],["Balde","BLD"],["Palete","PLT"]];
+var EMBS = [["Granel","GR"],["Sacos","SC"],["Big Bags","BB"],["Carga Geral","CG"]];
 function embNorm(s){ return String(s).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/\s+/g, " ").trim(); }
 function embStem(s){ return embNorm(s).replace(/(ES|S)$/, ""); }
 function embIdx(t){   /* "BIG BAGS" -> 0; "gr" -> 4; desconhecido -> -1 */
@@ -123,11 +123,27 @@ function cargaCompose(rows){
     return r.p.trim().toUpperCase() + (r.e.length ? " (" + r.e.map(function(i){ return EMBS[i][0].toUpperCase(); }).join(" + ") + ")" : "") + (q.length ? " [" + q.join(" · ") + "]" : "");
   }).join(" / ");
 }
-function cargaAbrev(txt){   /* para o cartão: embalagens abreviadas e as quantidades de cada produto */
-  return cargaParse(txt).map(function(r){
-    var q = []; if(r.u) q.push(r.u + " un"); if(r.t) q.push(r.t + " t");
-    return cap(r.p) + (r.e.length ? " (" + r.e.map(function(i){ return EMBS[i][1]; }).join(" + ") + ")" : "") + (q.length ? " – " + q.join(" · ") : "");
-  }).join(" / ");
+/* Como a carga aparece para o público: PRODUTO-EMBALAGEM (ex.: BARRILHA-GR, BARRILHA-BB, DIVERSOS-CG).
+   Produto com duas embalagens vira dois rótulos, ligados por " + ". Quantidades vão entre parênteses. */
+function cargaRotulos(r){
+  var P = String(r.p).trim().toUpperCase();
+  return r.e.length ? r.e.map(function(i){ return P + "-" + EMBS[i][1]; }) : [P];
+}
+function cargaQtd(r){ var q = []; if(r.u) q.push(r.u + " un"); if(r.t) q.push(r.t + " t"); return q.join(" · "); }
+function cargaAbrev(txt){   /* texto simples (tabela, impressão, busca): BARRILHA-GR + BARRILHA-BB (500 t) / DIVERSOS-CG */
+  return cargaParse(txt).map(function(r){ var q = cargaQtd(r); return cargaRotulos(r).join(" + ") + (q ? " (" + q + ")" : ""); }).join(" / ");
+}
+function cargaHtml(txt){   /* cartão: um produto por linha */
+  return cargaParse(txt).map(function(r){ var q = cargaQtd(r); return '<div class="cargo-l">' + esc(cargaRotulos(r).join(" + ")) + (q ? ' <span class="meta">(' + esc(q) + ')</span>' : '') + '</div>'; }).join("");
+}
+function legendaEmb(itens){   /* "BB = Big Bags · CG = Carga Geral": só as siglas que aparecem na lista mostrada */
+  var usa = {};
+  (itens || []).forEach(function(s){ if(s.tipo) return; cargaParse(s.carga).forEach(function(r){ r.e.forEach(function(i){ usa[i] = 1; }); }); });
+  return EMBS.filter(function(m, i){ return usa[i]; }).map(function(m){ return '<b>' + m[1] + '</b> = ' + m[0]; });
+}
+function legendaHtml(itens){
+  var l = legendaEmb(itens); if(!l.length) return "";
+  return '<p class="leg-emb"><span>Legenda das embalagens:</span> ' + l.join(' · ') + '</p>';
 }
 
 var DATE_RE = /^\d\d\/\d\d\/\d{4}/;
@@ -394,7 +410,7 @@ function rowBase(s,lista){
   if(nv) meta.push('<div><span>Navegação</span> <b title="'+nv.nome+'">'+nv.nome+'</b></div>');
   var cargo = special
     ? '<div class="cargo">'+esc(s.tipo)+'</div><span class="pill neutral">Sem carga</span>'
-    : '<div class="cargo" title="'+esc(cap(s.carga)||"")+'">'+esc(cargaAbrev(s.carga)||"Não informada")+'</div>'+modPill(s.mod)+(s.origem?'<div class="meta">'+(s.mod==="IMPORTAÇÃO"?"Origem":s.mod==="EXPORTAÇÃO"?"Destino":"Origem/destino")+': '+esc(s.origem)+'</div>':'');
+    : '<div class="cargo" title="'+esc(cap(s.carga)||"")+'">'+(cargaHtml(s.carga)||"Não informada")+'</div>'+modPill(s.mod)+(s.origem?'<div class="meta">'+(s.mod==="IMPORTAÇÃO"?"Origem":s.mod==="EXPORTAÇÃO"?"Destino":"Origem/destino")+': '+esc(s.origem)+'</div>':'');
   var when, prog;
   if(prevList){
     var chega = rel(s.chegada,"chega");
@@ -462,9 +478,9 @@ function renderPanel(){
     el.innerHTML = '<div class="empty">'+(all.length ? 'Nenhuma embarcação encontrada com esses filtros.<br><button class="fclear" type="button" data-clearall>Limpar filtros</button>' : EMPTY[id])+'</div>';
     return;
   }
-  if(viewOf(id)==="tabela"){ el.innerHTML = tabelaHtml(id, items); el.classList.add("wide"); return; }
+  if(viewOf(id)==="tabela"){ el.innerHTML = tabelaHtml(id, items) + legendaHtml(items); el.classList.add("wide"); return; }
   el.innerHTML = '<div class="row head">'+HEADS[id].map(function(h){return '<div>'+h+'</div>'}).join("")+'</div>' +
-    items.map(function(s){return row(s,id)}).join("");
+    items.map(function(s){return row(s,id)}).join("") + legendaHtml(items);
 }
 function avisoHtml(rot, txt){
   if(txt === txt.toUpperCase()){ txt = txt.toLowerCase(); txt = txt.charAt(0).toUpperCase()+txt.slice(1); }

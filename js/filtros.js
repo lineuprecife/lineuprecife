@@ -190,7 +190,7 @@ function tabelaImpressao(id, items){
   var h = '<table class="pt"><thead><tr><th class="pn">Nº</th>' + cols.map(function(c){ return '<th>' + esc(c[1]) + '</th>'; }).join("") + '</tr></thead><tbody>';
   items.forEach(function(s, i){
     h += '<tr><td class="pn">' + (i + 1) + '</td>' + cols.map(function(c){
-      var v = c[0] === "saldo" ? (s.prev || 0) - (s.mov || 0) : s[c[0]];
+      var v = valorCol(s, c[0]);
       if(c[2] === "d") v = String(v || "").slice(0, 16);
       else if(c[2] === "n") v = (v || v === 0) ? num(v) : "";
       var k = [];
@@ -216,6 +216,7 @@ function imprimirRelacao(){
     '<div><b>Filtros aplicados:</b> ' + filtros + '</div>' +
     (id === "rascunhos" ? '<div class="pw">Documento interno: rascunhos ainda não publicados no MEP.</div>' : '') + '</div>' +
     tabelaImpressao(id, items) +
+    (legendaEmb(items).length ? '<div class="pleg"><b>Legenda das embalagens:</b> ' + legendaEmb(items).join(' · ') + '</div>' : '') +
     '<div class="pfoot">' + esc(CONFIG.endereco || "") + ' · Telefone: ' + esc(CONFIG.telefones || "") + ' · ' + esc(CONFIG.setor || "") + '</div>';
   var pa = document.getElementById("print-area"); pa.innerHTML = h;
   var st = document.createElement("style"); st.id = "print-page"; st.textContent = "@page{size:A4 landscape;margin:9mm 8mm}"; document.head.appendChild(st);
