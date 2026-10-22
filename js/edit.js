@@ -539,15 +539,28 @@ function abrirForm(cfg){
     if(!cgBox) return;
     cgBox.innerHTML = cgRows.map(function(r, i){
       return '<div class="cg-r"><div class="inl"><input class="cg-p" data-i="'+i+'" list="dl_carga" autocomplete="off" placeholder="Produto. Ex.: Barrilha" value="'+esc(r.p)+'">'+(cgRows.length > 1 ? '<button type="button" class="cg-x" data-x="'+i+'" aria-label="Remover este produto">✕</button>' : "")+'</div>' +
-        '<div class="cg-e" role="group" aria-label="Embalagem">'+EMBS.map(function(m, j){ return '<button type="button" class="cg-b" data-i="'+i+'" data-j="'+j+'" aria-pressed="'+(r.e.indexOf(j) >= 0)+'" title="'+esc(m[0])+'">'+esc(m[0])+' <small>'+m[1]+'</small></button>'; }).join("")+'</div></div>';
+        '<div class="cg-e" role="group" aria-label="Embalagem">'+EMBS.map(function(m, j){ return '<button type="button" class="cg-b" data-i="'+i+'" data-j="'+j+'" aria-pressed="'+(r.e.indexOf(j) >= 0)+'" title="'+esc(m[0])+'">'+esc(m[0])+' <small>'+m[1]+'</small></button>'; }).join("")+'</div>' +
+        '<div class="cg-q"><label><span>Unidades <small>(ex.: bobinas)</small></span><input class="cg-u" data-i="'+i+'" inputmode="numeric" autocomplete="off" placeholder="0" value="'+esc(r.u)+'"></label><label><span>Toneladas</span><input class="cg-t" data-i="'+i+'" inputmode="decimal" autocomplete="off" placeholder="0" value="'+esc(r.t)+'"></label></div></div>';
     }).join("");
     if(foco){ var ins = cgBox.querySelectorAll(".cg-p"); if(ins.length) ins[ins.length - 1].focus(); }
   }
-  function cgSync(){ F("carga").value = cargaCompose(cgRows); }
-  function cgLer(){ cgRows = cargaParse(F("carga").value); if(!cgRows.length) cgRows = [{p:"", e:[]}]; cgDraw(); }
+  function cgSync(){
+    F("carga").value = cargaCompose(cgRows);
+    var tot = 0; cgRows.forEach(function(r){ if(r.p.trim()) tot += qtdNum(r.t); });
+    var tp = F("ton_prevista"); if(tot > 0 && tp) tp.value = String(Math.round(tot));   /* o total de toneladas do navio é a soma dos produtos */
+  }
+  function cgLer(){ cgRows = cargaParse(F("carga").value); if(!cgRows.length) cgRows = [{p:"", e:[], u:"", t:""}]; cgDraw(); }
   if(cgBox){
     cgLer();
-    cgBox.addEventListener("input", function(e){ var i = e.target.getAttribute("data-i"); if(i == null || !e.target.classList.contains("cg-p")) return; cgRows[+i].p = e.target.value; cgSync(); });
+    cgBox.addEventListener("input", function(e){
+      var el = e.target, i = el.getAttribute("data-i"); if(i == null) return;
+      if(el.classList.contains("cg-p")) cgRows[+i].p = el.value;
+      else if(el.classList.contains("cg-u")){ var u = qtdLimpa(el.value, false); if(u !== el.value) el.value = u; cgRows[+i].u = u; }
+      else if(el.classList.contains("cg-t")){ var t = qtdLimpa(el.value, true); if(t !== el.value) el.value = t; cgRows[+i].t = t; }
+      else return;
+      cgSync();
+    });
+    cgBox.addEventListener("change", function(e){ var el = e.target, i = el.getAttribute("data-i"); if(i == null) return; if(el.classList.contains("cg-u")){ el.value = cgRows[+i].u = qtdFmt(el.value); cgSync(); } else if(el.classList.contains("cg-t")){ el.value = cgRows[+i].t = qtdFmt(el.value); cgSync(); } });
     cgBox.addEventListener("click", function(e){
       var b = e.target.closest(".cg-b"), x = e.target.closest(".cg-x");
       if(b){ var r = cgRows[+b.getAttribute("data-i")], j = +b.getAttribute("data-j"), p = r.e.indexOf(j); if(p >= 0) r.e.splice(p, 1); else { r.e.push(j); r.e.sort(function(a, c){ return a - c; }); } cgSync(); cgDraw(); }
@@ -555,7 +568,7 @@ function abrirForm(cfg){
       else return;
       sujo = true; ack = ""; limparAvisos();
     });
-    q("#cg_add").addEventListener("click", function(){ cgRows.push({p:"", e:[]}); cgDraw(true); sujo = true; });
+    q("#cg_add").addEventListener("click", function(){ cgRows.push({p:"", e:[], u:"", t:""}); cgDraw(true); sujo = true; });
   }
 
   /* --- operação: importação / exportação / serviço (esconde o que não se aplica) --- */
