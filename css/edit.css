@@ -185,3 +185,8 @@ dialog label.chk:has(input:disabled){opacity:.55;cursor:default}
 /* Bandeirinha ao lado do campo "Bandeira (país)" no formulário */
 .flag-prev{display:inline-flex;align-items:center;flex:none;min-width:22px}
 .flag-prev .flag{margin:0;width:28px;height:21px}
+
+/* opção "a contra bordo" (/CB) logo abaixo do berço */
+.fg label .cbk{display:flex;align-items:center;gap:8px;margin-top:6px;font-weight:500;cursor:pointer}
+.fg label .cbk input{width:auto;margin:0;flex:none}
+.fg label .cbk em{font-style:normal;color:var(--ink)}
