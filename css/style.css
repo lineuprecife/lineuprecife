@@ -495,13 +495,13 @@ footer b{color:var(--ink);font-weight:600}
 
 /* Rodapé: endereço, telefone e setor, nesta ordem */
 /* Rodapé: faixa azul-escuro em toda a largura, texto centralizado (igual no computador e no celular) */
-footer{display:block;margin:36px 0 0;padding:22px 0 calc(26px + env(safe-area-inset-bottom,0px));border-top:0;background:var(--foot);color:var(--foot-ink);font-size:13px;line-height:1.6;text-align:center}
+footer{display:block;margin:36px 0 0;padding:22px 0 calc(26px + env(safe-area-inset-bottom,0px));border-top:0;background:var(--blue);color:var(--on-blue);font-size:13px;line-height:1.6;text-align:center}
 footer .wrap{display:flex;flex-direction:column;align-items:center;gap:3px}
 footer span{overflow-wrap:anywhere}
-footer b{color:#fff;font-weight:600}
-footer a{color:inherit;text-decoration:underline;text-decoration-color:rgba(255,255,255,.4);text-underline-offset:3px}
-footer a:hover{color:#fff;text-decoration-color:#fff}
-footer #f-setor{color:#fff;font-weight:600}
+footer b{color:var(--on-blue);font-weight:600}
+footer a{color:inherit;text-decoration:underline;text-decoration-color:currentColor;text-underline-offset:3px}
+footer a:hover{color:var(--on-blue);opacity:.85}
+footer #f-setor{color:var(--on-blue);font-weight:600}
 footer #f-mail-box[hidden]{display:none}
 
 /* Carregando dados: chama atenção, com indicador azul girando */
