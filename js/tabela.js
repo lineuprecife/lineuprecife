@@ -23,7 +23,7 @@ function tabelaHtml(id, items){
       if(c[0] === "navio") k.push("nv"); else if(c[2] === "n") k.push("r");
       if(/^(cbo|imo|comp|calado|cais)$/.test(c[0])) k.push("nw");
       if(vazio) k.push("vz");
-      return '<td' + (k.length ? ' class="' + k.join(" ") + '"' : '') + ' data-label="' + esc(c[1]) + '">' + (vazio ? '<span class="meta">—</span>' : esc(v)) + '</td>';
+      return '<td' + (k.length ? ' class="' + k.join(" ") + '"' : '') + ' data-label="' + esc(c[1]) + '">' + (vazio ? '<span class="meta">—</span>' : (c[0] === "navio" ? bandeiraHtml(s.nacionalidade) : "") + esc(v)) + '</td>';
     }).join("") + (ed ? '<td class="ac">' + botoes(s) + '</td>' : '') + '</tr>';
   });
   return h + '</tbody></table></div>';

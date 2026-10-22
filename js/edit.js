@@ -166,7 +166,7 @@ function carregarSug(){
 function toItem(r){
   var n = function(x){ return x === "" || x == null ? 0 : Number(x) || 0; };
   var m = function(x){ return x === "" || x == null ? "" : Number(x).toFixed(2).replace(".", ",") + " m"; };
-  var s = {id:r.id, rec:r, chegada:r.chegada||"", saida:r.saida||"", atracacao:r.previsao_atracacao||"", cais:(r.cais === "" || r.cais == null) ? "" : String(r.cais), navio:String(r.navio||""),
+  var s = {id:r.id, rec:r, chegada:r.chegada||"", saida:r.saida||"", atracacao:r.previsao_atracacao||"", cais:(r.cais === "" || r.cais == null) ? "" : String(r.cais), navio:String(r.navio||""), nacionalidade:String(r.nacionalidade||""),
     cbo:r.cbo||"", imo:r.imo||"", comp:m(r.comprimento), calado:m(r.calado), agencia:r.agencia||"", operador:r.operador||"",
     carga:r.carga||"", mod:String(r.operacao||"").toUpperCase(), origem:r.origem_destino||"", anterior:r.porto_anterior||"", proximo:r.proximo_porto||"",
     prev:n(r.ton_prevista), mov:n(r.ton_movimentada), tipo:""};
@@ -400,7 +400,7 @@ function bloco(id, sit){
     var c = [["navio","Nome da embarcação",{req:1}], ["imo","IMO",{t:"imo"}], ["agencia","Agência de navegação",{pub:1,h:1}], ["operador","Operador portuário",{h:1}],
              ["operacao","Operação",{t:"op",w:1,pub:1}], ["carga","Carga",{pubc:1,h:1}], ["ton_prevista","Toneladas previstas",{t:"num",pubc:1,h:1}]];
     if(pre) c.push(["chegada","Previsão de chegada (ETA)",{t:"dt",pub:1}], ["cais","Berço previsto",{t:"cais",pub:1}]);
-    var mais = [["nacionalidade","Bandeira",{}], ["comprimento","Comprimento (m)",{t:"dec",h:1}], ["calado","Calado máximo (m)",{t:"dec",h:1}], ["origem_destino","Origem / destino da carga",{}], ["porto_anterior","Porto anterior",{}], ["proximo_porto","Próximo porto",{}]];
+    var mais = [["nacionalidade","Bandeira (país)",{t:"pais"}], ["comprimento","Comprimento (m)",{t:"dec",h:1}], ["calado","Calado máximo (m)",{t:"dec",h:1}], ["origem_destino","Origem / destino da carga",{}], ["porto_anterior","Porto anterior",{}], ["proximo_porto","Próximo porto",{}]];
     if(pre) mais.push(["previsao_atracacao","Previsão de atracação (POB)",{t:"dt"}], ["saida","Previsão de saída (ETD)",{t:"dt"}], ["observacoes","Observações",{t:"ta",w:1}]);
     return {id:"dados", t:"Embarcação", secs:[{c:c}], mais:mais};
   }
@@ -462,6 +462,8 @@ function campoHtml(f, rec, ctx){
   } else if(t === "op"){
     c = '<div class="seg2" id="opseg" role="group" aria-label="Operação"><button type="button" data-op="IMPORTAÇÃO">Importação</button><button type="button" data-op="EXPORTAÇÃO">Exportação</button><button type="button" data-op="SERV">Serviço (sem carga)</button></div>' +
         '<input id="f_servico" list="dl_servico" autocomplete="off" placeholder="Qual serviço? Ex.: Dragagem" hidden><input type="hidden" id="f_operacao" value="'+esc(v)+'">';
+  } else if(t === "pais"){
+    c = '<div class="inl"><input id="'+id+'" list="dl_paises" autocomplete="off" placeholder="Digite o país. Ex.: Panamá" value="'+esc(v)+'"><span class="flag-prev" id="fp_'+k+'">'+bandeiraHtml(v)+'</span></div>';
   } else if(t === "cbo"){
     c = '<input id="'+id+'" inputmode="numeric" maxlength="7" placeholder="0000/26" autocomplete="off" value="'+esc(v)+'"><div class="chips" id="sug_cbo"></div>';
   } else if(t === "imo"){
@@ -497,7 +499,7 @@ function abrirForm(cfg){
   if(blocos.length > 1) html += '<div class="tabs2" role="tablist">'+blocos.map(function(b, i){ return '<button type="button" role="tab" class="t2" data-tab="'+b.id+'" aria-selected="'+(i === 0)+'">'+esc(b.t)+'<i class="dot" hidden></i></button>'; }).join("")+'</div>';
   html += '<div class="scroller">';
   blocos.forEach(function(b, i){ html += '<div class="tp" data-pane="'+b.id+'"'+(i ? " hidden" : "")+'>'+paneHtml(b, rec, ctx)+'</div>'; });
-  html += SUG_CAMPOS.map(function(k){ return '<datalist id="dl_'+k+'"></datalist>'; }).join("") + '<datalist id="dl_servico"></datalist>';
+  html += SUG_CAMPOS.map(function(k){ return '<datalist id="dl_'+k+'"></datalist>'; }).join("") + '<datalist id="dl_servico"></datalist><datalist id="dl_paises">'+PAISES.map(function(p){ return '<option value="'+esc(p.pais)+'" label="Bandeira '+esc(p.nome)+'">'; }).join("")+'</datalist>';
   html += '<div class="avs" id="avs" aria-live="polite"></div></div><div class="btns">'+(cfg.rodape ? '<span class="rod">'+cfg.rodape+'</span>' : "")+'<button class="btn" data-cx type="button">Cancelar</button>'+
     cfg.acoes.map(function(a, i){ return '<button class="btn'+(a.pri ? " pri" : "")+'" data-go="'+i+'" type="button">'+esc(a.rot)+'</button>'; }).join("")+'</div>';
   var d = dlg(html, true), sujo = false, ack = "";
@@ -579,11 +581,22 @@ function abrirForm(cfg){
     var r = achaNavio(nm, im); if(!r) return;
     var cp = {nacionalidade:r.nacionalidade, imo:r.imo, comprimento:r.comprimento, calado:r.calado, agencia:r.agencia, operador:r.operador}, pre = [];
     Object.keys(cp).forEach(function(k){ var el = F(k), val = cp[k] == null ? "" : String(cp[k]); if(el && !el.value && val){ el.value = String(val).replace(".", ","); pre.push(k); } });
+    if(F("nacionalidade") && F("nacionalidade").value) F("nacionalidade").dispatchEvent(new Event("input"));
     if(!F("navio").value && r.navio) F("navio").value = r.navio;
     if(!F("operacao") || !F("operacao").value){ if(r.operacao && F("operacao")){ F("operacao").value = r.operacao; if(F("servico") && !comCarga(r.operacao)) F("servico").value = r.operacao; aplicarOp(); pre.push("operacao"); } }
     if(F("carga") && !F("carga").value && r.carga && comCarga(r.operacao)){ F("carga").value = r.carga; pre.push("carga"); }
     var dd = parseDate(r.saida || r.chegada);
     hn.textContent = "Já esteve no porto" + (dd ? " em " + fmt(r.saida || r.chegada).split(" · ")[0] : "") + (pre.length ? ". Preenchemos os dados dele — confira." : ".");
+  }
+  if(F("nacionalidade")){
+    var fpv = function(fix){
+      var el = F("nacionalidade"), p = acharPais(el.value), box = E("fp_nacionalidade");
+      if(fix && p) el.value = p.pais;   /* "alemã", "DE" ou "panama" viram o nome certo do país */
+      if(box) box.innerHTML = bandeiraHtml(el.value);
+    };
+    F("nacionalidade").addEventListener("input", function(){ fpv(false); });
+    F("nacionalidade").addEventListener("change", function(){ fpv(true); });
+    F("nacionalidade").addEventListener("blur", function(){ fpv(true); });
   }
   if(F("navio")){ F("navio").addEventListener("change", conhecer); F("navio").addEventListener("blur", conhecer); if(F("imo")) F("imo").addEventListener("change", conhecer); }
   d.addEventListener("click", function(e){
