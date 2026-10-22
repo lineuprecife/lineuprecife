@@ -20,7 +20,7 @@ function tabelaHtml(id, items){
   var h = '<div class="tbl-wrap"><table class="tbl"><thead><tr>' + cols.map(function(c){ return '<th' + (c[0] === 'navio' ? ' class="nv"' : '') + '>' + c[1] + '</th>'; }).join("") + (ed ? '<th>Ações</th>' : '') + '</tr></thead><tbody>';
   items.forEach(function(s){
     h += '<tr>' + cols.map(function(c){
-      var v = c[0] === "saldo" ? (s.prev || 0) - (s.mov || 0) : s[c[0]];
+      var v = c[0] === "saldo" ? (s.prev || 0) - (s.mov || 0) : c[0] === "navegacao" ? ((navegacaoItem(s) || {}).nome || "") : s[c[0]];
       if(c[2] === "d") v = String(v || "").slice(0, 16);
       else if(c[2] === "n") v = (v || v === 0) ? num(v) : "";
       var vazio = v === "" || v == null, k = [];

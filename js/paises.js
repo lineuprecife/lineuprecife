@@ -250,3 +250,37 @@ function navegacaoDe(txt){
   if(MERCOSUL.indexOf(p.a2) >= 0) return {sigla:"MS", nome:"Mercosul"};
   return {sigla:"LC", nome:"Longo curso"};
 }
+
+/* Tipo de navegação do navio (usado nos cartões e na tabela).
+   1) Se a bandeira estiver preenchida, vale a regra acima (navegacaoDe).
+   2) Se a bandeira estiver vazia (casos de dados antigos ou ainda não preenchidos), deduz pela rota,
+      olhando Procedência/Destino, Porto anterior e Próximo porto:
+        qualquer porto estrangeiro fora do Mercosul -> Longo curso · senão, porto do Mercosul -> Mercosul · senão, só portos brasileiros -> Cabotagem.
+      Porto que não está nas listas abaixo é ignorado; se nenhum for reconhecido, não mostra nada.
+      Para ensinar um porto novo ao sistema, acrescente o nome (sem acento, maiúsculo) na lista certa. */
+var PORTOS_BR = ("ACU,ANGRA DOS REIS,ANTONINA,ARACAJU,ARATU,AREIA BRANCA,BARCARENA,BARRA DOS COQUEIROS,BELEM,BRASIL,BUZIOS,CABEDELO,COTEGIPE,F NORONHA,FERNANDO DE NORONHA,FORTALEZA,ILHEUS,IMBITUBA,ITAGUAI,ITAJAI,ITAQUI,LUIS CORREIA,MACAE,MACAPA,MACEIO,MANAUS,MUCURIPE,NATAL,NAVEGANTES,NITEROI,PARANAGUA,PECEM,PIACAGUERA,PINA,PORTO ALEGRE,PORTOCEL,PRAIA MOLE,RECIFE,RIO DE JANEIRO,RIO GRANDE,SALVADOR,SANTAREM,SANTOS,SAO F DO SUL,SAO FRANCISCO DO SUL,SAO LUIS,SAO SEBASTIAO,SEPETIBA,SERGIPE,SUAPE,TERMISA,TUBARAO,VILA DO CONDE,VITORIA").split(",");
+var PORTOS_MS = ("ARGENTINA,ASUNCION,BAHIA BLANCA,BOLIVIA,BUENOS AIRES,LA PLATA,MAR DEL PLATA,MONTEVIDEO,MONTEVIDEU,NECOCHEA,NUEVA PALMIRA,PARAGUAI,PUERTO MADRYN,PUNTA DEL ESTE,ROSARIO,SAN LORENZO,SAN NICOLAS,URUGUAI,USHUAIA,ZARATE").split(",");
+var PORTOS_EXT = ("ABIDJAN,ANTUERPIA,ARGEL,BALBOA,BALTIMORE,BANJUL,BATUMI,CARTAGENA,CHANGSHU,CHINA,DAKAR,DERINCE,DOUALA,FORT DE FRANCE,GIBRALTAR,GUANTA,HUELVA,LA ROMANA,LAS PALMAS,LOME,LONGVIEW,LUANDA,MARIN,MATADI,MINDELO,MURMANSK,NANTONG,NOUAKCHOTT,PHUOC AN PORT,POINT LISAS,PORTLAND,PRAIA,PUERTO CABELLO,PUNTA ARENAS,QINGDAO,RIO HAINA,ROUEN,SAN DIEGO,SANTANDER,ST PETERSBURG,TEMA,TIANJIN,TORONTO,UST LUGA,VANCOUVER,VARNA,WALVIS BAY,XINGANG,ZHENJIANG").split(",");
+function _portoKey(t){
+  return String(t == null ? "" : t).toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^A-Z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
+}
+function navegacaoPorRota(portos){
+  var br = 0, ms = 0, ext = 0;
+  (portos || []).forEach(function(txt){
+    String(txt == null ? "" : txt).split("/").forEach(function(parte){
+      var k = _portoKey(parte); if(!k) return;
+      if(PORTOS_EXT.indexOf(k) >= 0) ext++;
+      else if(PORTOS_MS.indexOf(k) >= 0) ms++;
+      else if(PORTOS_BR.indexOf(k) >= 0) br++;
+    });
+  });
+  if(ext) return {sigla:"LC", nome:"Longo curso"};
+  if(ms)  return {sigla:"MS", nome:"Mercosul"};
+  if(br)  return {sigla:"CAB", nome:"Cabotagem"};
+  return null;
+}
+/* Navegação de um item (navio) da lista: bandeira primeiro, rota como alternativa. */
+function navegacaoItem(s){
+  if(!s) return null;
+  return navegacaoDe(s.nacionalidade) || navegacaoPorRota([s.origem, s.anterior, s.proximo]);
+}
