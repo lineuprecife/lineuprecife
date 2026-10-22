@@ -177,3 +177,7 @@ dialog label.chk:has(input:disabled){opacity:.55;cursor:default}
   .u .ua{width:100%}
   .u .ua .btn{flex:1 1 auto}
 }
+
+/* Itens que só existem no celular (ver css/mobile.css) ficam escondidos no computador */
+.etapa-m,.dx{display:none}
+.rod{display:contents}

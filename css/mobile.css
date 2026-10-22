@@ -1,0 +1,180 @@
+/* =====================================================================================
+   LAYOUT DO CELULAR (até 700px de largura)
+   Este arquivo só é carregado em telas pequenas (ver o <link media="..."> do index.html) e vem DEPOIS do
+   style.css e do edit.css, então manda neles. O computador não é afetado.
+
+   Ideias do layout:
+   · cabeçalho enxuto (uma linha de marca + uma linha de "atualizado em")
+   · as 4 situações viram uma BARRA FIXA EMBAIXO, para o polegar (como um app)
+   · cada embarcação é um CARTÃO de verdade, empilhado, sem rolagem para o lado
+   · "+ Nova embarcação" vira um botão flutuante
+   · formulários abrem em TELA CHEIA, com título e botões sempre visíveis
+   · as outras janelinhas (entrar, senha, aviso...) sobem de baixo como uma gaveta
+   ===================================================================================== */
+@media (max-width:700px){
+
+  html{scroll-padding-bottom:84px}
+  body{font-size:14px;padding-bottom:calc(72px + env(safe-area-inset-bottom,0px));-webkit-tap-highlight-color:transparent}
+  .wrap{padding-left:max(14px,env(safe-area-inset-left,0px));padding-right:max(14px,env(safe-area-inset-right,0px))}
+
+  /* ---------- Cabeçalho ---------- */
+  .top .wrap{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 10px;align-items:center;padding-block:max(10px,env(safe-area-inset-top,0px)) 10px}
+  .brand{gap:10px;grid-column:1;grid-row:1}
+  .logo img{height:34px}
+  .titles{padding:0;border:0}
+  .brand h1{margin:0;font-size:15px;line-height:1.15;letter-spacing:.02em}
+  .titles p{margin:0;color:var(--muted)}
+  .right{display:contents}
+  .right .btn-lock,.btn-lock{position:static;grid-column:2;grid-row:1;width:38px;height:38px}
+  .right .stamp,.stamp{grid-column:1/-1;grid-row:2;display:flex;flex-wrap:wrap;gap:1px 6px;align-items:baseline;text-align:left;font-size:11px;line-height:1.35;padding:6px 0 0;border-top:1px solid var(--line)}
+  .stamp b{display:inline;font-size:11.5px}
+  .stamp .resp{flex:1 1 100%;margin:0;font-size:11px}
+  .stamp .resp .ct{font-size:11px}
+  .stamp .resp-ct{justify-content:flex-start;gap:0 12px;margin-top:1px;font-size:11px}
+  .nav{height:6px;border-bottom-width:3px}
+
+  /* ---------- Barra de situações fixa embaixo ---------- */
+  .tabs,.tabs.t5{position:fixed;left:0;right:0;bottom:0;z-index:40;margin:0;gap:0;padding:0 env(safe-area-inset-right,0px) env(safe-area-inset-bottom,0px) env(safe-area-inset-left,0px);background:var(--surface);border-top:1px solid var(--line);box-shadow:0 -6px 18px rgba(11,34,54,.1);grid-template-columns:repeat(4,minmax(0,1fr))}
+  .tabs.t5{grid-template-columns:repeat(5,minmax(0,1fr))}
+  .tab{position:relative;align-items:center;justify-content:center;gap:1px;min-height:56px;padding:8px 2px 7px;border:0;border-radius:0;background:transparent;text-align:center}
+  .tab:hover{border-color:transparent}
+  .tab .n{font-size:18px;line-height:1.1;color:var(--ink)}
+  .tab .l{font-size:10px;line-height:1.2;letter-spacing:0;text-transform:none;font-weight:600;color:var(--muted);max-width:100%;overflow:hidden;text-overflow:ellipsis}
+  .tabs.t5 .tab .l{font-size:9px;letter-spacing:-.01em}
+  .tab[aria-selected="true"]{background:var(--blue-soft);color:var(--blue)}
+  .tab[aria-selected="true"] .n,.tab[aria-selected="true"] .l{color:var(--blue)}
+  .tab[aria-selected="true"]::before{content:"";position:absolute;top:0;left:20%;right:20%;height:3px;border-radius:0 0 3px 3px;background:var(--blue)}
+
+  /* ---------- Barra do editor: quem está logado, "Nova embarcação" em destaque e os atalhos ---------- */
+  .editbar{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;margin-top:10px;padding:10px;border-radius:12px}
+  .editbar[hidden]{display:none}
+  .editbar span{grid-column:1/3;order:1;margin:0;font-size:12px;line-height:1.3;align-self:center}
+  .editbar #btn-out{grid-column:3;order:2;border-color:transparent;background:transparent;color:var(--sun-ink);text-decoration:underline;text-underline-offset:3px}
+  .editbar #btn-new{grid-column:1/-1;order:3;min-height:44px;font-size:14px;border-radius:10px}
+  .editbar #btn-aviso{order:4}
+  .editbar #btn-usu{order:5}
+  .editbar #btn-pw{order:6}
+  .editbar .btn{width:100%;min-height:34px;padding:4px 6px;font-size:12px;border-radius:8px}
+
+  /* ---------- Busca e filtros ---------- */
+  .tools{margin-top:10px}
+  .tools-row{gap:8px}
+  .searchbox{flex:1 1 100%}
+  .search{min-height:44px;border-radius:12px;font-size:16px}
+  .btn-f{flex:1 1 100%;justify-content:center;min-height:40px;padding:0 12px;border-radius:12px;font-size:13px}
+  #viewsw{display:none}                      /* no celular é sempre em cartões */
+  .fpanel{margin-top:8px;padding:12px;border-radius:12px}
+  .fsum{margin-top:8px;min-height:22px;font-size:12.5px}
+  .avisos,.warn .wrap{font-size:13px}
+
+  /* ---------- Lista: um cartão por embarcação ---------- */
+  .list,.list.wide{display:grid;gap:10px;margin-top:6px;background:transparent;border:0;border-radius:0;overflow:visible;font-size:14px}
+  .list>.row.head{display:none}
+  .list>.row{display:grid;grid-template-columns:46px minmax(0,1fr);gap:10px 12px;align-items:start;min-width:0;padding:14px;background:var(--surface);border:1px solid var(--line);border-radius:14px;box-shadow:0 1px 2px rgba(11,34,54,.05)}
+  .list>.row:first-of-type{border-top:1px solid var(--line)}
+  .list .c-berth{display:flex;flex-direction:column;align-items:center;justify-content:center;width:46px;height:50px;border-radius:10px;background:var(--blue-soft);color:var(--blue);font-size:22px;line-height:1;text-align:center}
+  .list .c-berth small{margin:0 0 3px;font-size:8px;letter-spacing:.08em;color:var(--blue);opacity:.85}
+  .list .c-berth.sm{font-size:12px;overflow-wrap:anywhere}
+  .list .ship{font-size:17px;line-height:1.2}
+  .list .specs{display:flex;flex-wrap:wrap;gap:0 12px;margin-top:3px;font-size:12px;color:var(--muted)}
+  .list .specs b{color:var(--ink);font-weight:600}
+  .list .c-rest{grid-column:1/-1;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:10px 14px;padding-top:10px;border-top:1px dashed var(--line)}
+  .list .c-cargo,.list .c-who{grid-column:auto;min-width:0}
+  .list .c-when,.list .c-prog{grid-column:1/-1}
+  .list .lab{display:block;margin-bottom:2px;font:700 9.5px var(--f-body);letter-spacing:.1em;text-transform:uppercase;color:var(--muted)}
+  .list .cargo,.list .who b{font-size:14px;line-height:1.3}
+  .list .meta{font-size:12px}
+  .list .when div{white-space:normal;font-size:13px;line-height:1.45;color:var(--muted)}
+  .list .when .dt{color:var(--ink);font-weight:600}
+  .list .when .rel{font-size:12px}
+  .list .bar{height:6px;margin:3px 0 5px}
+  .list .prog div{font-size:13px}
+
+  /* Botões do cartão: o azul (próximo passo) em cima, os outros lado a lado, "excluir" discreto */
+  .list>.row .acts{grid-column:1/-1;position:static;left:auto;width:auto;max-width:none;display:flex;flex-wrap:wrap;gap:8px;margin-top:2px;padding-top:12px;border-top:1px solid var(--line)}
+  .list>.row .acts .chip{order:0;flex:1 1 100%;padding:6px 10px;border-radius:8px;font-size:12px;line-height:1.35;white-space:normal}
+  .list>.row .acts .btn{order:2;flex:1 1 0;min-width:0;min-height:38px;padding:0 10px;border-radius:10px;font-size:13.5px}
+  .list>.row .acts .btn.pri{order:1;flex:1 1 100%;min-height:42px;font-size:14.5px}
+  .list>.row .acts .btn.dng{order:3;flex:0 0 auto;border-color:transparent;background:transparent;font-size:13px;padding:0 8px}
+  .empty{padding:28px 16px;font-size:13.5px}
+
+  /* ---------- Ocupação dos berços e mapa ---------- */
+  .berths,.mapa-sec{margin-top:22px}
+  .sec-t{font-size:15px}
+  .berth-grid{grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+  .berth{min-height:60px;height:auto;padding:7px 9px;border-radius:10px}
+  .berth .c{font-size:10px}
+  .berth .s{font-size:12px}
+  footer{margin-top:22px;padding-block:16px 10px;font-size:12px}
+
+  #toast{bottom:calc(76px + env(safe-area-inset-bottom,0px));font-size:14px}
+
+  /* ---------- Janelas pequenas (entrar, senha, aviso, histórico...): gaveta que sobe de baixo ---------- */
+  dialog:not(.wide){inset:auto 0 0 0;margin:0;width:100%;max-width:100%;max-height:88dvh;padding:10px 16px calc(14px + env(safe-area-inset-bottom,0px));border-radius:18px 18px 0 0;box-shadow:0 -10px 30px rgba(5,15,25,.25)}
+  dialog:not(.wide)::before{content:"";display:block;width:40px;height:4px;border-radius:2px;background:var(--line);margin:0 auto 12px}
+  dialog:not(.wide) h2{font-size:18px;margin:0 0 4px}
+  dialog:not(.wide) .btns{position:static;display:flex;margin:14px 0 0;padding:0;border:0;background:none;gap:8px}
+  dialog:not(.wide) .btns .btn{flex:1 1 0;min-height:42px}
+  dialog:not(.wide) .btns .btn.pri{flex:1.4 1 0}
+  dialog:not(.wide) .fg{grid-template-columns:1fr}
+  .escolha{margin-top:10px}
+
+  /* ---------- Formulários (nova embarcação, editar, etapas): TELA CHEIA ---------- */
+  dialog.wide{inset:0;margin:0;width:100%;max-width:100%;height:100dvh;max-height:100dvh;padding:0;border-radius:0;overflow:hidden}
+  dialog.wide[open]{display:flex;flex-direction:column}
+  dialog.wide .dh{position:relative;flex:none;margin:0;padding:max(12px,env(safe-area-inset-top,0px)) 16px 10px;background:var(--surface);border-bottom:1px solid var(--line)}
+  dialog.wide .dh h2{margin:0;padding-right:40px;font-size:18px;line-height:1.2}
+  .dx{display:grid;place-items:center;position:absolute;top:max(8px,env(safe-area-inset-top,0px));right:10px;width:36px;height:36px;padding:0;border:0;border-radius:50%;background:var(--track);color:var(--ink);font-size:15px;line-height:1;cursor:pointer}
+  .dsub{margin:2px 0 8px;padding-right:44px;font-size:12.5px;line-height:1.35}
+  .etapa-m{display:block;margin:6px 0 4px;font-size:12px;color:var(--muted)}
+  .etapa-m b{color:var(--blue)}
+  .steps{gap:4px;margin:0 0 2px}
+  .steps li,.steps li.ok,.steps li.cur{height:5px;padding:0;border-radius:3px;font-size:0;line-height:0;overflow:hidden}
+  .steps li.ok::before{content:none}
+  .dh .nota{margin-top:6px;font-size:11.5px}
+
+  dialog.wide .tabs2{flex:none;display:flex;gap:0;margin:0;padding:0 8px;background:var(--surface);border-bottom:1px solid var(--line);overflow-x:auto;scrollbar-width:none}
+  dialog.wide .t2{flex:1 1 0;min-width:0;padding:12px 6px;text-align:center;font-size:13px;overflow:hidden;text-overflow:ellipsis}
+  .t2 .dot{top:9px;right:6px}
+
+  dialog.wide .scroller{flex:1 1 auto;min-height:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:6px 16px 20px}
+  dialog.wide .st{margin:16px 0 0;font-size:13px}
+  dialog.wide .info{margin:10px 0 0;font-size:13px}
+
+  dialog.wide .fg{grid-template-columns:repeat(2,minmax(0,1fr));gap:12px 10px;margin:10px 0 0}
+  dialog.wide .fg label{grid-column:1/-1;display:flex;flex-direction:column;font-size:12.5px;line-height:1.25}
+  dialog.wide .fg label>span{flex:1 0 auto}
+  dialog.wide .fg label.h{grid-column:auto}
+  dialog.wide .fg label:has(input[type="datetime-local"]){grid-column:1/-1}
+  dialog.wide .fg label span{margin-bottom:5px}
+  dialog.wide input,dialog.wide select,dialog.wide textarea{min-height:44px;padding:10px 12px;border-radius:10px;font-size:16px;font-weight:400;line-height:1.25}
+  dialog.wide textarea{min-height:84px}
+  dialog.wide input::placeholder{font-size:14px;color:#8a9bab}
+  dialog.wide .inl input{min-width:0}
+  dialog.wide input[type="time"]{padding-inline:10px}
+  dialog.wide input[type="time"]::-webkit-calendar-picker-indicator{display:none}
+  .agora{min-width:0;min-height:44px;padding:0 11px;border-radius:10px;font-size:12.5px}
+  .seg2 button{min-height:44px;font-size:13px;padding:6px 4px;border-radius:10px}
+  .chips .chip{font-size:12.5px;padding:6px 12px}
+  details.mais{margin-top:14px;padding:0 12px;border-radius:12px}
+  details.mais summary{padding:13px 0}
+  .fe{font-size:12.5px}
+  .avs{margin-top:12px}
+
+  /* Rodapé do formulário: sempre visível. Atalhos pequenos em cima; Cancelar e o botão principal embaixo. */
+  dialog.wide .btns{position:static;flex:none;display:flex;flex-wrap:wrap;gap:8px;margin:0;padding:10px 16px calc(10px + env(safe-area-inset-bottom,0px));background:var(--surface);border-top:1px solid var(--line);box-shadow:0 -6px 16px rgba(11,34,54,.06)}
+  dialog.wide .btns .sp{display:none}
+  dialog.wide .btns .btn{flex:1 1 90px;min-height:44px;padding:0 10px;border-radius:12px;font-size:14px}
+  dialog.wide .btns .btn.pri{flex:2 1 150px}
+  dialog.wide .btns .rod{display:flex;flex:1 1 100%;justify-content:center;gap:22px}
+  dialog.wide .btns [data-cx]{flex:0 0 auto;padding:0 16px}
+  dialog.wide .btns .btn.ghost{flex:0 0 auto;min-height:28px;padding:0 4px;border:0;background:none;color:var(--blue);font-size:12.5px;text-decoration:underline;text-underline-offset:3px}
+}
+
+/* telas muito estreitas */
+@media (max-width:360px){
+  .brand h1{font-size:14px}
+  .tab .l{font-size:9px}
+  .list>.row .acts .btn{font-size:13px}
+  dialog.wide .btns .btn{font-size:13px}
+}
