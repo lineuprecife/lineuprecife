@@ -181,3 +181,7 @@ dialog label.chk:has(input:disabled){opacity:.55;cursor:default}
 /* Itens que só existem no celular (ver css/mobile.css) ficam escondidos no computador */
 .etapa-m,.dx{display:none}
 .rod{display:contents}
+
+/* Bandeirinha ao lado do campo "Bandeira (país)" no formulário */
+.flag-prev{display:inline-flex;align-items:center;flex:none;min-width:22px}
+.flag-prev .flag{margin:0;width:28px;height:21px}

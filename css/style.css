@@ -4,7 +4,7 @@
   --bg:#EEF3F8; --surface:#FFFFFF; --ink:#0B2236; --muted:#566B7E; --line:#D8E2EB;
   --head:#0060B0; --head-ink:#FFFFFF; --head-muted:#CFE3F5;
   --blue:#0060B0; --blue-soft:#E4EFFA; --sun:#00AEEF; --sun-soft:#DDF3FC; --sun-ink:#00507A;
-  --track:#E3EAF1; --focus:#1169A8; --danger:#B3261E; --danger-soft:#FBE4E2; --on-blue:#FFFFFF;
+  --track:#E3EAF1; --foot:#0A2A4A; --foot-ink:#CFE3F5; --focus:#1169A8; --danger:#B3261E; --danger-soft:#FBE4E2; --on-blue:#FFFFFF;
   --f-display:"Montserrat","Segoe UI",system-ui,sans-serif;
   --f-body:"Montserrat","Segoe UI",system-ui,sans-serif;
   --f-mono:"IBM Plex Mono",ui-monospace,Menlo,monospace;
@@ -465,8 +465,6 @@ footer b{color:var(--ink);font-weight:600}
   .mapa-leg{font-size:12.5px}
   .mapa-leg .lg{width:12px;height:12px;margin:0 5px 0 14px}
 
-  footer{margin-top:20px;padding-block:14px 26px;font-size:12px}
-
   /* Tabela completa */
   .tbl{font-size:12px}
   .tbl th{font-size:10px;padding:8px 8px}
@@ -496,10 +494,14 @@ footer b{color:var(--ink);font-weight:600}
 .stamp .resp .ct:hover{color:var(--blue);text-decoration:underline}
 
 /* Rodapé: endereço, telefone e setor, nesta ordem */
-footer{flex-direction:column;flex-wrap:nowrap;gap:3px;line-height:1.5}
-footer a{color:inherit;text-decoration:underline;text-decoration-color:var(--line);text-underline-offset:3px}
-footer a:hover{color:var(--blue);text-decoration-color:var(--blue)}
-footer #f-setor{color:var(--ink);font-weight:600}
+/* Rodapé: faixa azul-escuro em toda a largura, texto centralizado (igual no computador e no celular) */
+footer{display:block;margin:36px 0 0;padding:22px 0 calc(26px + env(safe-area-inset-bottom,0px));border-top:0;background:var(--foot);color:var(--foot-ink);font-size:13px;line-height:1.6;text-align:center}
+footer .wrap{display:flex;flex-direction:column;align-items:center;gap:3px}
+footer span{overflow-wrap:anywhere}
+footer b{color:#fff;font-weight:600}
+footer a{color:inherit;text-decoration:underline;text-decoration-color:rgba(255,255,255,.4);text-underline-offset:3px}
+footer a:hover{color:#fff;text-decoration-color:#fff}
+footer #f-setor{color:#fff;font-weight:600}
 footer #f-mail-box[hidden]{display:none}
 
 /* Carregando dados: chama atenção, com indicador azul girando */
@@ -572,3 +574,8 @@ footer #f-mail-box[hidden]{display:none}
   .btn-print{font-size:13px;padding:0 12px}
   .btn-print .bp-t{text-align:center}
 }
+
+/* Bandeirinha do país ao lado do nome da embarcação */
+.flag{display:inline-block;width:20px;height:15px;object-fit:cover;border-radius:2px;box-shadow:0 0 0 1px rgba(11,34,54,.22);vertical-align:-2px;margin-right:7px;background:var(--track)}
+.ship .flag{width:22px;height:16.5px;vertical-align:-1px}
+.tbl td.nv .flag{margin-right:6px}

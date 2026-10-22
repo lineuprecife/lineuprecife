@@ -14,7 +14,7 @@
 @media (max-width:700px){
 
   html{scroll-padding-bottom:84px}
-  body{font-size:14px;padding-bottom:calc(72px + env(safe-area-inset-bottom,0px));-webkit-tap-highlight-color:transparent}
+  body{font-size:14px;padding-bottom:0;-webkit-tap-highlight-color:transparent}
   .wrap{padding-left:max(14px,env(safe-area-inset-left,0px));padding-right:max(14px,env(safe-area-inset-right,0px))}
 
   /* ---------- Cabeçalho: tudo centralizado (logo em cima, depois título, subtítulo e "atualizado em") ---------- */
@@ -106,7 +106,9 @@
   .berth{min-height:60px;height:auto;padding:7px 9px;border-radius:10px}
   .berth .c{font-size:10px}
   .berth .s{font-size:12px}
-  footer{margin-top:22px;padding-block:16px 10px;font-size:12px;align-items:center;text-align:center}
+  /* Rodapé: o mesmo do computador (faixa azul-escuro, centralizado). Fica com folga embaixo para a barra fixa de situações não cobrir o texto. */
+  footer{margin-top:26px;padding:20px 0 calc(78px + env(safe-area-inset-bottom,0px));font-size:12.5px}
+  footer .wrap{align-items:center;gap:4px}
 
   #toast{bottom:calc(76px + env(safe-area-inset-bottom,0px));font-size:14px}
 
