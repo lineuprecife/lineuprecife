@@ -166,7 +166,7 @@ function carregarSug(){
 function toItem(r){
   var n = function(x){ return x === "" || x == null ? 0 : Number(x) || 0; };
   var m = function(x){ return x === "" || x == null ? "" : Number(x).toFixed(2).replace(".", ",") + " m"; };
-  var s = {id:r.id, rec:r, chegada:r.chegada||"", saida:r.saida||"", atracacao:r.previsao_atracacao||"", cais:(r.cais === "" || r.cais == null) ? "" : String(r.cais), navio:String(r.navio||""), nacionalidade:String(r.nacionalidade||""),
+  var s = {id:r.id, rec:r, chegada:r.chegada||"", saida:r.saida||"", atracacao:r.previsao_atracacao||"", cais:(r.cais === "" || r.cais == null) ? "" : String(r.cais), navio:String(r.navio||""), nacionalidade:String(r.nacionalidade||""), navegacao:(navegacaoDe(r.nacionalidade)||{}).sigla||"",
     cbo:r.cbo||"", imo:r.imo||"", comp:m(r.comprimento), calado:m(r.calado), agencia:r.agencia||"", operador:r.operador||"",
     carga:r.carga||"", mod:String(r.operacao||"").toUpperCase(), origem:r.origem_destino||"", anterior:r.porto_anterior||"", proximo:r.proximo_porto||"",
     prev:n(r.ton_prevista), mov:n(r.ton_movimentada), tipo:""};
@@ -593,7 +593,10 @@ function abrirForm(cfg){
       var el = F("nacionalidade"), p = acharPais(el.value), box = E("fp_nacionalidade");
       if(fix && p) el.value = p.pais;   /* "alemã", "DE" ou "panama" viram o nome certo do país */
       if(box) box.innerHTML = bandeiraHtml(el.value);
+      var nv = navegacaoDe(el.value), hh = E("h_nacionalidade");
+      if(hh) hh.textContent = nv ? "Navegação: " + nv.nome + " (" + nv.sigla + ")" : "";
     };
+    fpv(false);
     F("nacionalidade").addEventListener("input", function(){ fpv(false); });
     F("nacionalidade").addEventListener("change", function(){ fpv(true); });
     F("nacionalidade").addEventListener("blur", function(){ fpv(true); });

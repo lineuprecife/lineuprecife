@@ -217,3 +217,14 @@ function bandeiraHtml(txt){
   var p = acharPais(txt); if(!p) return "";
   return '<img class="flag" src="' + p.svg + '" alt="Bandeira: ' + p.pais + '" title="' + p.pais + '" width="20" height="15" loading="lazy" decoding="async" onerror="this.remove()">';
 }
+
+/* Tipo de navegação, deduzido do país da bandeira:
+   Argentina, Uruguai, Paraguai e Bolívia -> Mercosul (MS) · Brasil -> Cabotagem (CAB) · demais países -> Longo curso (LC).
+   Para mudar quais países são Mercosul, edite a lista abaixo (códigos de 2 letras). */
+var MERCOSUL = ["ar", "uy", "py", "bo"];
+function navegacaoDe(txt){
+  var p = acharPais(txt); if(!p) return null;
+  if(p.a2 === "br") return {sigla:"CAB", nome:"Cabotagem"};
+  if(MERCOSUL.indexOf(p.a2) >= 0) return {sigla:"MS", nome:"Mercosul"};
+  return {sigla:"LC", nome:"Longo curso"};
+}

@@ -345,6 +345,8 @@ function rowBase(s,lista){
   if(s.imo) meta.push(sp("IMO", s.imo, 1));
   if(s.comp) meta.push(sp("Compr.", s.comp));
   if(s.calado) meta.push(sp("Calado", s.calado));
+  var nv = navegacaoDe(s.nacionalidade);
+  if(nv) meta.push('<div><span>Navegação</span> <b title="'+nv.nome+'">'+nv.sigla+'</b></div>');
   var cargo = special
     ? '<div class="cargo">'+esc(s.tipo)+'</div><span class="pill neutral">Sem carga</span>'
     : '<div class="cargo">'+esc(cap(s.carga)||"Não informada")+'</div>'+modPill(s.mod)+(s.origem?'<div class="meta">'+(s.mod==="IMPORTAÇÃO"?"Origem":s.mod==="EXPORTAÇÃO"?"Destino":"Origem/destino")+': '+esc(s.origem)+'</div>':'');
