@@ -200,7 +200,7 @@ var PAISES = [
   ["zm", "ZMB", "Zâmbia", "zambiana"],
   ["za", "ZAF", "África do Sul", "sul-africana"],
   ["at", "AUT", "Áustria", "austríaca"],
-  ["in", "IND", "Índia", "indiana"]
+  ["in", "IND", "Índia", "indiana"],
   ["mo", "MAC", "Macau", "macaense"],
   ["pr", "PRI", "Porto Rico", "porto-riquenha"],
   ["gl", "GRL", "Groenlândia", "groenlandesa"],
