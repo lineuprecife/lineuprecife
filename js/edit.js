@@ -83,9 +83,9 @@ function ehServico(op){ return !!String(op||"").trim() && !comCarga(op); }
 
 /* ---- Regras por porte da embarcação ----
    · Brasileira com menos de 50 m: registro simplificado (só data/hora de chegada e de saída; sem praticagem nem manobras).
-   · IMO: obrigatório a partir de 40 m; abaixo disso é opcional.
+   · IMO: obrigatório a partir de 50 m; abaixo disso é opcional.
    Para mudar os limites, altere só os dois números abaixo (a mesma regra existe no Code.gs). */
-var LIM_SIMPLES = 50, LIM_IMO = 40;
+var LIM_SIMPLES = 50, LIM_IMO = 50;
 function numDec(x){ var t = String(x == null ? "" : x).trim(); if(!t) return 0; var n = parseFloat(t.indexOf(",") >= 0 ? t.replace(/\./g, "").replace(",", ".") : t); return isNaN(n) ? 0 : n; }
 function embSimples(nac, comp){ var p = acharPais(nac), c = numDec(comp); return !!(p && p.a2 === "br" && c > 0 && c < LIM_SIMPLES); }
 function imoObrig(comp){ return numDec(comp) >= LIM_IMO; }
@@ -558,12 +558,24 @@ function abrirForm(cfg){
 
   /* --- carga: lista de produtos, cada um com suas embalagens --- */
   var cgBox = q("#cg"), cgRows = [];
+  /* Quantidade do produto: SEMPRE em toneladas. Só aparecem "Unidades" e "Peso unitário" quando a embalagem é Carga Geral
+     (contêineres, bobinas de aço): aí as toneladas são calculadas (unidades × peso unitário). */
+  function cgQtdHtml(r, i){
+    var un = r.e.indexOf(EMB_CG) >= 0 || !!r.u || !!r.pu, calc = un && qtdNum(r.u) > 0 && qtdNum(r.pu) > 0;
+    return (un ? '<div class="cg-q"><label><span>Unidades <small>(contêineres, bobinas)</small></span><input class="cg-u" data-i="'+i+'" inputmode="numeric" autocomplete="off" placeholder="0" value="'+esc(r.u)+'"></label><label><span>Peso unitário (t)</span><input class="cg-pu" data-i="'+i+'" inputmode="decimal" autocomplete="off" placeholder="0" value="'+esc(r.pu)+'"></label></div>' : "") +
+      '<div class="cg-q one"><label><span>Toneladas'+(un ? ' <small>(unidades × peso unitário)</small>' : "")+'</span><input class="cg-t" data-i="'+i+'" inputmode="decimal" autocomplete="off" placeholder="0" value="'+esc(r.t)+'"'+(calc ? " readonly" : "")+'></label></div>';
+  }
+  function cgCalc(i){   /* unidades × peso unitário = toneladas (atualiza o campo sem redesenhar) */
+    var r = cgRows[i], u = qtdNum(r.u), pu = qtdNum(r.pu), calc = u > 0 && pu > 0, box = cgBox.querySelector('.cg-t[data-i="'+i+'"]');
+    if(calc) r.t = qtdFmt(String(Math.round(u * pu * 1000) / 1000).replace(".", ","));
+    if(box){ box.readOnly = calc; if(calc) box.value = r.t; }
+  }
   function cgDraw(foco){
     if(!cgBox) return;
     cgBox.innerHTML = cgRows.map(function(r, i){
       return '<div class="cg-r"><div class="inl"><input class="cg-p" data-i="'+i+'" list="dl_carga" autocomplete="off" placeholder="Produto. Ex.: Barrilha" value="'+esc(r.p)+'">'+(cgRows.length > 1 ? '<button type="button" class="cg-x" data-x="'+i+'" aria-label="Remover este produto">✕</button>' : "")+'</div>' +
         '<div class="cg-e" role="group" aria-label="Embalagem">'+EMBS.map(function(m, j){ return '<button type="button" class="cg-b" data-i="'+i+'" data-j="'+j+'" aria-pressed="'+(r.e.indexOf(j) >= 0)+'" title="'+esc(m[0])+'">'+esc(m[0])+' <small>'+m[1]+'</small></button>'; }).join("")+'</div>' +
-        '<div class="cg-q"><label><span>Unidades <small>(ex.: bobinas)</small></span><input class="cg-u" data-i="'+i+'" inputmode="numeric" autocomplete="off" placeholder="0" value="'+esc(r.u)+'"></label><label><span>Toneladas</span><input class="cg-t" data-i="'+i+'" inputmode="decimal" autocomplete="off" placeholder="0" value="'+esc(r.t)+'"></label></div></div>';
+        cgQtdHtml(r, i) + '</div>';
     }).join("");
     if(foco){ var ins = cgBox.querySelectorAll(".cg-p"); if(ins.length) ins[ins.length - 1].focus(); }
   }
@@ -572,18 +584,23 @@ function abrirForm(cfg){
     var tot = 0; cgRows.forEach(function(r){ if(r.p.trim()) tot += qtdNum(r.t); });
     var tp = F("ton_prevista"); if(tot > 0 && tp) tp.value = String(Math.round(tot));   /* o total de toneladas do navio é a soma dos produtos */
   }
-  function cgLer(){ cgRows = cargaParse(F("carga").value); if(!cgRows.length) cgRows = [{p:"", e:[], u:"", t:""}]; cgDraw(); }
+  function cgLer(){ cgRows = cargaParse(F("carga").value); if(!cgRows.length) cgRows = [{p:"", e:[], u:"", pu:"", t:""}]; cgDraw(); }
   if(cgBox){
     cgLer();
     cgBox.addEventListener("input", function(e){
       var el = e.target, i = el.getAttribute("data-i"); if(i == null) return;
       if(el.classList.contains("cg-p")) cgRows[+i].p = el.value;
-      else if(el.classList.contains("cg-u")){ var u = qtdLimpa(el.value, false); if(u !== el.value) el.value = u; cgRows[+i].u = u; }
+      else if(el.classList.contains("cg-u")){ var u = qtdLimpa(el.value, false); if(u !== el.value) el.value = u; cgRows[+i].u = u; cgCalc(+i); }
+      else if(el.classList.contains("cg-pu")){ var pu = qtdLimpa(el.value, true); if(pu !== el.value) el.value = pu; cgRows[+i].pu = pu; cgCalc(+i); }
       else if(el.classList.contains("cg-t")){ var t = qtdLimpa(el.value, true); if(t !== el.value) el.value = t; cgRows[+i].t = t; }
       else return;
       cgSync();
     });
-    cgBox.addEventListener("change", function(e){ var el = e.target, i = el.getAttribute("data-i"); if(i == null) return; if(el.classList.contains("cg-u")){ el.value = cgRows[+i].u = qtdFmt(el.value); cgSync(); } else if(el.classList.contains("cg-t")){ el.value = cgRows[+i].t = qtdFmt(el.value); cgSync(); } });
+    cgBox.addEventListener("change", function(e){ var el = e.target, i = el.getAttribute("data-i"); if(i == null) return; var r0 = cgRows[+i];
+      if(el.classList.contains("cg-p")){ if(!r0.e.length && ehCombustivel(r0.p)){ r0.e = [EMB_GL]; cgSync(); cgDraw(); } }   /* combustível é sempre granel líquido */
+      else if(el.classList.contains("cg-u")){ el.value = r0.u = qtdFmt(el.value); cgCalc(+i); cgSync(); }
+      else if(el.classList.contains("cg-pu")){ el.value = r0.pu = qtdFmt(el.value); cgCalc(+i); cgSync(); }
+      else if(el.classList.contains("cg-t")){ el.value = r0.t = qtdFmt(el.value); cgSync(); } });
     cgBox.addEventListener("click", function(e){
       var b = e.target.closest(".cg-b"), x = e.target.closest(".cg-x");
       if(b){ var r = cgRows[+b.getAttribute("data-i")], j = +b.getAttribute("data-j"), p = r.e.indexOf(j); if(p >= 0) r.e.splice(p, 1); else { r.e.push(j); r.e.sort(function(a, c){ return a - c; }); } cgSync(); cgDraw(); }
@@ -591,7 +608,7 @@ function abrirForm(cfg){
       else return;
       sujo = true; ack = ""; limparAvisos();
     });
-    q("#cg_add").addEventListener("click", function(){ cgRows.push({p:"", e:[], u:"", t:""}); cgDraw(true); sujo = true; });
+    q("#cg_add").addEventListener("click", function(){ cgRows.push({p:"", e:[], u:"", pu:"", t:""}); cgDraw(true); sujo = true; });
   }
 
   /* --- contra bordo: o campo só aparece ao marcar a opção, e só sugere as embarcações JÁ ATRACADAS no berço escolhido --- */
@@ -696,7 +713,7 @@ function abrirForm(cfg){
     var it = findItem(b.getAttribute("data-abrir")); sujo = false; d.close(); if(it) editar(it);
   });
 
-  /* --- porte: brasileira com menos de 50 m esconde praticagem/manobras; IMO obrigatório a partir de 40 m --- */
+  /* --- porte: brasileira com menos de 50 m esconde praticagem/manobras; IMO obrigatório a partir de 50 m --- */
   function compAtual(){ var el = F("comprimento"); return el ? el.value : rec.comprimento; }
   function bandAtual(){ var el = F("nacionalidade"); return el ? el.value : rec.nacionalidade; }
   function aplicarPorte(){
@@ -708,7 +725,7 @@ function abrirForm(cfg){
     if(lbI){
       var ob = imoObrig(compAtual()), rq = lbI.querySelector(".rq"), hi = q("#h_imo");
       if(rq) rq.hidden = !ob;
-      if(hi && !hi.getAttribute("data-fixo")) hi.textContent = numDec(compAtual()) ? (ob ? "Obrigatório para embarcação com " + LIM_IMO + " m ou mais." : "Opcional: embarcação com menos de " + LIM_IMO + " m.") : "";
+      if(hi && !hi.getAttribute("data-fixo")) hi.textContent = numDec(compAtual()) ? (ob ? "Obrigatório para embarcação com " + LIM_IMO + " metros ou mais." : "Opcional: embarcação com menos de " + LIM_IMO + " m.") : "";
     }
   }
   ["comprimento", "nacionalidade"].forEach(function(k){ var el = F(k); if(el){ el.addEventListener("input", aplicarPorte); el.addEventListener("change", aplicarPorte); el.addEventListener("blur", aplicarPorte); } });
@@ -755,7 +772,7 @@ function abrirForm(cfg){
       else sem.push(nome);
     }
     var mudouSit = !s || dest !== sitKey(s);
-    if(dest !== "rascunhos" && imoObrig(val("comprimento")) && !String(val("imo")).trim() && (cfg.avanco || mudouSit || numDec(val("comprimento")) !== numDec(rec.comprimento) || String(val("imo")) !== String(rec.imo == null ? "" : rec.imo))) pedir("imo", "IMO", "Obrigatório para embarcação com " + LIM_IMO + " m ou mais.");
+    if(dest !== "rascunhos" && imoObrig(val("comprimento")) && !String(val("imo")).trim() && (cfg.avanco || mudouSit || numDec(val("comprimento")) !== numDec(rec.comprimento) || String(val("imo")) !== String(rec.imo == null ? "" : rec.imo))) pedir("imo", "IMO", "Obrigatório para embarcação com " + LIM_IMO + " metros ou mais.");
     if(v.imo){ if(!/^\\d{6,7}$/.test(v.imo)) marcar("imo", "O IMO tem 6 ou 7 números.", erros); else if(!imoOk(v.imo)) avs.push("O IMO " + v.imo + " não passa na conferência do dígito final. Confira com o agente."); }
     if(v.cbo){
       if(!/^\d{4}\/\d{2}$/.test(v.cbo)) marcar("cbo", "Use o formato 0000/26.", erros);
@@ -890,7 +907,7 @@ function defCampo(k){
   });
   return achado;
 }
-/* Ao avançar de etapa: se o registro ainda não tem algo que a regra exige (IMO de 40 m ou mais; dados da saída), mostra esses campos numa aba à parte. */
+/* Ao avançar de etapa: se o registro ainda não tem algo que a regra exige (IMO de 50 m ou mais; dados da saída), mostra esses campos numa aba à parte. */
 function blocoFaltantes(s, dest){
   var rec = s.rec, ks = [];
   if(imoObrig(rec.comprimento) && !String(rec.imo || "").trim()) ks.push("imo");

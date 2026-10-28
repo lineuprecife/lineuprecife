@@ -90,7 +90,10 @@ function cap(s){ return s ? s.charAt(0)+s.slice(1).toLowerCase() : s; }
 /* ---- Carga com vários produtos: "BOBINAS DE AÇO / BARRILHA (GRANEL + BIG BAG)" ----
    Cada produto é separado por " / " e as embalagens ficam entre parênteses, ligadas por " + ".
    Para mudar a lista ou as abreviações, edite só EMBS: [nome completo, abreviação]. */
-var EMBS = [["Granel","GR"],["Sacos","SC"],["Big Bags","BB"],["Carga Geral","CG"]];
+var EMBS = [["Granel","GR"],["Granel líquido","GL"],["Sacos","SC"],["Big Bags","BB"],["Carga Geral","CG"]];
+var EMB_CG = 4, EMB_GL = 1;   /* posição de Carga Geral e de Granel líquido na lista acima */
+/* Produtos que são combustível: ao digitar, a embalagem Granel líquido já vem marcada. */
+function ehCombustivel(p){ return /diesel|gasolina|combustiv|querosene|\bqav\b|bunker|nafta|\bmgo\b|\bvlsfo\b|\bifo\b/.test(embNorm(p).toLowerCase()); }
 function embNorm(s){ return String(s).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toUpperCase().replace(/\s+/g, " ").trim(); }
 function embStem(s){ return embNorm(s).replace(/(ES|S)$/, ""); }
 function embIdx(t){   /* "BIG BAGS" -> 0; "gr" -> 4; desconhecido -> -1 */
@@ -101,25 +104,25 @@ function embIdx(t){   /* "BIG BAGS" -> 0; "gr" -> 4; desconhecido -> -1 */
 function qtdLimpa(v, dec){ v = String(v == null ? "" : v).replace(/\./g, "").replace(dec ? /[^\d,]/g : /\D/g, ""); if(dec){ var i = v.indexOf(","); if(i >= 0) v = v.slice(0, i + 1) + v.slice(i + 1).replace(/,/g, ""); } return v; }
 function qtdFmt(v){ v = qtdLimpa(v, true); if(!v) return ""; var p = v.split(","); p[0] = (p[0].replace(/^0+(?=\d)/, "") || "0").replace(/\B(?=(\d{3})+(?!\d))/g, "."); return p.join(","); }
 function qtdNum(v){ var n = parseFloat(qtdLimpa(v, true).replace(",", ".")); return isNaN(n) ? 0 : n; }
-function cargaParse(txt){   /* texto -> [{p:produto, e:[índices das embalagens], u:unidades, t:toneladas}]; o que não for reconhecido fica como produto, sem perder nada */
+function cargaParse(txt){   /* texto -> [{p:produto, e:[índices das embalagens], u:unidades (só contêiner/bobina), pu:peso unitário em t, t:toneladas}]; o que não for reconhecido fica como produto, sem perder nada */
   return String(txt == null ? "" : txt).split(/\s+\/\s+/).map(function(part){
     part = part.trim(); if(!part) return null;
-    var u = "", t = "", whole = part, mq = /^(.*?)\s*\[([^\[\]]*)\]$/.exec(part);
+    var u = "", pu = "", t = "", whole = part, mq = /^(.*?)\s*\[([^\[\]]*)\]$/.exec(part);
     if(mq){
-      var ok = mq[2].split(/\s*·\s*/).every(function(x){ var m = /^([\d.,]+)\s*(UN|T)$/i.exec(x.trim()); if(!m) return false; if(m[2].toUpperCase() === "UN") u = qtdFmt(m[1]); else t = qtdFmt(m[1]); return true; });
-      if(ok && mq[1]) part = mq[1]; else { u = ""; t = ""; }
+      var ok = mq[2].split(/\s*·\s*/).every(function(x){ var m = /^([\d.,]+)\s*(T\/UN|UN|T)$/i.exec(x.trim()); if(!m) return false; var kk = m[2].toUpperCase(); if(kk === "UN") u = qtdFmt(m[1]); else if(kk === "T/UN") pu = qtdFmt(m[1]); else t = qtdFmt(m[1]); return true; });
+      if(ok && mq[1]) part = mq[1]; else { u = ""; pu = ""; t = ""; }
     }
     var m = /^(.*?)\s*\(([^()]*)\)$/.exec(part);
     if(m){
       var idx = m[2].split(/\s*\+\s*/).map(embIdx);
-      if(m[1] && idx.length && idx.every(function(i){ return i >= 0; })) return {p:m[1].trim(), e:idx.filter(function(i, j){ return idx.indexOf(i) === j; }).sort(function(a, b){ return a - b; }), u:u, t:t};
+      if(m[1] && idx.length && idx.every(function(i){ return i >= 0; })) return {p:m[1].trim(), e:idx.filter(function(i, j){ return idx.indexOf(i) === j; }).sort(function(a, b){ return a - b; }), u:u, pu:pu, t:t};
     }
-    return {p:part, e:[], u:u, t:t};
+    return {p:part, e:[], u:u, pu:pu, t:t};
   }).filter(Boolean);
 }
 function cargaCompose(rows){
   return rows.filter(function(r){ return r.p.trim(); }).map(function(r){
-    var q = []; if(qtdFmt(r.u)) q.push(qtdFmt(r.u) + " UN"); if(qtdFmt(r.t)) q.push(qtdFmt(r.t) + " T");
+    var q = []; if(qtdFmt(r.u)) q.push(qtdFmt(r.u) + " UN"); if(qtdFmt(r.u) && qtdFmt(r.pu)) q.push(qtdFmt(r.pu) + " T/UN"); if(qtdFmt(r.t)) q.push(qtdFmt(r.t) + " T");
     return r.p.trim().toUpperCase() + (r.e.length ? " (" + r.e.map(function(i){ return EMBS[i][0].toUpperCase(); }).join(" + ") + ")" : "") + (q.length ? " [" + q.join(" · ") + "]" : "");
   }).join(" / ");
 }
@@ -129,7 +132,8 @@ function cargaRotulos(r){
   var P = String(r.p).trim().toUpperCase();
   return r.e.length ? r.e.map(function(i){ return P + "-" + EMBS[i][1]; }) : [P];
 }
-function cargaQtd(r){ var q = []; if(r.u) q.push(r.u + " un"); if(r.t) q.push(r.t + " t"); return q.join(" · "); }
+/* Sempre em toneladas. Unidades (só contêiner/bobina) aparecem como complemento: "500 t · 100 un". */
+function cargaQtd(r){ var q = []; if(r.t) q.push(r.t + " t"); if(r.u) q.push(r.u + " un"); return q.join(" · "); }
 function cargaAbrev(txt){   /* texto simples (tabela, impressão, busca): BARRILHA-GR + BARRILHA-BB (500 t) / DIVERSOS-CG */
   return cargaParse(txt).map(function(r){ var q = cargaQtd(r); return cargaRotulos(r).join(" + ") + (q ? " (" + q + ")" : ""); }).join(" / ");
 }
