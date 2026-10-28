@@ -354,7 +354,7 @@ function colLetra_(n) { var t = ''; while (n > 0) { var m = (n - 1) % 26; t = St
 /* Regras que evitam erro de cadastro. A página confere o mesmo, mas quem manda é o servidor. */
 function comCarga_(op) { var t = norm(op); return t === 'importacao' || t === 'exportacao'; }
 /* Porte: brasileira com menos de LIM_SIMPLES m = registro simplificado (sem praticagem/manobras); IMO obrigatório a partir de LIM_IMO m. Mesma regra da página (edit.js). */
-var LIM_SIMPLES = 50, LIM_IMO = 40;
+var LIM_SIMPLES = 50, LIM_IMO = 50;
 function brasileira_(nac) { return /^(brasil|brasileir|bra$|br$)/.test(norm(nac)); }
 function simples_(nac, comp) { var c = toNum(comp); return brasileira_(nac) && c !== '' && c > 0 && c < LIM_SIMPLES; }
 function ms_(s) { var x = parseData(s); return x ? +x : null; }
@@ -381,7 +381,7 @@ function validar_(d, o, sitNova, reg, f, mexidos, avancando) {
     if (falta.length) throw erro('Falta preencher: ' + falta.join(', ') + '.');
   }
   var compN = toNum(f('comprimento'));
-  if (sitNova !== 'rascunhos' && compN !== '' && compN >= LIM_IMO && !f('imo') && (avancando || mexeu('comprimento') || mexeu('imo'))) throw erro('O IMO é obrigatório para embarcação com ' + LIM_IMO + ' m ou mais. Informe o IMO (ou confira o comprimento).');
+  if (sitNova !== 'rascunhos' && compN !== '' && compN >= LIM_IMO && !f('imo') && (avancando || mexeu('comprimento') || mexeu('imo'))) throw erro('O IMO é obrigatório para embarcação com ' + LIM_IMO + ' metros ou mais. Informe o IMO (ou confira o comprimento).');
   if (mexeu('imo') && f('imo') && !/^\d{6,7}$/.test(f('imo'))) throw erro('IMO inválido: use só números (6 ou 7 dígitos).');
   if (mexeu('cbo') && f('cbo')) {
     if (!/^\d{4}\/\d{2}$/.test(f('cbo'))) throw erro('CBO inválido: use o formato 0000/26 (quatro dígitos, barra e o ano).');
