@@ -470,7 +470,7 @@ function campoHtml(f, rec, ctx){
   var k = f[0], lab = f[1], o = f[2] || {}, t = o.t || "", v = valorIni(f, rec, ctx), id = "f_"+k, base = k.replace(/^d_/, ""), c;
   var list = SUG_CAMPOS.indexOf(base) >= 0 ? ' list="dl_'+base+'" autocomplete="off"' : "";
   var agora = o.agora ? '<button type="button" class="agora" data-agora="'+k+'">Agora</button>' : "";
-  if(t === "dt") c = '<div class="inl"><input type="datetime-local" id="'+id+'" value="'+esc(v)+'">'+agora+'</div>';
+  if(t === "dt") c = '<div class="inl"><input type="datetime-local" id="'+id+'" min="2000-01-01T00:00" max="2099-12-31T23:59" value="'+esc(v)+'">'+agora+'</div>';
   else if(t === "hm") c = '<div class="inl"><input type="time" id="'+id+'" value="'+esc(v)+'">'+agora+'</div>';
   else if(t === "ta") c = '<textarea id="'+id+'" rows="3">'+esc(v)+'</textarea>';
   else if(t === "bordo"){
@@ -570,11 +570,17 @@ function abrirForm(cfg){
     if(calc) r.t = qtdFmt(String(Math.round(u * pu * 1000) / 1000).replace(".", ","));
     if(box){ box.readOnly = calc; if(calc) box.value = r.t; }
   }
+  function cgSelHtml(r, i){   /* tipo de carga (embalagem) em lista de seleção, como o nome do produto */
+    var cur = r.e.join(","), op = '<option value="">Tipo de carga…</option>';
+    EMBS.forEach(function(m, j){ op += '<option value="'+j+'"'+(cur === String(j) ? " selected" : "")+'>'+esc(m[0]+" ("+m[1]+")")+'</option>'; });
+    if(r.e.length > 1) op += '<option value="'+cur+'" selected>'+esc(r.e.map(function(j){ return EMBS[j][0]; }).join(" + "))+'</option>';   /* registro antigo com duas embalagens: mantém como está */
+    return '<div class="cg-e"><select class="cg-s" data-i="'+i+'" aria-label="Tipo de carga">'+op+'</select></div>';
+  }
   function cgDraw(foco){
     if(!cgBox) return;
     cgBox.innerHTML = cgRows.map(function(r, i){
       return '<div class="cg-r"><div class="inl"><input class="cg-p" data-i="'+i+'" list="dl_carga" autocomplete="off" placeholder="Produto. Ex.: Barrilha" value="'+esc(r.p)+'">'+(cgRows.length > 1 ? '<button type="button" class="cg-x" data-x="'+i+'" aria-label="Remover este produto">✕</button>' : "")+'</div>' +
-        '<div class="cg-e" role="group" aria-label="Embalagem">'+EMBS.map(function(m, j){ return '<button type="button" class="cg-b" data-i="'+i+'" data-j="'+j+'" aria-pressed="'+(r.e.indexOf(j) >= 0)+'" title="'+esc(m[0])+'">'+esc(m[0])+' <small>'+m[1]+'</small></button>'; }).join("")+'</div>' +
+        cgSelHtml(r, i) +
         cgQtdHtml(r, i) + '</div>';
     }).join("");
     if(foco){ var ins = cgBox.querySelectorAll(".cg-p"); if(ins.length) ins[ins.length - 1].focus(); }
@@ -582,11 +588,15 @@ function abrirForm(cfg){
   function cgSync(){
     F("carga").value = cargaCompose(cgRows);
     var tot = 0; cgRows.forEach(function(r){ if(r.p.trim()) tot += qtdNum(r.t); });
-    var tp = F("ton_prevista"); if(tot > 0 && tp) tp.value = String(Math.round(tot));   /* o total de toneladas do navio é a soma dos produtos */
+    var tp = F("ton_prevista"), th = q("#h_ton_prevista");   /* o total de toneladas do navio é SEMPRE a soma dos produtos: com toneladas nos produtos, o campo é calculado e fica travado */
+    if(tp){
+      if(tot > 0){ tp.value = String(Math.max(1, Math.round(tot))); tp.readOnly = true; if(th) th.textContent = "Soma das toneladas dos produtos acima."; }
+      else { tp.readOnly = false; if(th) th.textContent = ""; }
+    }
   }
   function cgLer(){ cgRows = cargaParse(F("carga").value); if(!cgRows.length) cgRows = [{p:"", e:[], u:"", pu:"", t:""}]; cgDraw(); }
   if(cgBox){
-    cgLer();
+    cgLer(); cgSync();
     cgBox.addEventListener("input", function(e){
       var el = e.target, i = el.getAttribute("data-i"); if(i == null) return;
       if(el.classList.contains("cg-p")) cgRows[+i].p = el.value;
@@ -597,14 +607,14 @@ function abrirForm(cfg){
       cgSync();
     });
     cgBox.addEventListener("change", function(e){ var el = e.target, i = el.getAttribute("data-i"); if(i == null) return; var r0 = cgRows[+i];
-      if(el.classList.contains("cg-p")){ if(!r0.e.length && ehCombustivel(r0.p)){ r0.e = [EMB_GL]; cgSync(); cgDraw(); } }   /* combustível é sempre granel líquido */
+      if(el.classList.contains("cg-s")){ r0.e = el.value ? el.value.split(",").map(Number) : []; cgSync(); cgDraw(); }   /* Carga Geral mostra unidades e peso unitário */
+      else if(el.classList.contains("cg-p")){ if(!r0.e.length && ehCombustivel(r0.p)){ r0.e = [EMB_GL]; cgSync(); cgDraw(); } }   /* combustível é sempre granel líquido */
       else if(el.classList.contains("cg-u")){ el.value = r0.u = qtdFmt(el.value); cgCalc(+i); cgSync(); }
       else if(el.classList.contains("cg-pu")){ el.value = r0.pu = qtdFmt(el.value); cgCalc(+i); cgSync(); }
       else if(el.classList.contains("cg-t")){ el.value = r0.t = qtdFmt(el.value); cgSync(); } });
     cgBox.addEventListener("click", function(e){
-      var b = e.target.closest(".cg-b"), x = e.target.closest(".cg-x");
-      if(b){ var r = cgRows[+b.getAttribute("data-i")], j = +b.getAttribute("data-j"), p = r.e.indexOf(j); if(p >= 0) r.e.splice(p, 1); else { r.e.push(j); r.e.sort(function(a, c){ return a - c; }); } cgSync(); cgDraw(); }
-      else if(x){ cgRows.splice(+x.getAttribute("data-x"), 1); cgSync(); cgDraw(); }
+      var x = e.target.closest(".cg-x");
+      if(x){ cgRows.splice(+x.getAttribute("data-x"), 1); cgSync(); cgDraw(); }
       else return;
       sujo = true; ack = ""; limparAvisos();
     });

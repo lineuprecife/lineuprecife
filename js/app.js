@@ -87,10 +87,10 @@ function toNum(v){
 }
 function cap(s){ return s ? s.charAt(0)+s.slice(1).toLowerCase() : s; }
 
-/* ---- Carga com vários produtos: "BOBINAS DE AÇO / BARRILHA (GRANEL + BIG BAG)" ----
+/* ---- Carga com vários produtos: "BOBINAS DE AÇO / BARRILHA (GRANEL SÓLIDO + BIG BAGS)" ----
    Cada produto é separado por " / " e as embalagens ficam entre parênteses, ligadas por " + ".
    Para mudar a lista ou as abreviações, edite só EMBS: [nome completo, abreviação]. */
-var EMBS = [["Granel","GR"],["Granel líquido","GL"],["Sacos","SC"],["Big Bags","BB"],["Carga Geral","CG"]];
+var EMBS = [["Granel sólido","GS"],["Granel líquido","GL"],["Sacos","SC"],["Big Bags","BB"],["Carga Geral","CG"]];
 var EMB_CG = 4, EMB_GL = 1;   /* posição de Carga Geral e de Granel líquido na lista acima */
 /* Produtos que são combustível: ao digitar, a embalagem Granel líquido já vem marcada. */
 function ehCombustivel(p){ return /diesel|gasolina|combustiv|querosene|\bqav\b|bunker|nafta|\bmgo\b|\bvlsfo\b|\bifo\b/.test(embNorm(p).toLowerCase()); }
@@ -99,6 +99,7 @@ function embStem(s){ return embNorm(s).replace(/(ES|S)$/, ""); }
 function embIdx(t){   /* "BIG BAGS" -> 0; "gr" -> 4; desconhecido -> -1 */
   var n = embNorm(t), st = embStem(t);
   for(var i = 0; i < EMBS.length; i++){ if(n === EMBS[i][1] || st === embStem(EMBS[i][0])) return i; }
+  if(n === "GR" || n === "GRANEL") return 0;   /* nome antigo (Granel / GR) = Granel sólido: registros já salvos continuam lendo certo */
   return -1;
 }
 function qtdLimpa(v, dec){ v = String(v == null ? "" : v).replace(/\./g, "").replace(dec ? /[^\d,]/g : /\D/g, ""); if(dec){ var i = v.indexOf(","); if(i >= 0) v = v.slice(0, i + 1) + v.slice(i + 1).replace(/,/g, ""); } return v; }
@@ -126,7 +127,7 @@ function cargaCompose(rows){
     return r.p.trim().toUpperCase() + (r.e.length ? " (" + r.e.map(function(i){ return EMBS[i][0].toUpperCase(); }).join(" + ") + ")" : "") + (q.length ? " [" + q.join(" · ") + "]" : "");
   }).join(" / ");
 }
-/* Como a carga aparece para o público: PRODUTO-EMBALAGEM (ex.: BARRILHA-GR, BARRILHA-BB, DIVERSOS-CG).
+/* Como a carga aparece para o público: PRODUTO-EMBALAGEM (ex.: BARRILHA-GS, BARRILHA-BB, DIVERSOS-CG).
    Produto com duas embalagens vira dois rótulos, ligados por " + ". Quantidades vão entre parênteses. */
 function cargaRotulos(r){
   var P = String(r.p).trim().toUpperCase();
@@ -134,7 +135,7 @@ function cargaRotulos(r){
 }
 /* Sempre em toneladas. Unidades (só contêiner/bobina) aparecem como complemento: "500 t · 100 un". */
 function cargaQtd(r){ var q = []; if(r.t) q.push(r.t + " t"); if(r.u) q.push(r.u + " un"); return q.join(" · "); }
-function cargaAbrev(txt){   /* texto simples (tabela, impressão, busca): BARRILHA-GR + BARRILHA-BB (500 t) / DIVERSOS-CG */
+function cargaAbrev(txt){   /* texto simples (tabela, impressão, busca): BARRILHA-GS + BARRILHA-BB (500 t) / DIVERSOS-CG */
   return cargaParse(txt).map(function(r){ var q = cargaQtd(r); return cargaRotulos(r).join(" + ") + (q ? " (" + q + ")" : ""); }).join(" / ");
 }
 function cargaHtml(txt){   /* cartão: um produto por linha */
