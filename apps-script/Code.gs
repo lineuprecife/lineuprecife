@@ -353,6 +353,10 @@ function gravarCelula_(s, r, col, ck, valor) {
 function colLetra_(n) { var t = ''; while (n > 0) { var m = (n - 1) % 26; t = String.fromCharCode(65 + m) + t; n = Math.floor((n - 1) / 26); } return t; }
 /* Regras que evitam erro de cadastro. A página confere o mesmo, mas quem manda é o servidor. */
 function comCarga_(op) { var t = norm(op); return t === 'importacao' || t === 'exportacao'; }
+/* Porte: brasileira com menos de LIM_SIMPLES m = registro simplificado (sem praticagem/manobras); IMO obrigatório a partir de LIM_IMO m. Mesma regra da página (edit.js). */
+var LIM_SIMPLES = 50, LIM_IMO = 40;
+function brasileira_(nac) { return /^(brasil|brasileir|bra$|br$)/.test(norm(nac)); }
+function simples_(nac, comp) { var c = toNum(comp); return brasileira_(nac) && c !== '' && c > 0 && c < LIM_SIMPLES; }
 function ms_(s) { var x = parseData(s); return x ? +x : null; }
 function validar_(d, o, sitNova, reg, f, mexidos, avancando) {
   var tem = function (k) { return Object.prototype.hasOwnProperty.call(reg, k) && String(reg[k] == null ? '' : reg[k]).trim() !== ''; };
@@ -366,9 +370,18 @@ function validar_(d, o, sitNova, reg, f, mexidos, avancando) {
     }
     if (sitNova === 'fundeados') exige(tem('chegada'), 'data e hora da chegada');
     if (sitNova === 'atracados') { exige(tem('chegada'), 'data e hora da atracação'); exige(tem('cais'), 'berço atracado'); }
-    if (sitNova === 'desatracados') exige(tem('saida'), 'data e hora da saída');
+    if (sitNova === 'desatracados') {   /* para registrar a saída, os dados fundamentais não podem ficar em branco */
+      var simples = simples_(f('nacionalidade'), f('comprimento')), carga = comCarga_(f('operacao'));
+      exige(tem('saida'), 'data e hora da saída'); exige(f('cais'), 'berço'); exige(f('navio'), 'embarcação'); exige(f('cbo'), 'CBO (Carimbo)'); exige(f('comprimento'), 'comprimento');
+      if (!simples) { exige(f('d_calado_proa'), 'calado de saída (proa)'); exige(f('d_calado_popa'), 'calado de saída (popa)'); }
+      exige(f('agencia'), 'agência de navegação'); exige(f('operador'), 'operador portuário'); exige(f('operacao'), 'operação');
+      if (carga) { exige(f('carga'), 'carga'); exige(f('origem_destino'), 'procedência/destino da carga'); exige(tem('ton_movimentada'), 'tonelagem final (pode ser 0)'); }   /* serviço (sem carga) não tem tonelagem */
+      exige(f('porto_anterior'), 'porto anterior'); exige(f('proximo_porto'), 'próximo porto');
+    }
     if (falta.length) throw erro('Falta preencher: ' + falta.join(', ') + '.');
   }
+  var compN = toNum(f('comprimento'));
+  if (sitNova !== 'rascunhos' && compN !== '' && compN >= LIM_IMO && !f('imo') && (avancando || mexeu('comprimento') || mexeu('imo'))) throw erro('O IMO é obrigatório para embarcação com ' + LIM_IMO + ' m ou mais. Informe o IMO (ou confira o comprimento).');
   if (mexeu('imo') && f('imo') && !/^\d{6,7}$/.test(f('imo'))) throw erro('IMO inválido: use só números (6 ou 7 dígitos).');
   if (mexeu('cbo') && f('cbo')) {
     if (!/^\d{4}\/\d{2}$/.test(f('cbo'))) throw erro('CBO inválido: use o formato 0000/26 (quatro dígitos, barra e o ano).');
@@ -460,13 +473,13 @@ function excluir_(u, b) {
   return {ok: true};
 }
 function salvarAviso_(u, b) {
-  if (!(u.admin || u.etapas.indexOf('previsao') >= 0 || u.etapas.indexOf('atracacao') >= 0)) throw erro('Você não tem permissão para alterar o aviso.');
+  if (!(u.admin || u.etapas.indexOf('previsao') >= 0 || u.etapas.indexOf('atracacao') >= 0)) throw erro('Você não tem permissão para alterar o Comunicado Geral.');
   var d = ler_(), s = d.sheet, txt = String(b.texto || '').trim(), lock = LockService.getScriptLock(); lock.waitLock(20000);
   try {
     if (d.aviso.r) s.getRange(d.aviso.r, d.idx.situacao + 2).setValue(txt);
     else { var arr = []; for (var i = 0; i < d.n; i++) arr.push(''); arr[d.idx.situacao] = 'AVISO'; arr[d.idx.situacao + 1] = txt; s.appendRow(arr); }
     cacheLimpa_();
-    log_(u, 'alterou o aviso', '', '', '', txt.slice(0, 300));
+    log_(u, 'alterou o Comunicado Geral', '', '', '', txt.slice(0, 300));
   } finally { lock.releaseLock(); }
   return {ok: true};
 }
