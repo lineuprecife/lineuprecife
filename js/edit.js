@@ -10,7 +10,7 @@ var PASSOS = [["rascunhos","Rascunho"],["previstos","Previsto"],["fundeados","Fu
 var ETAPA_NOME = {previsao:"Previsão", fundeio:"Ao largo", atracacao:"Atracação", movimentacao:"Movimentação", desatracacao:"Desatracação"};
 /* Quais campos cada etapa pode alterar (igual ao que o servidor aplica) */
 var G_IDENT = ["navio","nacionalidade","imo","comprimento","calado","agencia","operador","carga","operacao","origem_destino","porto_anterior","proximo_porto","ton_prevista","observacoes"];
-var G_REGISTRO = ["cbo","nr_livro"];
+var G_REGISTRO = ["cbo"];   /* o "Nº no livro de registro" era o mesmo dado do CBO (Carimbo): saiu do formulário */
 var G_DATAS = ["chegada","previsao_atracacao","saida","cais","contra_bordo_de"];
 var G_MANOBRA = ["hora_pratico","hora_amarracao","inicio_manobra","termino_manobra","bordo","calado_proa","calado_popa","cabecos","pratico","rebocadores"];
 var G_DMANOBRA = ["d_hora_pratico","d_hora_amarracao","d_inicio_manobra","d_termino_manobra","d_bordo","d_calado_proa","d_calado_popa","d_cabecos","d_pratico","d_rebocadores"];
@@ -80,6 +80,27 @@ function verRascunhos(){ return EDIT.on && (EDIT.admin || tem("previsao")); }
 /* ---- Regras de negócio usadas para ajudar e evitar erro ---- */
 function comCarga(op){ var t = normH(op); return t === "importacao" || t === "exportacao"; }
 function ehServico(op){ return !!String(op||"").trim() && !comCarga(op); }
+
+/* ---- Regras por porte da embarcação ----
+   · Brasileira com menos de 50 m: registro simplificado (só data/hora de chegada e de saída; sem praticagem nem manobras).
+   · IMO: obrigatório a partir de 40 m; abaixo disso é opcional.
+   Para mudar os limites, altere só os dois números abaixo (a mesma regra existe no Code.gs). */
+var LIM_SIMPLES = 50, LIM_IMO = 40;
+function numDec(x){ var t = String(x == null ? "" : x).trim(); if(!t) return 0; var n = parseFloat(t.indexOf(",") >= 0 ? t.replace(/\./g, "").replace(",", ".") : t); return isNaN(n) ? 0 : n; }
+function embSimples(nac, comp){ var p = acharPais(nac), c = numDec(comp); return !!(p && p.a2 === "br" && c > 0 && c < LIM_SIMPLES); }
+function imoObrig(comp){ return numDec(comp) >= LIM_IMO; }
+/* O que precisa estar preenchido para registrar a saída (desatracação). g(chave) devolve o valor atual do campo. Devolve [[chave, nome], ...] do que falta. */
+function faltaSaida(g){
+  var f = [], carga = comCarga(g("operacao")), simples = embSimples(g("nacionalidade"), g("comprimento"));
+  var ex = function(k, nome){ if(String(g(k) == null ? "" : g(k)).trim() === "") f.push([k, nome]); };
+  ex("saida", "data e hora da saída"); ex("cais", "berço"); ex("navio", "embarcação"); ex("cbo", "CBO (Carimbo)"); ex("comprimento", "comprimento");
+  if(!simples){ ex("d_calado_proa", "calado de saída (proa)"); ex("d_calado_popa", "calado de saída (popa)"); }
+  ex("agencia", "agência de navegação"); ex("operador", "operador portuário"); ex("operacao", "operação");
+  if(carga){ ex("carga", "carga"); ex("origem_destino", "procedência/destino da carga"); }
+  ex("porto_anterior", "porto anterior"); ex("proximo_porto", "próximo porto");
+  if(carga) ex("ton_movimentada", "tonelagem final");   /* serviço (sem carga) não tem tonelagem */
+  return f;
+}
 function faltaPublicar(r){
   var f = [];
   if(!r.navio) f.push("nome"); if(!r.agencia) f.push("agência"); if(!r.operacao) f.push("operação");
@@ -227,9 +248,9 @@ function chipsDe(s){   /* avisos curtos para quem edita: o que ainda falta */
     var f = faltaPublicar(r);
     h = f.length ? '<span class="chip warn">Rascunho · falta: '+esc(f.join(", "))+'</span>' : '<span class="chip ok">Rascunho · pronto para publicar</span>';
   } else if(k === "atracados" && permCampos(k, k)){
-    var m = faltaManobra(r, ""); if(m.length) h = '<span class="chip warn">Manobra de atracação incompleta: '+esc(m.join(", "))+'</span>';
+    var m = embSimples(r.nacionalidade, r.comprimento) ? [] : faltaManobra(r, ""); if(m.length) h = '<span class="chip warn">Manobra de atracação incompleta: '+esc(m.join(", "))+'</span>';
   } else if(k === "desatracados" && permCampos(k, k)){
-    var d = parseDate(r.saida); if(d && Date.now() - +d < 48 * 36e5){ var m2 = faltaManobra(r, "d_"); if(m2.length) h = '<span class="chip warn">Manobra de desatracação incompleta: '+esc(m2.join(", "))+'</span>'; }
+    var d = parseDate(r.saida); if(d && Date.now() - +d < 48 * 36e5){ var m2 = embSimples(r.nacionalidade, r.comprimento) ? [] : faltaManobra(r, "d_"); if(m2.length) h = '<span class="chip warn">Manobra de desatracação incompleta: '+esc(m2.join(", "))+'</span>'; }
   }
   return h;
 }
@@ -410,13 +431,13 @@ function bloco(id, sit){
   if(id === "atracacao"){
     var m = manobraCampos("");
     return {id:"atracacao", t:"Atracação", secs:[
-      {c:[["chegada","Data e hora da atracação",{t:"dt",req:1,agora:1,def:"now"}], ["cais","Berço atracado",{t:"cais",req:1}], ["cbo","CBO",{t:"cbo",h:1}], ["nr_livro","Nº no livro de registro",{h:1}]]},
-      {t:"Manobra de atracação", c:m}]};
+      {c:[["chegada","Data e hora da atracação",{t:"dt",req:1,agora:1,def:"now"}], ["cais","Berço atracado",{t:"cais",req:1}], ["cbo","CBO (Carimbo)",{t:"cbo",h:1}]]},
+      {t:"Manobra de atracação", c:m, man:1}]};
   }
   if(id === "operacao") return {id:"operacao", t:"Operação", secs:[{c:[["ton_movimentada","Toneladas movimentadas até agora",{t:"num"}], ["saida","Previsão de saída (ETD)",{t:"dt"}], ["observacoes","Observações",{t:"ta",w:1}]]}]};
   if(id === "desatracacao") return {id:"desatracacao", t:"Desatracação", secs:[
     {c:[["saida","Data e hora da saída (desatracação)",{t:"dt",req:1,agora:1,def:"now"}], ["ton_movimentada","Tonelagem final (t)",{t:"num"}]]},
-    {t:"Manobra de desatracação", c:manobraCampos("d_")},
+    {t:"Manobra de desatracação", c:manobraCampos("d_"), man:1},
     {c:[["observacoes","Observações",{t:"ta",w:1}]]}]};
 }
 function todosCampos(b){ var o = []; b.secs.forEach(function(s){ s.c.forEach(function(f){ o.push(f); }); }); (b.mais || []).forEach(function(f){ o.push(f); }); return o; }
@@ -481,7 +502,7 @@ function campoHtml(f, rec, ctx){
 }
 function paneHtml(b, rec, ctx){
   var h = b.info ? '<p class="info">'+b.info+'</p>' : "";
-  b.secs.forEach(function(s){ h += (s.t ? '<h3 class="st">'+esc(s.t)+'</h3>' : "") + '<div class="fg">'+s.c.map(function(f){ return campoHtml(f, rec, ctx); }).join("")+'</div>'; });
+  b.secs.forEach(function(s){ var dm = s.man ? ' data-man="1"' : ""; h += (s.t ? '<h3 class="st"'+dm+'>'+esc(s.t)+'</h3>' : "") + '<div class="fg"'+dm+'>'+s.c.map(function(f){ return campoHtml(f, rec, ctx); }).join("")+'</div>'; });
   if(b.mais && b.mais.length){
     var tem2 = b.mais.some(function(f){ return String(rec[f[0]] == null ? "" : rec[f[0]]).trim() !== ""; });
     h += '<details class="mais"'+(tem2 ? " open" : "")+'><summary>Mais detalhes (opcional)</summary><div class="fg">'+b.mais.map(function(f){ return campoHtml(f, rec, ctx); }).join("")+'</div></details>';
@@ -496,7 +517,7 @@ function abrirForm(cfg){
   var ctx = {id:s ? s.id : "", avanco:!!cfg.avanco, ocupados:cfg.acoes[0].sit === "atracados"};
   var blocos = cfg.blocos.map(function(b){
     var ok = function(f){ return destPerm.todos || destPerm.set[f[0]]; };
-    b.secs = b.secs.map(function(sc){ return {t:sc.t, c:sc.c.filter(ok)}; }).filter(function(sc){ return sc.c.length; });
+    b.secs = b.secs.map(function(sc){ return {t:sc.t, man:sc.man, c:sc.c.filter(ok)}; }).filter(function(sc){ return sc.c.length; });
     if(b.mais) b.mais = b.mais.filter(ok);
     return b;
   }).filter(function(b){ return b.secs.length || (b.mais && b.mais.length); });
@@ -504,7 +525,7 @@ function abrirForm(cfg){
   cfg.blocos = blocos;
   var html = '<div class="dh"><button type="button" class="dx" data-cx tabindex="-1" aria-label="Fechar">✕</button><h2>'+esc(cfg.titulo)+'</h2>'+(cfg.sub ? '<p class="dsub">'+cfg.sub+'</p>' : "")+passosHtml(cfg.para)+(cfg.acoes.some(function(a){ return a.sit === "previstos"; }) ? '<p class="nota">Campos com * são obrigatórios para publicar.</p>' : "")+'</div>';
   if(blocos.length > 1) html += '<div class="tabs2" role="tablist">'+blocos.map(function(b, i){ return '<button type="button" role="tab" class="t2" data-tab="'+b.id+'" aria-selected="'+(i === 0)+'">'+esc(b.t)+'<i class="dot" hidden></i></button>'; }).join("")+'</div>';
-  html += '<div class="scroller">';
+  html += '<div class="scroller"><p class="nota" id="nota_simples" hidden>Embarcação brasileira com menos de '+LIM_SIMPLES+' m: registro simplificado. Só data e hora de chegada e de saída; praticagem e manobras não são pedidas.</p>';
   blocos.forEach(function(b, i){ html += '<div class="tp" data-pane="'+b.id+'"'+(i ? " hidden" : "")+'>'+paneHtml(b, rec, ctx)+'</div>'; });
   html += SUG_CAMPOS.map(function(k){ return '<datalist id="dl_'+k+'"></datalist>'; }).join("") + '<datalist id="dl_servico"></datalist><datalist id="dl_paises">'+PAISES.map(function(p){ return '<option value="'+esc(p.pais)+'" label="Bandeira '+esc(p.nome)+'">'; }).join("")+'</datalist>';
   html += '<div class="avs" id="avs" aria-live="polite"></div></div><div class="btns">'+(cfg.rodape ? '<span class="rod">'+cfg.rodape+'</span>' : "")+'<button class="btn" data-cx type="button">Cancelar</button>'+
@@ -675,6 +696,24 @@ function abrirForm(cfg){
     var it = findItem(b.getAttribute("data-abrir")); sujo = false; d.close(); if(it) editar(it);
   });
 
+  /* --- porte: brasileira com menos de 50 m esconde praticagem/manobras; IMO obrigatório a partir de 40 m --- */
+  function compAtual(){ var el = F("comprimento"); return el ? el.value : rec.comprimento; }
+  function bandAtual(){ var el = F("nacionalidade"); return el ? el.value : rec.nacionalidade; }
+  function aplicarPorte(){
+    var simples = embSimples(bandAtual(), compAtual());
+    Array.prototype.forEach.call(d.querySelectorAll("[data-man]"), function(x){ x.style.display = simples ? "none" : ""; });
+    var pob = d.querySelector('label[data-k="previsao_atracacao"]'); if(pob) pob.style.display = simples ? "none" : "";
+    var ns = q("#nota_simples"); if(ns) ns.hidden = !simples;
+    var lbI = d.querySelector('label[data-k="imo"]');
+    if(lbI){
+      var ob = imoObrig(compAtual()), rq = lbI.querySelector(".rq"), hi = q("#h_imo");
+      if(rq) rq.hidden = !ob;
+      if(hi && !hi.getAttribute("data-fixo")) hi.textContent = numDec(compAtual()) ? (ob ? "Obrigatório para embarcação com " + LIM_IMO + " m ou mais." : "Opcional: embarcação com menos de " + LIM_IMO + " m.") : "";
+    }
+  }
+  ["comprimento", "nacionalidade"].forEach(function(k){ var el = F(k); if(el){ el.addEventListener("input", aplicarPorte); el.addEventListener("change", aplicarPorte); el.addEventListener("blur", aplicarPorte); } });
+  aplicarPorte();
+
   /* --- leitura e conferência --- */
   function ler(){
     var v = {};
@@ -709,7 +748,15 @@ function abrirForm(cfg){
     });
     if(serv && F("operacao") && !v.operacao) marcar("operacao", "Diga qual é o serviço.", erros);
     /* formatos */
-    if(v.imo){ if(!/^\d{6,7}$/.test(v.imo)) marcar("imo", "O IMO tem 6 ou 7 números.", erros); else if(!imoOk(v.imo)) avs.push("O IMO " + v.imo + " não passa na conferência do dígito final. Confira com o agente."); }
+    var sem = [];   /* exigências por regra: marca o campo se ele está na janela; senão vira aviso geral */
+    function pedir(k, nome, msg){
+      var el = F(k), lb = el && el.closest("label");
+      if(lb && !lb.hidden && campos.some(function(c){ return c.k === k; })){ if(!erros.some(function(e){ return e[0] === k; })) marcar(k, msg, erros); }
+      else sem.push(nome);
+    }
+    var mudouSit = !s || dest !== sitKey(s);
+    if(dest !== "rascunhos" && imoObrig(val("comprimento")) && !String(val("imo")).trim() && (cfg.avanco || mudouSit || numDec(val("comprimento")) !== numDec(rec.comprimento) || String(val("imo")) !== String(rec.imo == null ? "" : rec.imo))) pedir("imo", "IMO", "Obrigatório para embarcação com " + LIM_IMO + " m ou mais.");
+    if(v.imo){ if(!/^\\d{6,7}$/.test(v.imo)) marcar("imo", "O IMO tem 6 ou 7 números.", erros); else if(!imoOk(v.imo)) avs.push("O IMO " + v.imo + " não passa na conferência do dígito final. Confira com o agente."); }
     if(v.cbo){
       if(!/^\d{4}\/\d{2}$/.test(v.cbo)) marcar("cbo", "Use o formato 0000/26.", erros);
       else { var outro = todosRegistros().filter(function(r){ return r.id !== ctx.id && String(r.cbo||"").trim() === v.cbo; })[0]; if(outro) marcar("cbo", "O CBO " + v.cbo + " já é de " + outro.navio + ".", erros); }
@@ -736,7 +783,7 @@ function abrirForm(cfg){
       if(at && Object.prototype.hasOwnProperty.call(v, "chegada") && at > agora + 2 * 36e5) avs.push("A data e hora da atracação está no futuro.");
       if(v.saida && at && t("saida") < at) marcar("saida", "A previsão de saída não pode ser antes da atracação.", erros);
       if(v.cais && !ehCB(v.cais)){ var oc = ocupacao(ctx.id), ks = caisKeys(v.cais), b = ks.filter(function(k){ return oc[k]; })[0]; if(b && Object.prototype.hasOwnProperty.call(v, "chegada")) avs.push("O berço " + b + " está ocupado por " + oc[b][0] + ". Se ele já saiu, registre primeiro a desatracação dele."); }
-      if(cfg.avanco || Object.prototype.hasOwnProperty.call(v, "hora_pratico")){
+      if(!embSimples(val("nacionalidade"), val("comprimento")) && (cfg.avanco || Object.prototype.hasOwnProperty.call(v, "hora_pratico"))){
         if(!ordemHoras([v.hora_pratico, v.inicio_manobra, v.hora_amarracao, v.termino_manobra])) avs.push("Confira os horários da manobra: estão fora de ordem ou passam de 6 horas.");
         if(cfg.avanco){ var fm = []; if(!v.bordo) fm.push("bordo"); if(!v.hora_pratico) fm.push("hora do prático"); if(!v.hora_amarracao) fm.push("amarração"); if(fm.length) avs.push("Faltam dados da manobra: " + fm.join(", ") + ". Você pode completar depois em Editar."); }
       }
@@ -745,7 +792,8 @@ function abrirForm(cfg){
       var ch = t("chegada"), sd = v.saida ? parseDate(v.saida) : null;
       if(sd && ch && +sd < ch) marcar("saida", "A saída não pode ser antes da atracação" + (rec.chegada ? " (" + fmt(rec.chegada) + ")" : "") + ".", erros);
       if(sd && +sd > agora + 2 * 36e5) avs.push("A data e hora da saída está no futuro.");
-      if(cfg.avanco || Object.prototype.hasOwnProperty.call(v, "d_hora_pratico")){
+      if(cfg.avanco) faltaSaida(val).forEach(function(x){ pedir(x[0], x[1], "Obrigatório para registrar a saída."); });
+      if(!embSimples(val("nacionalidade"), val("comprimento")) && (cfg.avanco || Object.prototype.hasOwnProperty.call(v, "d_hora_pratico"))){
         if(!ordemHoras([v.d_hora_pratico, v.d_inicio_manobra, v.d_hora_amarracao, v.d_termino_manobra])) avs.push("Confira os horários da manobra: estão fora de ordem ou passam de 6 horas.");
         if(cfg.avanco){ var fd = []; if(!v.d_bordo) fd.push("bordo"); if(!v.d_hora_pratico) fd.push("hora do prático"); if(!v.d_hora_amarracao) fd.push("largada do último cabo"); if(fd.length) avs.push("Faltam dados da manobra: " + fd.join(", ") + ". Você pode completar depois em Editar."); }
       }
@@ -755,20 +803,21 @@ function abrirForm(cfg){
       if(pv > 0 && mv > pv * 1.1) avs.push("As toneladas movimentadas (" + num(mv) + ") passam 10% da prevista (" + num(pv) + "). Confira.");
       if(s && sitKey(s) === "atracados" && antes > 0 && mv < antes) avs.push("O valor é menor que o último registrado (" + num(antes) + " t). Confira.");
     }
+    if(sem.length) marcar("_faltam", "Ainda faltam dados da embarcação: " + sem.join(", ") + ". Você não tem permissão para preencher isso nesta etapa; peça a quem faz a atracação (ou a um administrador).", erros);
     return {erros:erros, avs:avs};
   }
   function mostrar(res){
     limparErros();
-    var porAba = {}, primeiro = null;
+    var porAba = {}, primeiro = null, gerais = [], marcados = 0;
     res.erros.forEach(function(e){
-      var el = F(e[0]), lb = el && el.closest("label"); if(!lb) return;
-      lb.classList.add("err"); var fe = q("#e_"+e[0]); if(fe && !(e[0] === "navio" && fe.querySelector("[data-abrir]"))) fe.textContent = e[1];
+      var el = F(e[0]), lb = el && el.closest("label"); if(!lb){ gerais.push(e[1]); return; }
+      marcados++; lb.classList.add("err"); var fe = q("#e_"+e[0]); if(fe && !(e[0] === "navio" && fe.querySelector("[data-abrir]"))) fe.textContent = e[1];
       var cm = campos.filter(function(c){ return c.k === e[0]; })[0]; if(cm){ porAba[cm.b] = 1; }
       if(!primeiro) primeiro = el;
     });
     Array.prototype.forEach.call(d.querySelectorAll(".t2"), function(t){ var dot = t.querySelector(".dot"); if(dot) dot.hidden = !porAba[t.getAttribute("data-tab")]; });
     var a = q("#avs");
-    if(res.erros.length) a.innerHTML = '<div class="bad">Falta acertar '+(res.erros.length === 1 ? "1 campo" : res.erros.length + " campos")+' (marcados em vermelho).</div>';
+    if(res.erros.length) a.innerHTML = (marcados ? '<div class="bad">Falta acertar '+(marcados === 1 ? "1 campo" : marcados + " campos")+' (marcados em vermelho).</div>' : "") + gerais.map(function(x){ return '<div class="bad">'+esc(x)+'</div>'; }).join("");
     else if(res.avs.length) a.innerHTML = '<div class="warn">'+res.avs.map(function(x){ return "<p>"+esc(x)+"</p>"; }).join("")+'</div>';
     if(primeiro){ var pane = primeiro.closest(".tp"); if(pane) aba(pane.getAttribute("data-pane")); var dt = primeiro.closest("details"); if(dt) dt.open = true; primeiro.scrollIntoView({block:"center", behavior:"smooth"}); try{ primeiro.focus({preventScroll:true}); }catch(x){} }
   }
@@ -828,6 +877,30 @@ function editar(s, opts){
   var d = abrirForm({s:s, titulo:k === "rascunhos" ? "Rascunho" : "Editar embarcação", sub:nomeNegrito(s) + " · " + esc(s.rec.situacao), para:k, blocos:blocos, acoes:acoes, rodape:rod, preValidar:opts.preValidar || (k === "rascunhos" ? "previstos" : "")});
   if(d){ var h = d.querySelector("#fhist"); if(h) h.onclick = function(){ openHist(s); }; var v = d.querySelector("#fvolta"); if(v) v.onclick = function(){ d.close(); voltar(s); }; }
 }
+/* Campo do formulário pela chave (reaproveita a definição de "Embarcação"/"Atracação", sem o "agora" automático) */
+function defCampo(k){
+  var achado = null;
+  ["dados", "atracacao"].forEach(function(id){
+    if(achado) return;
+    todosCampos(bloco(id, "atracados")).forEach(function(f){
+      if(achado || f[0] !== k) return;
+      var o = {}; Object.keys(f[2] || {}).forEach(function(x){ if(x !== "def" && x !== "agora") o[x] = f[2][x]; });
+      achado = [f[0], f[1], o];
+    });
+  });
+  return achado;
+}
+/* Ao avançar de etapa: se o registro ainda não tem algo que a regra exige (IMO de 40 m ou mais; dados da saída), mostra esses campos numa aba à parte. */
+function blocoFaltantes(s, dest){
+  var rec = s.rec, ks = [];
+  if(imoObrig(rec.comprimento) && !String(rec.imo || "").trim()) ks.push("imo");
+  if(dest === "desatracados") faltaSaida(function(k){ return rec[k]; }).forEach(function(x){
+    if(["saida", "ton_movimentada", "d_calado_proa", "d_calado_popa"].indexOf(x[0]) < 0 && ks.indexOf(x[0]) < 0) ks.push(x[0]);   /* esses 4 já estão na janela da saída */
+  });
+  if((dest === "atracados" || dest === "desatracados") && !String(rec.nacionalidade || "").trim() && numDec(rec.comprimento) > 0 && numDec(rec.comprimento) < LIM_SIMPLES) ks.push("nacionalidade");   /* sem a bandeira não dá para saber se é brasileira (registro simplificado) */
+  var c = ks.map(defCampo).filter(Boolean);
+  return c.length ? {id:"faltantes", t:"Dados da embarcação", secs:[{t:"Complete para continuar", c:c}]} : null;
+}
 function avancar(s, tipo){
   var k = sitKey(s), cfg = {s:s, avanco:true, sub:nomeNegrito(s) + (s.cais ? " · berço " + esc(s.cais) : "")};
   if(tipo === "fundear"){ cfg.titulo = "Confirmar chegada"; cfg.para = "fundeados"; cfg.blocos = [bloco("fundeio", "fundeados")]; cfg.acoes = [{rot:"Confirmar chegada", sit:"fundeados", pri:1, toast:"Chegada confirmada."}]; }
@@ -843,6 +916,10 @@ function avancar(s, tipo){
     if(ehServico(s.rec.operacao)) b2.secs[0].c = b2.secs[0].c.filter(function(f){ return f[0] !== "ton_movimentada"; });
     else if(pv > 0) b2.info = "Previsto <b>"+num(pv)+" t</b> · movimentado <b>"+num(mv)+" t</b> · saldo <b>"+num(pv - mv)+" t</b> ("+Math.min(100, Math.round(mv / pv * 100))+"%).";
     cfg.blocos = [b2]; cfg.acoes = [{rot:"Salvar operação", sit:"atracados", pri:1, toast:"Operação atualizada."}];
+  }
+  if(tipo !== "operacao"){
+    var fb = blocoFaltantes(s, cfg.para);
+    if(fb){ cfg.blocos.unshift(fb); cfg.preValidar = cfg.para; }
   }
   abrirForm(cfg);
 }
@@ -880,10 +957,10 @@ function askDel(s){
   };
 }
 function openAviso(){
-  var d = dlg('<h2>Aviso no topo da página</h2><p>Aparece em faixa amarela para quem abrir a página. Deixe vazio para tirar.</p><textarea id="atx" aria-label="Aviso">'+esc(AVISO)+'</textarea><div class="msg" id="amsg"></div><div class="btns"><button class="btn" data-x type="button">Cancelar</button><button class="btn pri" id="ago" type="button">Salvar aviso</button></div>');
+  var d = dlg('<h2>Comunicado Geral</h2><p>Aparece em faixa amarela no topo da página para quem abrir. Deixe vazio para tirar.</p><textarea id="atx" aria-label="Comunicado Geral">'+esc(AVISO)+'</textarea><div class="msg" id="amsg"></div><div class="btns"><button class="btn" data-x type="button">Cancelar</button><button class="btn pri" id="ago" type="button">Salvar comunicado</button></div>');
   E("ago").onclick = function(){
     E("ago").disabled = true; say("amsg", "Salvando…");
-    post({acao:"aviso", texto:E("atx").value}).then(function(){ d.close(); toast("Aviso atualizado."); refresh(); },
+    post({acao:"aviso", texto:E("atx").value}).then(function(){ d.close(); toast("Comunicado Geral atualizado."); refresh(); },
       function(e){ E("ago").disabled = false; say("amsg", e.message, true); });
   };
 }

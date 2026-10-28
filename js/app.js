@@ -489,7 +489,7 @@ function avisoHtml(rot, txt){
 function renderAvisos(){
   var ger = AVISOS ? AVISOS.geral : (data.atracados && data.atracados.aviso ? [data.atracados.aviso] : []);
   var g = $("notice"); g.hidden = !ger.length;
-  g.innerHTML = ger.map(function(t){ return avisoHtml("Aviso geral", t); }).join("");
+  g.innerHTML = ger.map(function(t){ return avisoHtml("Comunicado Geral", t); }).join("");
   var lista = AVISOS && AVISOS[state.tab] ? AVISOS[state.tab] : [];
   var nome = TABS.filter(function(t){ return t.id===state.tab; })[0];
   var ta = $("tabnotice"); ta.hidden = !lista.length;
