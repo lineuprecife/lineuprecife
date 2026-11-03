@@ -597,3 +597,7 @@ footer #f-mail-box[hidden]{display:none}
 .legenda{margin:14px 2px 0;font-size:12px;color:#5a6b7b;line-height:1.4}
 .legenda b{color:var(--blue)}
 abbr[title]{text-decoration:none;cursor:help}
+
+/* IMO clicável (MarineTraffic) */
+a.imo-link{color:var(--blue);text-decoration:underline;text-underline-offset:2px}
+a.imo-link:hover{text-decoration-thickness:2px}
