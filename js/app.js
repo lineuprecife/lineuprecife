@@ -402,6 +402,12 @@ function modPill(m){
 }
 function listOf(id){ return (data[id] && data[id].items) || []; }
 
+/* IMO vira link para a página da embarcação no MarineTraffic (abre em nova guia). Só se o IMO tiver 6 ou 7 números. */
+function imoLink(imo){
+  var n = String(imo == null ? "" : imo).trim();
+  if(!/^\d{6,7}$/.test(n)) return esc(n);
+  return '<a class="imo-link" href="https://www.marinetraffic.com/en/ais/details/ships/imo:' + n + '" target="_blank" rel="noopener noreferrer" title="Ver os dados desta embarcação no MarineTraffic">' + esc(n) + '</a>';
+}
 function dt(v){ return '<span class="dt">'+esc(fmt(v))+'</span>'; }   /* data inteira numa linha só: quem quebra é o rótulo, não a data */
 function rowBase(s,lista){
   var prevList = lista==="rascunhos" || lista==="previstos" || lista==="fundeados", special = !!s.tipo;
@@ -409,7 +415,7 @@ function rowBase(s,lista){
   var meta = [];   /* dados do navio, um embaixo do outro: nunca quebram no meio */
   function sp(r, v, mono){ return '<div><span>'+r+'</span> <b'+(mono?' class="mono"':'')+'>'+esc(v)+'</b></div>'; }
   if(s.cbo) meta.push(sp('<abbr title="Carimbo: registro que a embarcação recebe no porto a cada atracação">CBO (Carimbo)</abbr>', s.cbo, 1));
-  if(s.imo) meta.push(sp("IMO", s.imo, 1));
+  if(s.imo) meta.push('<div><span>IMO</span> <b class="mono">'+imoLink(s.imo)+'</b></div>');
   if(s.comp) meta.push(sp("Compr.", s.comp));
   if(s.calado) meta.push(sp("Calado", s.calado));
   if(ehCB(s.cais)){ var hcb = typeof cbHost === "function" ? cbHost(s) : ""; meta.push(sp("A contra bordo de", hcb || "outra embarcação")); }
