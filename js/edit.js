@@ -244,6 +244,7 @@ function botoes(s){
   if(k === "previstos"){ if(mover("fundeados")) h += b("fundear", "Confirmar chegada", "pri"); if(mover("atracados")) h += b("atracar", "Já atracou"); }
   if(k === "fundeados" && mover("atracados")) h += b("atracar", "Registrar atracação", "pri");
   if(k === "atracados"){ if(pode(k, k, "ton_movimentada")) h += b("operacao", "Atualizar operação"); if(mover("desatracados")) h += b("desatracar", "Registrar desatracação", "pri"); }
+  if(k !== "rascunhos") h += b("ficha", "🖨️ Ficha de manobra");
   if(k !== "rascunhos" && podeEditar(s)) h += b("editar", "✏️ Editar");
   if(podeExcluir(s)) h += b("excluir", k === "rascunhos" ? "Descartar" : "Excluir", "dng");
   return h;
@@ -1015,6 +1016,7 @@ window.addEventListener("load", function(){
     var a = b.getAttribute("data-act");
     if(a === "editar") editar(s, {preValidar:sitKey(s) === "rascunhos" ? "previstos" : ""});
     else if(a === "excluir") askDel(s);
+    else if(a === "ficha") abrirFicha(s);
     else avancar(s, a);
   });
   var tk; try{ tk = sessionStorage.getItem("lu_t"); }catch(x){}
