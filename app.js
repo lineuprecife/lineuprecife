@@ -138,17 +138,19 @@ function cargaQtd(r){ var q = []; if(r.t) q.push(r.t + " t"); if(r.u) q.push(r.u
 function cargaAbrev(txt){   /* texto simples (tabela, impressão, busca): BARRILHA-GS + BARRILHA-BB (500 t) / DIVERSOS-CG */
   return cargaParse(txt).map(function(r){ var q = cargaQtd(r); return cargaRotulos(r).join(" + ") + (q ? " (" + q + ")" : ""); }).join(" / ");
 }
-function cargaHtml(txt){   /* cartão: um produto por linha */
-  return cargaParse(txt).map(function(r){ var q = cargaQtd(r); return '<div class="cargo-l">' + esc(cargaRotulos(r).join(" + ")) + (q ? ' <span class="meta">(' + esc(q) + ')</span>' : '') + '</div>'; }).join("");
+function cargaHtml(txt){   /* cartão: um produto por linha; passar o mouse na sigla mostra o nome da embalagem */
+  return cargaParse(txt).map(function(r){ var q = cargaQtd(r), P = String(r.p).trim().toUpperCase(), rot = r.e.length ? r.e.map(function(i){ return '<abbr title="' + esc(EMBS[i][0]) + '">' + esc(P + "-" + EMBS[i][1]) + '</abbr>'; }).join(" + ") : esc(P); return '<div class="cargo-l">' + rot + (q ? ' <span class="meta">(' + esc(q) + ')</span>' : '') + '</div>'; }).join("");
 }
 function legendaEmb(itens){   /* "BB = Big Bags · CG = Carga Geral": só as siglas que aparecem na lista mostrada */
   var usa = {};
   (itens || []).forEach(function(s){ if(s.tipo) return; cargaParse(s.carga).forEach(function(r){ r.e.forEach(function(i){ usa[i] = 1; }); }); });
-  return EMBS.filter(function(m, i){ return usa[i]; }).map(function(m){ return '<b>' + m[1] + '</b> = ' + m[0]; });
+  var out = EMBS.filter(function(m, i){ return usa[i]; }).map(function(m){ return '<b>' + m[1] + '</b> = ' + m[0]; });
+  if((itens || []).some(function(s){ return ehCB(s.cais); })) out.push('<b>C/B</b> = a contra bordo (embarcação atracada ao lado de outra, e não direto no cais)');
+  return out;
 }
 function legendaHtml(itens){
   var l = legendaEmb(itens); if(!l.length) return "";
-  return '<p class="leg-emb"><span>Legenda das embalagens:</span> ' + l.join(' · ') + '</p>';
+  return '<p class="leg-emb"><span>Legenda:</span> ' + l.join(' · ') + '</p>';
 }
 
 var DATE_RE = /^\d\d\/\d\d\/\d{4}/;
@@ -410,7 +412,7 @@ function rowBase(s,lista){
   if(s.imo) meta.push(sp("IMO", s.imo, 1));
   if(s.comp) meta.push(sp("Compr.", s.comp));
   if(s.calado) meta.push(sp("Calado", s.calado));
-  if(ehCB(s.cais) && typeof cbHost === "function"){ var hcb = cbHost(s); if(hcb) meta.push(sp("C/B de", hcb)); }
+  if(ehCB(s.cais)){ var hcb = typeof cbHost === "function" ? cbHost(s) : ""; meta.push(sp("A contra bordo de", hcb || "outra embarcação")); }
   var nv = navegacaoItem(s);
   if(nv) meta.push('<div><span>Navegação</span> <b title="'+nv.nome+'">'+nv.nome+'</b></div>');
   var cargo = special
@@ -419,11 +421,11 @@ function rowBase(s,lista){
   var when, prog;
   if(prevList){
     var chega = rel(s.chegada,"chega");
-    when = '<div>'+(lista==="fundeados"?'Chegada confirmada ':'Previsão de chegada (ETA) ')+dt(s.chegada)+'</div>'+(chega?'<div class="rel">'+esc(chega)+'</div>':'')+(s.atracacao?'<div>Previsão de atracação (POB) '+dt(s.atracacao)+'</div>':'')+(s.saida?'<div>Previsão de saída (ETD) '+dt(s.saida)+'</div>':'');
+    when = '<div>'+(lista==="fundeados"?'Chegada confirmada ':'Previsão de chegada ')+dt(s.chegada)+'</div>'+(chega?'<div class="rel">'+esc(chega)+'</div>':'')+(s.atracacao?'<div>Previsão de atracação '+dt(s.atracacao)+'</div>':'')+(s.saida?'<div>Previsão de saída '+dt(s.saida)+'</div>':'');
     prog = '<div><b>'+num(s.prev)+'</b> t</div>'+(s.anterior?'<div class="meta">Vem de '+esc(s.anterior)+'</div>':'');
   } else {
     when = '<div>Atracação '+dt(s.chegada)+'</div>'+
-      (s.saida?'<div>Previsão de saída (ETD) '+dt(s.saida)+'</div>'+(lista==="atracados"?'<div class="rel">'+esc(rel(s.saida,"sai"))+'</div>':''):'<div class="meta">Previsão de saída não informada</div>');
+      (s.saida?'<div>Previsão de saída '+dt(s.saida)+'</div>'+(lista==="atracados"?'<div class="rel">'+esc(rel(s.saida,"sai"))+'</div>':''):'<div class="meta">Previsão de saída não informada</div>');
     if(special || !s.prev){ prog = '<span class="meta">Sem movimentação de carga</span>'; }
     else if(lista==="fundeados"){ prog = '<div><b>'+num(s.prev)+'</b> t previstas</div>'; }
     else { prog = '<div class="bar"><i style="width:'+pct+'%"></i></div><div><b>'+num(s.mov)+'</b> de '+num(s.prev)+' t · '+pct+'%</div><div class="meta">Saldo '+num(s.prev-(s.mov||0))+' t</div>'; }
@@ -433,7 +435,7 @@ function rowBase(s,lista){
     if(!special && (s.mov||s.prev)) prog = '<div><b>'+num(s.mov||s.prev)+'</b> t movimentadas</div>';
   }
   return '<div class="row">'+
-    '<div class="c-berth berth-n'+(s.cais.length>3?' sm':'')+'"><small>BERÇO</small>'+(s.cais?esc(s.cais):"—")+'</div>'+
+    '<div class="c-berth berth-n'+(s.cais.length>3?' sm':'')+'"'+(ehCB(s.cais)?' title="Berço '+esc(caisBase(s.cais))+' · a contra bordo (atracada ao lado de outra embarcação)"':'')+'><small>BERÇO</small>'+(s.cais?esc(s.cais):"—")+'</div>'+
     '<div class="c-ship"><div class="ship">'+bandeiraHtml(s.nacionalidade)+esc(s.navio)+'</div><div class="specs">'+meta.join("")+'</div></div>'+
     '<div class="c-rest">'+
       '<div class="c-cargo"><span class="lab">Carga</span>'+cargo+'</div>'+
