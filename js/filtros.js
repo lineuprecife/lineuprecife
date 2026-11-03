@@ -14,7 +14,7 @@ var FMS = [
 ];
 var FMODS  = [["","Todos"],["IMPORTAÇÃO","Importação"],["EXPORTAÇÃO","Exportação"],["_SEM","Sem carga"]];
 var FDATE  = {rascunhos:"chegada", atracados:"chegada", previstos:"chegada", fundeados:"chegada", desatracados:"saida"};
-var FDLAB  = {rascunhos:"Previsão de chegada (ETA)", atracados:"Atracação", previstos:"Previsão de chegada (ETA)", fundeados:"Chegada confirmada", desatracados:"Saída"};
+var FDLAB  = {rascunhos:"Previsão de chegada", atracados:"Atracação", previstos:"Previsão de chegada", fundeados:"Chegada confirmada", desatracados:"Saída"};
 /* atalhos de período: [rótulo, dias a partir de hoje (início), dias a partir de hoje (fim)] — "mes" = mês atual */
 var FPRE = {
   desatracados:[["Últimos 7 dias",-7,0],["Últimos 30 dias",-30,0],["Últimos 90 dias",-90,0],["Este mês","mes"]],
@@ -216,7 +216,7 @@ function imprimirRelacao(){
     '<div><b>Filtros aplicados:</b> ' + filtros + '</div>' +
     (id === "rascunhos" ? '<div class="pw">Documento interno: rascunhos ainda não publicados no MEP.</div>' : '') + '</div>' +
     tabelaImpressao(id, items) +
-    (legendaEmb(items).length ? '<div class="pleg"><b>Legenda das embalagens:</b> ' + legendaEmb(items).join(' · ') + '</div>' : '') +
+    (legendaEmb(items).length ? '<div class="pleg"><b>Legenda:</b> ' + legendaEmb(items).join(' · ') + '</div>' : '') +
     '<div class="pfoot">' + esc(CONFIG.endereco || "") + ' · Telefone: ' + esc(CONFIG.telefones || "") + ' · ' + esc(CONFIG.setor || "") + '</div>';
   var pa = document.getElementById("print-area"); pa.innerHTML = h;
   var st = document.createElement("style"); st.id = "print-page"; st.textContent = "@page{size:A4 landscape;margin:9mm 8mm}"; document.head.appendChild(st);

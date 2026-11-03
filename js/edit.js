@@ -104,7 +104,7 @@ function faltaSaida(g){
 function faltaPublicar(r){
   var f = [];
   if(!r.navio) f.push("nome"); if(!r.agencia) f.push("agência"); if(!r.operacao) f.push("operação");
-  if(!r.chegada) f.push("chegada (ETA)"); if(!r.cais) f.push("berço");
+  if(!r.chegada) f.push("chegada"); if(!r.cais) f.push("berço");
   if(comCarga(r.operacao)){ if(!r.carga) f.push("carga"); if(!(+r.ton_prevista)) f.push("toneladas"); }
   return f;
 }
@@ -405,10 +405,10 @@ function senhaUsuario(u){
 function manobraCampos(p){
   var d = p === "d_";
   return [
-    [p+"hora_pratico", "Prático a bordo (POB)", {t:"hm", agora:1}],
+    [p+"hora_pratico", "Prático a bordo", {t:"hm", agora:1}],
     [p+"inicio_manobra", "Início da manobra (BOSP)", {t:"hm", agora:1}],
-    [p+"hora_amarracao", d ? "Largada do último cabo" : "Amarração do último cabo (ATB)", {t:"hm", agora:1}],
-    [p+"termino_manobra", d ? "Término da manobra" : "Término da manobra (ATB)", {t:"hm", agora:1}],
+    [p+"hora_amarracao", d ? "Largada do último cabo" : "Amarração do último cabo", {t:"hm", agora:1}],
+    [p+"termino_manobra", d ? "Término da manobra" : "Término da manobra", {t:"hm", agora:1}],
     [p+"bordo", d ? "Bordo de desatracação" : "Bordo de atracação", {t:"bordo"}],
     [p+"pratico", "Prático (nome)", {}],
     [p+"calado_proa", d ? "Calado proa na saída (m)" : "Calado proa (m)", {t:"dec",h:1}],
@@ -422,19 +422,19 @@ function bloco(id, sit){
   if(id === "dados"){
     var c = [["navio","Nome da embarcação",{req:1}], ["imo","IMO",{t:"imo"}], ["agencia","Agência de navegação",{pub:1,h:1}], ["operador","Operador portuário",{h:1}],
              ["operacao","Operação",{t:"op",w:1,pub:1}], ["carga","Carga",{t:"carga",pubc:1,h:1,w:1}], ["ton_prevista","Toneladas previstas",{t:"num",pubc:1,h:1}]];
-    if(pre) c.push(["chegada","Previsão de chegada (ETA)",{t:"dt",pub:1}], ["cais","Berço previsto",{t:"cais",pub:1}]);
+    if(pre) c.push(["chegada","Previsão de chegada",{t:"dt",pub:1}], ["cais","Berço previsto",{t:"cais",pub:1}]);
     var mais = [["nacionalidade","Bandeira (país)",{t:"pais"}], ["comprimento","Comprimento (m)",{t:"dec",h:1}], ["calado","Calado máximo (m)",{t:"dec",h:1}], ["origem_destino","Origem / destino da carga",{}], ["porto_anterior","Porto anterior",{}], ["proximo_porto","Próximo porto",{}]];
-    if(pre) mais.push(["previsao_atracacao","Previsão de atracação (POB)",{t:"dt"}], ["saida","Previsão de saída (ETD)",{t:"dt"}], ["observacoes","Observações",{t:"ta",w:1}]);
+    if(pre) mais.push(["previsao_atracacao","Previsão de atracação",{t:"dt"}], ["saida","Previsão de saída",{t:"dt"}], ["observacoes","Observações",{t:"ta",w:1}]);
     return {id:"dados", t:"Embarcação", secs:[{c:c}], mais:mais};
   }
-  if(id === "fundeio") return {id:"fundeio", t:"Chegada", secs:[{c:[["chegada","Chegada confirmada (fundeio)",{t:"dt",req:1,agora:1,def:"now"}], ["cais","Berço previsto",{t:"cais"}], ["previsao_atracacao","Previsão de atracação (POB)",{t:"dt"}], ["saida","Previsão de saída (ETD)",{t:"dt"}], ["observacoes","Observações",{t:"ta",w:1}]]}]};
+  if(id === "fundeio") return {id:"fundeio", t:"Chegada", secs:[{c:[["chegada","Chegada confirmada (fundeio)",{t:"dt",req:1,agora:1,def:"now"}], ["cais","Berço previsto",{t:"cais"}], ["previsao_atracacao","Previsão de atracação",{t:"dt"}], ["saida","Previsão de saída",{t:"dt"}], ["observacoes","Observações",{t:"ta",w:1}]]}]};
   if(id === "atracacao"){
     var m = manobraCampos("");
     return {id:"atracacao", t:"Atracação", secs:[
       {c:[["chegada","Data e hora da atracação",{t:"dt",req:1,agora:1,def:"now"}], ["cais","Berço atracado",{t:"cais",req:1}], ["cbo","CBO (Carimbo)",{t:"cbo",h:1}]]},
       {t:"Manobra de atracação", c:m, man:1}]};
   }
-  if(id === "operacao") return {id:"operacao", t:"Operação", secs:[{c:[["ton_movimentada","Toneladas movimentadas até agora",{t:"num"}], ["saida","Previsão de saída (ETD)",{t:"dt"}], ["observacoes","Observações",{t:"ta",w:1}]]}]};
+  if(id === "operacao") return {id:"operacao", t:"Operação", secs:[{c:[["ton_movimentada","Toneladas movimentadas até agora",{t:"num"}], ["saida","Previsão de saída",{t:"dt"}], ["observacoes","Observações",{t:"ta",w:1}]]}]};
   if(id === "desatracacao") return {id:"desatracacao", t:"Desatracação", secs:[
     {c:[["saida","Data e hora da saída (desatracação)",{t:"dt",req:1,agora:1,def:"now"}], ["ton_movimentada","Tonelagem final (t)",{t:"num"}]]},
     {t:"Manobra de desatracação", c:manobraCampos("d_"), man:1},
