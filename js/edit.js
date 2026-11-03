@@ -16,6 +16,7 @@ var G_MANOBRA = ["hora_pratico","hora_amarracao","inicio_manobra","termino_manob
 var G_DMANOBRA = ["d_hora_pratico","d_hora_amarracao","d_inicio_manobra","d_termino_manobra","d_bordo","d_calado_proa","d_calado_popa","d_cabecos","d_pratico","d_rebocadores"];
 var CAMPOS_ETAPA = {previsao:G_IDENT.concat(G_DATAS), fundeio:G_IDENT.concat(G_DATAS), atracacao:G_IDENT.concat(G_REGISTRO, G_DATAS, G_MANOBRA, G_DMANOBRA, ["ton_movimentada"]), movimentacao:["ton_movimentada","observacoes"], desatracacao:["saida","ton_movimentada","observacoes"].concat(G_DMANOBRA)};
 var OPS_SERV = ["DRAGAGEM","ABASTECIMENTO","OP. MILITAR","PESQUISA","REPARO"];
+var CONHECER_AGORA = null;   /* reexecuta a busca do navio quando o histórico completo termina de carregar */
 var SUG_CAMPOS = ["navio","nacionalidade","agencia","operador","carga","origem_destino","porto_anterior","proximo_porto","pratico","rebocadores"], SUG_CACHE = null;
 
 function E(id){ return document.getElementById(id); }
@@ -122,14 +123,19 @@ function proximoCbo(){
   todosRegistros().forEach(function(r){ var m = /^(\d{4})\/(\d{2})$/.exec(String(r.cbo||"").trim()); if(m && +m[2] === yy && +m[1] > max) max = +m[1]; });
   return ("000" + (max + 1)).slice(-4) + "/" + p2(yy);
 }
-function achaNavio(nome, imo){   /* a escala mais recente desse navio no banco (para preencher os dados fixos dele) */
-  var n = normH(nome), best = null, bd = -1;
-  todosRegistros().forEach(function(r){
-    if(!((n && normH(r.navio) === n) || (imo && String(r.imo||"") === imo))) return;
-    var d = parseDate(r.saida || r.chegada), t = d ? +d : 0;
-    if(!best || t >= bd){ best = r; bd = t; }
+var FIXOS_NAVIO = [["nacionalidade","bandeira"],["imo","IMO"],["comprimento","comprimento"],["calado","calado"],["agencia","agência"],["operador","operador"]];
+function achaNavio(nome, imo){   /* o que o banco já sabe desse navio: escala mais recente + dados fixos que faltem nela, completados com escalas anteriores */
+  var n = normH(nome), hits = [];
+  todosRegistros().forEach(function(r){ if((n && normH(r.navio) === n) || (imo && String(r.imo||"") === imo)) hits.push(r); });
+  if(!hits.length) return null;
+  function t(r){ var d = parseDate(r.saida || r.chegada); return d ? +d : 0; }
+  hits.sort(function(a, b){ return t(b) - t(a); });
+  var out = {}, topo = hits[0]; Object.keys(topo).forEach(function(k){ out[k] = topo[k]; });
+  hits.slice(1).forEach(function(r){
+    if(topo.imo && r.imo && String(topo.imo) !== String(r.imo)) return;   /* IMO diferente: é outra embarcação com o mesmo nome */
+    FIXOS_NAVIO.forEach(function(f){ var k = f[0]; if((out[k] === "" || out[k] == null) && r[k] !== "" && r[k] != null) out[k] = r[k]; });
   });
-  return best;
+  return out;
 }
 function emAndamento(nome, imo, idSelf){   /* mesma embarcação já ativa em outro registro */
   var n = normH(nome), hit = null;
@@ -180,7 +186,7 @@ function carregarSug(){
   pintarSug(montarSug(todosRegistros()));          /* já mostra o que a página tem na tela */
   if(SUG_CACHE) return;
   post({acao:"lista", dias:3650}).then(function(j){     /* depois completa com o banco inteiro, inclusive o histórico antigo */
-    SUG_CACHE = j.navios || []; pintarSug(montarSug(SUG_CACHE));
+    SUG_CACHE = j.navios || []; pintarSug(montarSug(SUG_CACHE)); if(CONHECER_AGORA){ try{ CONHECER_AGORA(); }catch(e){} }
     setTimeout(function(){ SUG_CACHE = null; }, 120000);
   }, function(){});
 }
@@ -695,14 +701,15 @@ function abrirForm(cfg){
     }
     if(s) return;   /* só preenche automaticamente em cadastro novo */
     var r = achaNavio(nm, im); if(!r) return;
-    var cp = {nacionalidade:r.nacionalidade, imo:r.imo, comprimento:r.comprimento, calado:r.calado, agencia:r.agencia, operador:r.operador}, pre = [];
-    Object.keys(cp).forEach(function(k){ var el = F(k), val = cp[k] == null ? "" : String(cp[k]); if(el && !el.value && val){ el.value = String(val).replace(".", ","); pre.push(k); } });
+    var cp = {nacionalidade:r.nacionalidade, imo:r.imo, comprimento:r.comprimento, calado:r.calado, agencia:r.agencia, operador:r.operador}, pre = [], nomes = {};
+    FIXOS_NAVIO.forEach(function(f){ nomes[f[0]] = f[1]; });
+    Object.keys(cp).forEach(function(k){ var el = F(k), val = cp[k] == null ? "" : String(cp[k]); if(el && !el.value && val){ el.value = String(val).replace(".", ","); pre.push(nomes[k] || k); } });
     if(F("nacionalidade") && F("nacionalidade").value) F("nacionalidade").dispatchEvent(new Event("input"));
     if(!F("navio").value && r.navio) F("navio").value = r.navio;
-    if(!F("operacao") || !F("operacao").value){ if(r.operacao && F("operacao")){ F("operacao").value = r.operacao; if(F("servico") && !comCarga(r.operacao)) F("servico").value = r.operacao; aplicarOp(); pre.push("operacao"); } }
+    if(!F("operacao") || !F("operacao").value){ if(r.operacao && F("operacao")){ F("operacao").value = r.operacao; if(F("servico") && !comCarga(r.operacao)) F("servico").value = r.operacao; aplicarOp(); pre.push("operação"); } }
     if(F("carga") && !F("carga").value && r.carga && comCarga(r.operacao)){ F("carga").value = r.carga; cgLer(); pre.push("carga"); }
     var dd = parseDate(r.saida || r.chegada);
-    hn.textContent = "Já esteve no porto" + (dd ? " em " + fmt(r.saida || r.chegada).split(" · ")[0] : "") + (pre.length ? ". Preenchemos os dados dele — confira." : ".");
+    hn.textContent = "Já esteve no porto" + (dd ? " em " + fmt(r.saida || r.chegada).split(" · ")[0] : "") + (pre.length ? ". Preenchemos: " + pre.join(", ") + " — confira se ainda estão certos." : ".");
   }
   if(F("nacionalidade")){
     var fpv = function(fix){
@@ -717,6 +724,7 @@ function abrirForm(cfg){
     F("nacionalidade").addEventListener("change", function(){ fpv(true); });
     F("nacionalidade").addEventListener("blur", function(){ fpv(true); });
   }
+  CONHECER_AGORA = function(){ if(d.open) conhecer(); };
   if(F("navio")){ F("navio").addEventListener("change", conhecer); F("navio").addEventListener("blur", conhecer); if(F("imo")) F("imo").addEventListener("change", conhecer); }
   d.addEventListener("click", function(e){
     var b = e.target.closest("[data-abrir]"); if(!b) return;
