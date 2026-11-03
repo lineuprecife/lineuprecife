@@ -601,3 +601,6 @@ abbr[title]{text-decoration:none;cursor:help}
 /* IMO clicável (MarineTraffic) */
 a.imo-link{color:var(--blue);text-decoration:underline;text-underline-offset:2px}
 a.imo-link:hover{text-decoration-thickness:2px}
+
+/* Assinatura do desenvolvedor, discreta no fim do rodapé */
+footer .f-dev{margin-top:10px;padding-top:8px;border-top:1px solid rgba(255,255,255,.25);font-size:12px;opacity:.85}
