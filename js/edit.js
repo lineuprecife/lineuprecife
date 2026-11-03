@@ -783,7 +783,7 @@ function abrirForm(cfg){
     }
     var mudouSit = !s || dest !== sitKey(s);
     if(dest !== "rascunhos" && imoObrig(val("comprimento")) && !String(val("imo")).trim() && (cfg.avanco || mudouSit || numDec(val("comprimento")) !== numDec(rec.comprimento) || String(val("imo")) !== String(rec.imo == null ? "" : rec.imo))) pedir("imo", "IMO", "Obrigatório para embarcação com " + LIM_IMO + " metros ou mais.");
-    if(v.imo){ if(!/^\\d{6,7}$/.test(v.imo)) marcar("imo", "O IMO tem 6 ou 7 números.", erros); else if(!imoOk(v.imo)) avs.push("O IMO " + v.imo + " não passa na conferência do dígito final. Confira com o agente."); }
+    if(v.imo){ if(!/^\d{6,7}$/.test(v.imo)) marcar("imo", "O IMO tem 6 ou 7 números.", erros); else if(!imoOk(v.imo)) avs.push("O IMO " + v.imo + " não passa na conferência do dígito final. Confira com o agente."); }
     if(v.cbo){
       if(!/^\d{4}\/\d{2}$/.test(v.cbo)) marcar("cbo", "Use o formato 0000/26.", erros);
       else { var outro = todosRegistros().filter(function(r){ return r.id !== ctx.id && String(r.cbo||"").trim() === v.cbo; })[0]; if(outro) marcar("cbo", "O CBO " + v.cbo + " já é de " + outro.navio + ".", erros); }
