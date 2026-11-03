@@ -94,7 +94,7 @@ var CAMPOS_ETAPA = {
   desatracacao: ['saida', 'ton_movimentada', 'observacoes'].concat(G_DMANOBRA)
 };
 var INTERNOS = G_DMANOBRA.concat(['calado_proa', 'calado_popa', 'cabecos', 'pratico', 'rebocadores', 'observacoes', 'nr_livro', 'hora_pratico', 'hora_amarracao', 'inicio_manobra', 'termino_manobra']);
-var ROTULO = {contra_bordo_de: 'Contra bordo de', navio: 'Nome da embarcação', nacionalidade: 'Bandeira / porto de matrícula', imo: 'IMO', cbo: 'CBO', comprimento: 'Comprimento', calado: 'Calado máximo', agencia: 'Agência', operador: 'Operador', carga: 'Carga', operacao: 'Operação', origem_destino: 'Origem / destino', porto_anterior: 'Porto anterior', proximo_porto: 'Próximo porto', ton_prevista: 'Toneladas previstas', nr_livro: 'Nº no livro', observacoes: 'Observações', chegada: 'Data de chegada / atracação', previsao_atracacao: 'Previsão de atracação (POB)', saida: 'Saída', cais: 'Berço', hora_pratico: 'Hora do prático', hora_amarracao: 'Hora da amarração', inicio_manobra: 'Início da manobra', termino_manobra: 'Término da manobra', bordo: 'Bordo de atracação', calado_proa: 'Calado proa', calado_popa: 'Calado popa', cabecos: 'Cabeços', pratico: 'Prático', rebocadores: 'Rebocadores', ton_movimentada: 'Toneladas movimentadas',
+var ROTULO = {contra_bordo_de: 'Contra bordo de', navio: 'Nome da embarcação', nacionalidade: 'Bandeira / porto de matrícula', imo: 'IMO', cbo: 'CBO', comprimento: 'Comprimento', calado: 'Calado máximo', agencia: 'Agência', operador: 'Operador', carga: 'Carga', operacao: 'Operação', origem_destino: 'Origem / destino', porto_anterior: 'Porto anterior', proximo_porto: 'Próximo porto', ton_prevista: 'Toneladas previstas', nr_livro: 'Nº no livro', observacoes: 'Observações', chegada: 'Data de chegada / atracação', previsao_atracacao: 'Previsão de atracação', saida: 'Saída', cais: 'Berço', hora_pratico: 'Hora do prático', hora_amarracao: 'Hora da amarração', inicio_manobra: 'Início da manobra', termino_manobra: 'Término da manobra', bordo: 'Bordo de atracação', calado_proa: 'Calado proa', calado_popa: 'Calado popa', cabecos: 'Cabeços', pratico: 'Prático', rebocadores: 'Rebocadores', ton_movimentada: 'Toneladas movimentadas',
   d_hora_pratico: 'Desatracação · hora do prático', d_hora_amarracao: 'Desatracação · largada do último cabo', d_inicio_manobra: 'Desatracação · início da manobra', d_termino_manobra: 'Desatracação · término da manobra', d_bordo: 'Desatracação · bordo', d_calado_proa: 'Desatracação · calado proa', d_calado_popa: 'Desatracação · calado popa', d_cabecos: 'Desatracação · cabeços', d_pratico: 'Desatracação · prático', d_rebocadores: 'Desatracação · rebocadores'};
 
 /* ---------- utilidades ---------- */
@@ -365,7 +365,7 @@ function validar_(d, o, sitNova, reg, f, mexidos, avancando) {
   if (avancando) {   /* cadastrando ou avançando de etapa: cada etapa exige o que a define */
     var falta = [], exige = function (ok, nome) { if (!ok) falta.push(nome); };
     if (sitNova === 'previstos') {
-      exige(f('agencia'), 'agência'); exige(f('operacao'), 'operação'); exige(f('chegada'), 'previsão de chegada (ETA)'); exige(f('cais'), 'berço previsto');
+      exige(f('agencia'), 'agência'); exige(f('operacao'), 'operação'); exige(f('chegada'), 'previsão de chegada'); exige(f('cais'), 'berço previsto');
       if (comCarga_(f('operacao'))) { exige(f('carga'), 'carga'); exige(f('ton_prevista'), 'toneladas previstas'); }
     }
     if (sitNova === 'fundeados') exige(tem('chegada'), 'data e hora da chegada');
