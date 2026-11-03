@@ -199,7 +199,7 @@ function toItem(r){
 }
 function ord(id, a, b){
   var da = parseDate(a.chegada), db = parseDate(b.chegada); da = da ? +da : 0; db = db ? +db : 0;
-  if(id === "atracados") return (parseInt(a.cais,10)||99) - (parseInt(b.cais,10)||99) || da - db;
+  if(id === "atracados") return caisN(a.cais) - caisN(b.cais) || da - db;   /* 00-TA primeiro, depois 1, 2, 3... */
   if(id === "desatracados"){ var sa = parseDate(a.saida), sb = parseDate(b.saida); return (sb ? +sb : 0) - (sa ? +sa : 0); }
   return da - db;
 }

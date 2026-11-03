@@ -47,7 +47,7 @@ function fvals(s, k){
   }
   return s[k] ? [s[k]] : [];
 }
-function caisN(l){ return l === "00-TA" ? 0 : (parseInt(l, 10) || 99); }
+function caisN(l){ var k = caisKeys(l)[0]; return k === undefined ? 99 : (k === "00-TA" ? 0 : parseInt(k, 10)); }   /* 00-TA vale 0 (primeiro); 1 a 9 em ordem; o que não for berço vai para o fim */
 function fopts(id, k){
   var m = {}, out = [];
   listOf(id).forEach(function(s){
