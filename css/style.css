@@ -604,3 +604,41 @@ a.imo-link:hover{text-decoration-thickness:2px}
 
 /* Assinatura do desenvolvedor, discreta no fim do rodapé */
 footer .f-dev{margin-top:10px;padding-top:8px;border-top:1px solid rgba(255,255,255,.25);font-size:12px;opacity:.85}
+
+/* ===== Ficha "Manobras de Acostagem": meia folha A4 (210 x 148 mm), 1 ou 2 por folha ===== */
+@media print{
+  body.printing-ficha{margin:0!important;padding:0!important;background:#fff!important}
+  body.printing-ficha #print-area{font:9pt/1.2 Arial,"Segoe UI",sans-serif}
+  .fch-sheet{position:relative;width:210mm;height:296mm;overflow:hidden}
+  .fch{box-sizing:border-box;width:210mm;height:148mm;padding:6mm 10mm 4mm;display:flex;flex-direction:column;gap:1.5mm;color:#000}
+  .fch-h{display:flex;align-items:center;gap:4mm;padding-bottom:1.6mm;border-bottom:1.4pt solid #0060B0}
+  .fch-logo{display:flex;flex-direction:column;align-items:center;gap:.6mm;width:24mm}
+  .fch-logo img{height:11mm;width:auto}
+  .fch-logo span{font:700 4.8pt/1 Verdana,Tahoma,sans-serif;color:#1B3A6B;white-space:nowrap}
+  .fch-h h1{flex:1;margin:0;padding-right:24mm;text-align:center;font:700 15pt/1.1 "Montserrat","Segoe UI",Arial,sans-serif;letter-spacing:.4pt;color:#0060B0}
+  .fch-r{display:flex;gap:4mm;align-items:flex-end}
+  .fch-f{display:flex;align-items:flex-end;gap:1.4mm;min-width:0}
+  .fch-g{flex:1}
+  .fch-w2{flex:0 0 38mm}
+  .fch-l{font:700 6.6pt/1 Arial,sans-serif;text-transform:uppercase;white-space:nowrap;color:#1B3A6B;padding-bottom:.9mm}
+  .fch-v{flex:1;min-width:0;box-sizing:border-box;border-bottom:.5pt solid #444;height:5.6mm;font:700 10pt/5.4mm Arial,sans-serif;color:#0b2a5b;padding:0 1mm;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .fch-u{font:600 6.8pt/1 Arial,sans-serif;color:#555;padding-bottom:.9mm}
+  .fch-obs .fch-v{border-bottom:0;height:9.2mm;white-space:normal;font-size:8.5pt;line-height:4.6mm;background:linear-gradient(#444,#444) 0 4.5mm/100% .5pt no-repeat,linear-gradient(#444,#444) 0 100%/100% .5pt no-repeat}
+  .fch-m{display:flex;gap:4mm;flex:1;min-height:0}
+  .fch-box{box-sizing:border-box;border:.9pt solid #1B3A6B;border-radius:1.6mm;padding:1.2mm 2mm}
+  .fch-cq{flex:1.75;display:flex;align-items:center;justify-content:center;min-width:0}
+  .fch-cq svg{width:100%;height:100%;max-height:100%}
+  .fch-cal{flex:1;display:flex;flex-direction:column;justify-content:space-around}
+  .fch-t{font:700 8pt/1 Arial,sans-serif;color:#1B3A6B;letter-spacing:.6pt;text-decoration:underline}
+  .fch-c{display:flex;align-items:flex-end;gap:1mm}
+  .fch-c .fch-l{width:9mm}
+  .fch-vs{flex:.8}
+  .fch-s{display:flex;align-items:flex-end;gap:6mm;margin-top:1mm}
+  .fch-sg{flex:1;text-align:center}
+  .fch-sg i{display:block;height:9mm;border-bottom:.5pt solid #444}
+  .fch-sg span{font:700 6.2pt/1.4 Arial,sans-serif;color:#1B3A6B}
+  .fch-cb{flex:0 0 46mm;display:flex;align-items:flex-end;gap:1.4mm}
+  .fch-ft{font:5.5pt/1 Arial,sans-serif;color:#888;text-align:right}
+  .fch-cut{position:absolute;left:8mm;right:8mm;top:148mm;height:0;border-top:.4pt dashed #888}
+  .fch-cut span{position:absolute;left:0;top:-1.6mm;padding-right:2mm;background:#fff;font:5.5pt/1 Arial,sans-serif;color:#888}
+}
