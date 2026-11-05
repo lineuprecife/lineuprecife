@@ -750,6 +750,24 @@ function abrirForm(cfg){
   ["comprimento", "nacionalidade"].forEach(function(k){ var el = F(k); if(el){ el.addEventListener("input", aplicarPorte); el.addEventListener("change", aplicarPorte); el.addEventListener("blur", aplicarPorte); } });
   aplicarPorte();
 
+  /* --- portos: ao digitar, sugere o que já está no banco + a base mundial de portos (data/portos.json) --- */
+  ["porto_anterior", "proximo_porto", "origem_destino"].forEach(function(k){
+    var el = F(k), dl = E("dl_" + k); if(!el || !dl) return;
+    function atualizar(){
+      var txt = el.value, parte = txt.split("/").pop().trim(), kk = _portoKey(parte), vistos = {}, h = "";
+      if(kk.length < 2) return;                                   /* só filtra depois de 2 letras: a lista é grande */
+      function add(v, rot){ var c = _portoKey(v); if(vistos[c]) return; vistos[c] = 1; h += '<option value="'+esc(v)+'"'+(rot ? ' label="'+esc(rot)+'"' : "")+'>'; }
+      var hist = montarSug(todosRegistros())[k];                  /* 1º o que a equipe já digitou (mais usados primeiro) */
+      Object.keys(hist).map(function(c){ return hist[c]; }).filter(function(o){ return _portoKey(o.v).indexOf(kk) >= 0; })
+        .sort(function(a, b){ return b.n - a.n; }).slice(0, 15).forEach(function(o){ add(o.v); });
+      buscarPortos(parte, 40).forEach(function(o){ add(o.nome, o.pais + (o.estado && o.estado !== o.pais ? " — " + o.estado : "")); });
+      dl.innerHTML = h;
+    }
+    el.addEventListener("input", function(){ atualizar(); });
+    el.addEventListener("focus", function(){ carregarPortos(atualizar); });
+  });
+  carregarPortos();
+
   /* --- leitura e conferência --- */
   function ler(){
     var v = {};

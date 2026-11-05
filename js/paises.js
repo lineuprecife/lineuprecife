@@ -264,6 +264,46 @@ var PORTOS_EXT = ("ABIDJAN,ANTUERPIA,ARGEL,BALBOA,BALTIMORE,BANJUL,BATUMI,CARTAG
 function _portoKey(t){
   return String(t == null ? "" : t).toUpperCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "").replace(/[^A-Z0-9 ]/g, " ").replace(/\s+/g, " ").trim();
 }
+/* ---- Base de portos do mundo (data/portos.json, NGA World Port Index em pt-BR) ----
+   Carregada sob demanda (arquivo grande) na primeira vez que alguém abre um formulário.
+   Serve para: (1) sugerir portos nos campos Porto anterior / Próximo porto / Origem-destino;
+               (2) deduzir o tipo de navegação pelo país do porto quando ele não está nas listas abaixo.
+   Os nomes dos portos ficam como no original (inglês/local), em maiúsculas. */
+var PORTOS_DB = {lista:null, idx:null, estado:"", espera:[]};
+function carregarPortos(cb){
+  if(cb){ if(PORTOS_DB.lista){ try{ cb(PORTOS_DB.lista); }catch(e){} return; } PORTOS_DB.espera.push(cb); }
+  if(PORTOS_DB.estado) return;
+  PORTOS_DB.estado = "carregando";
+  fetch("data/portos.json?v=20261105a").then(function(r){ if(!r.ok) throw new Error("HTTP " + r.status); return r.json(); }).then(function(j){
+    var lista = [], idx = {}, vistos = {};
+    (j.ports || []).forEach(function(p){
+      var nome = String(p.wpi_port_name || p.point_of_interest || "").trim().toUpperCase(); if(!nome) return;
+      var k = _portoKey(nome); if(!k) return;
+      var dk = k + "|" + (p.country || ""); if(vistos[dk]) return; vistos[dk] = 1;
+      var o = {nome:nome, key:k, pais:p.country || "", estado:p.state || "", tam:p.port_size || ""};
+      lista.push(o); (idx[k] = idx[k] || []).push(o);
+    });
+    PORTOS_DB.lista = lista; PORTOS_DB.idx = idx; PORTOS_DB.estado = "pronto";
+    var e = PORTOS_DB.espera; PORTOS_DB.espera = []; e.forEach(function(f){ try{ f(lista); }catch(x){} });
+  }).catch(function(){ PORTOS_DB.estado = ""; PORTOS_DB.espera = []; });   /* sem o arquivo (ou abrindo direto do disco) o sistema segue só com as listas internas */
+}
+/* Portos que combinam com o texto digitado (sem acento, sem diferenciar maiúsculas): primeiro os que começam com ele. */
+function buscarPortos(txt, max){
+  var k = _portoKey(txt); if(!PORTOS_DB.lista || k.length < 2) return [];
+  var ini = [], meio = [];
+  for(var i = 0; i < PORTOS_DB.lista.length; i++){
+    var o = PORTOS_DB.lista[i], at = o.key.indexOf(k);
+    if(at === 0) ini.push(o); else if(at > 0) meio.push(o);
+    if(ini.length >= (max || 40)) break;
+  }
+  return ini.concat(meio).slice(0, max || 40);
+}
+/* País (em pt-BR) de um porto da base, ou "" se não existir ou se o nome existir em países diferentes. */
+function paisDoPorto(k){
+  var a = PORTOS_DB.idx && PORTOS_DB.idx[k]; if(!a || !a.length) return "";
+  var p = a[0].pais; for(var i = 1; i < a.length; i++) if(a[i].pais !== p) return "";
+  return p;
+}
 function navegacaoPorRota(portos){
   var br = 0, ms = 0, ext = 0;
   (portos || []).forEach(function(txt){
@@ -272,6 +312,10 @@ function navegacaoPorRota(portos){
       if(PORTOS_EXT.indexOf(k) >= 0) ext++;
       else if(PORTOS_MS.indexOf(k) >= 0) ms++;
       else if(PORTOS_BR.indexOf(k) >= 0) br++;
+      else {   /* fora das listas acima: usa o país do porto na base mundial (se já carregada e sem ambiguidade) */
+        var nv = navegacaoDe(paisDoPorto(k));
+        if(nv) { if(nv.sigla === "LC") ext++; else if(nv.sigla === "MS") ms++; else br++; }
+      }
     });
   });
   if(ext) return {sigla:"LC", nome:"Longo curso"};
